@@ -25,21 +25,7 @@ public class File {
 	private final OkHttpClient client;
 	private static final String TAG = "GCon.File";
 
-	private static enum fileProps {
-		fileuid,
-		accountuid,
-		isdir,
-		islink,
-		fileblocks,
-		filesize,
-		isdeleted,
-		changetime,
-		modifytime,
-		accesstime,
-		createtime
-	}
-
-	private static final String[] filePropsaaaa = {
+	private static final String[] fileProps = {
 			"fileuid",
 			"accountuid",
 
@@ -50,11 +36,11 @@ public class File {
 			"filesize",
 
 			"isdeleted",
-
 			"changetime",
 			"modifytime",
 			"accesstime",
-			"createtime"};
+			"createtime"
+	};
 
 
 	public File(String baseServerUrl, OkHttpClient client) {
@@ -72,7 +58,7 @@ public class File {
 		throw new RuntimeException("Stub");
 	}
 
-	public JsonObject getFileProps(@NonNull UUID fileUID) throws IOException {
+	public JsonObject getProps(@NonNull UUID fileUID) throws IOException {
 		Log.i(TAG, String.format("\nGET FILE called with fileUID='"+fileUID+"'"));
 		String url = Paths.get(baseServerUrl, "files", fileUID.toString()).toString();
 
@@ -98,7 +84,7 @@ public class File {
 
 
 	//Create a new file entry in the database
-	public JsonObject createFileEntry(@NonNull JsonObject props) throws IOException {
+	public JsonObject createEntry(@NonNull JsonObject props) throws IOException {
 		Log.i(TAG, "\nCREATE FILE called");
 		String url = Paths.get(baseServerUrl, "files", "insert").toString();
 
@@ -128,7 +114,7 @@ public class File {
 	}
 
 
-	public JsonObject updateFileEntry(@NonNull JsonObject props) throws IOException {
+	public JsonObject updateEntry(@NonNull JsonObject props) throws IOException {
 		if(!props.has("fileuid"))
 			throw new IllegalArgumentException("File update request must contain fileuid!");
 
@@ -136,9 +122,10 @@ public class File {
 		Log.i(TAG, "\nUPDATE FILE called with fileUID='"+fileUID+"'");
 		String url = Paths.get(baseServerUrl, "files", "update", fileUID.toString()).toString();
 
-		if(!(props.keySet().size() > 1 && fileProps..containsAll(props.keySet())))
-			throw new IllegalArgumentException("File update request must contain at least one of "+
-					Arrays.stream(fileProps.values()).map(fileProps::name).collect(Collectors.joining(" ")));
+		//Note: This isn't checking that any usable props are sent, maybe we should but server can do that
+		if(!(props.keySet().size() > 1))
+			throw new IllegalArgumentException("File update request must contain " +
+					"at least one property other than fileuid!");
 
 
 		//Compile all passed properties into a form body
