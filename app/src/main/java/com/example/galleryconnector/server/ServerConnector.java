@@ -4,6 +4,11 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import com.example.galleryconnector.server.subcomponents.AccountConnector;
+import com.example.galleryconnector.server.subcomponents.BlockConnector;
+import com.example.galleryconnector.server.subcomponents.FileConnector;
+import com.example.galleryconnector.server.subcomponents.JournalConnector;
+
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
@@ -17,24 +22,24 @@ public class ServerConnector {
 	OkHttpClient client;
 	private static final String TAG = "Gal.SConnector";
 
-	public final Account account;
-	public final File file;
-	public final Block block;
-	public final Journal journal;
+	public final AccountConnector account;
+	public final FileConnector file;
+	public final BlockConnector block;
+	public final JournalConnector journal;
 
 
 	public ServerConnector() {
 		client = new OkHttpClient().newBuilder()
-				//.addInterceptor(new LogInterceptor())
+				.addInterceptor(new LogInterceptor())
 				.followRedirects(true)
 				.connectTimeout(3, TimeUnit.SECONDS)        //TODO Temporary timeout, prob increase later
 				.followSslRedirects(true)
 				.build();
 
-		account = new Account(baseServerUrl, client);
-		file = new File(baseServerUrl, client);
-		block = new Block(baseServerUrl, client);
-		journal = new Journal(baseServerUrl, client);
+		account = new AccountConnector(baseServerUrl, client);
+		file = new FileConnector(baseServerUrl, client);
+		block = new BlockConnector(baseServerUrl, client);
+		journal = new JournalConnector(baseServerUrl, client);
 	}
 
 	public static ServerConnector getInstance() {
@@ -44,6 +49,18 @@ public class ServerConnector {
 		private static final ServerConnector INSTANCE = new ServerConnector();
 	}
 
+
+
+
+
+
+
+
+
+
+
+
+	//---------------------------------------------------------------------------------------------
 
 	public static class LogInterceptor implements Interceptor {
 		@NonNull

@@ -1,18 +1,15 @@
-package com.example.galleryconnector.server;
+package com.example.galleryconnector.server.subcomponents;
 
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import okhttp3.FormBody;
 import okhttp3.OkHttpClient;
@@ -20,11 +17,12 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-public class File {
+public class FileConnector {
 	private final String baseServerUrl;
 	private final OkHttpClient client;
 	private static final String TAG = "GCon.File";
 
+	//For reference
 	private static final String[] fileProps = {
 			"fileuid",
 			"accountuid",
@@ -43,7 +41,7 @@ public class File {
 	};
 
 
-	public File(String baseServerUrl, OkHttpClient client) {
+	public FileConnector(String baseServerUrl, OkHttpClient client) {
 		this.baseServerUrl = baseServerUrl;
 		this.client = client;
 	}

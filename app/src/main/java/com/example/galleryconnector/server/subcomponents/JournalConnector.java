@@ -1,4 +1,4 @@
-package com.example.galleryconnector.server;
+package com.example.galleryconnector.server.subcomponents;
 
 import android.util.Log;
 
@@ -14,13 +14,13 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-public class Journal {
+public class JournalConnector {
 	private final String baseServerUrl;
 	private final OkHttpClient client;
 	private static final String TAG = "GCon.Journal";
 
 
-	public Journal(String baseServerUrl, OkHttpClient client) {
+	public JournalConnector(String baseServerUrl, OkHttpClient client) {
 		this.baseServerUrl = baseServerUrl;
 		this.client = client;
 	}

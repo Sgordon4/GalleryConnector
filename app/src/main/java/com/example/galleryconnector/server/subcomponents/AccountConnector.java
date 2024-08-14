@@ -1,4 +1,4 @@
-package com.example.galleryconnector.server;
+package com.example.galleryconnector.server.subcomponents;
 
 import android.util.Log;
 
@@ -18,11 +18,12 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-public class Account {
+public class AccountConnector {
 	private final String baseServerUrl;
 	private final OkHttpClient client;
 	private static final String TAG = "GCon.Account";
 
+	//For reference
 	private static final String[] accountProps = {
 			"accountuid",
 			"rootfileuid",
@@ -38,7 +39,7 @@ public class Account {
 	};
 
 
-	public Account(String baseServerUrl, OkHttpClient client) {
+	public AccountConnector(String baseServerUrl, OkHttpClient client) {
 		this.baseServerUrl = baseServerUrl;
 		this.client = client;
 	}

@@ -1,4 +1,4 @@
-package com.example.galleryconnector.server;
+package com.example.galleryconnector.server.subcomponents;
 
 import android.util.Log;
 
@@ -15,13 +15,13 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-public class Block {
+public class BlockConnector {
 	private final String baseServerUrl;
 	private final OkHttpClient client;
 	private static final String TAG = "GCon.Block";
 
 
-	public Block(String baseServerUrl, OkHttpClient client) {
+	public BlockConnector(String baseServerUrl, OkHttpClient client) {
 		this.baseServerUrl = baseServerUrl;
 		this.client = client;
 	}
