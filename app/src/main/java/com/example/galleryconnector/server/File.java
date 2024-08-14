@@ -5,11 +5,14 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import okhttp3.FormBody;
 import okhttp3.OkHttpClient;
@@ -21,6 +24,37 @@ public class File {
 	private final String baseServerUrl;
 	private final OkHttpClient client;
 	private static final String TAG = "GCon.File";
+
+	private static enum fileProps {
+		fileuid,
+		accountuid,
+		isdir,
+		islink,
+		fileblocks,
+		filesize,
+		isdeleted,
+		changetime,
+		modifytime,
+		accesstime,
+		createtime
+	}
+
+	private static final String[] filePropsaaaa = {
+			"fileuid",
+			"accountuid",
+
+			"isdir",
+			"islink",
+
+			"fileblocks",
+			"filesize",
+
+			"isdeleted",
+
+			"changetime",
+			"modifytime",
+			"accesstime",
+			"createtime"};
 
 
 	public File(String baseServerUrl, OkHttpClient client) {
@@ -60,19 +94,28 @@ public class File {
 	// Put
 	//---------------------------------------------------------------------------------------------
 
-	public JsonObject createFileEntry(@NonNull UUID ownerUID, boolean isDir, boolean isLink) throws IOException {
-		RequestBody body = new FormBody.Builder()
-				.add("owneruid", String.valueOf(ownerUID))
-				.add("isdir", String.valueOf(isDir))
-				.add("islink", String.valueOf(isLink))
-				.build();
-
-		Request request = new Request.Builder()
-				.url(baseServerUrl +"/files/")
-				.post(body)
-				.build();
+	//TODO Inside the ServerRepo (not here), check for blockset before doing this
 
 
+	//Create a new file entry in the database
+	public JsonObject createFileEntry(@NonNull JsonObject props) throws IOException {
+		Log.i(TAG, "\nCREATE FILE called");
+		String url = Paths.get(baseServerUrl, "files", "insert").toString();
+
+		String[] reqInsert = {"fileuid", "accountuid"};
+		if(!props.has(reqInsert[0]) || !props.has(reqInsert[1]))
+			throw new IllegalArgumentException("File creation request must contain fileuid & accountuid!");
+
+
+		//Compile all passed properties into a form body
+		FormBody.Builder builder = new FormBody.Builder();
+		for(String prop : props.keySet()) {
+			builder.add(prop, props.get(prop).getAsString());
+		}
+		RequestBody body = builder.build();
+
+
+		Request request = new Request.Builder().url(url).post(body).build();
 		try (Response response = client.newCall(request).execute()) {
 			if (!response.isSuccessful())
 				throw new IOException("Unexpected code " + response.code());
@@ -83,4 +126,45 @@ public class File {
 			return new Gson().fromJson(responseData, JsonObject.class);
 		}
 	}
+
+
+	public JsonObject updateFileEntry(@NonNull JsonObject props) throws IOException {
+		if(!props.has("fileuid"))
+			throw new IllegalArgumentException("File update request must contain fileuid!");
+
+		UUID fileUID = UUID.fromString(props.get("fileuid").getAsString());
+		Log.i(TAG, "\nUPDATE FILE called with fileUID='"+fileUID+"'");
+		String url = Paths.get(baseServerUrl, "files", "update", fileUID.toString()).toString();
+
+		if(!(props.keySet().size() > 1 && fileProps..containsAll(props.keySet())))
+			throw new IllegalArgumentException("File update request must contain at least one of "+
+					Arrays.stream(fileProps.values()).map(fileProps::name).collect(Collectors.joining(" ")));
+
+
+		//Compile all passed properties into a form body
+		FormBody.Builder builder = new FormBody.Builder();
+		for(String prop : props.asMap().keySet()) {
+			builder.add(prop, props.get(prop).getAsString());
+		}
+		RequestBody body = builder.build();
+
+
+		Request request = new Request.Builder().url(url).post(body).build();
+		try (Response response = client.newCall(request).execute()) {
+			if (!response.isSuccessful())
+				throw new IOException("Unexpected code " + response.code());
+			if(response.body() == null)
+				throw new IOException("Response body is null");
+
+			String responseData = response.body().string();
+			return new Gson().fromJson(responseData, JsonObject.class);
+		}
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	// Delete
+	//---------------------------------------------------------------------------------------------
+
+
 }

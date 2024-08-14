@@ -17,10 +17,10 @@ public class ServerConnector {
 	OkHttpClient client;
 	private static final String TAG = "Gal.SConnector";
 
-	Account account;
-	File file;
-	Block block;
-	Journal journal;
+	public final Account account;
+	public final File file;
+	public final Block block;
+	public final Journal journal;
 
 
 	public ServerConnector() {
