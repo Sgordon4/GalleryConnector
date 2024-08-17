@@ -32,6 +32,7 @@ public class FileConnector {
 
 			"fileblocks",
 			"filesize",
+			"filehash",
 
 			"isdeleted",
 			"changetime",
@@ -51,8 +52,8 @@ public class FileConnector {
 	// Get
 	//---------------------------------------------------------------------------------------------
 
-	//TODO
-	public Boolean fileExists(@NonNull UUID fileUID) {
+	//TODO No endpoint for this one yet
+	public Boolean exists(@NonNull UUID fileUID) {
 		throw new RuntimeException("Stub");
 	}
 
@@ -81,6 +82,38 @@ public class FileConnector {
 	//TODO Inside the ServerRepo (not here), check for blockset before doing this
 
 
+	//Create or update a file entry in the database
+	public JsonObject upsert(@NonNull JsonObject props) throws IOException {
+		Log.i(TAG, "\nUPSERT FILE called");
+		String url = Paths.get(baseServerUrl, "files", "upsert").toString();
+
+		String[] reqInsert = {"fileuid", "accountuid"};
+		if(!props.has(reqInsert[0]) || !props.has(reqInsert[1]))
+			throw new IllegalArgumentException("File upsert request must contain fileuid & accountuid!");
+
+
+		//Compile all passed properties into a form body
+		FormBody.Builder builder = new FormBody.Builder();
+		for(String prop : props.keySet()) {
+			builder.add(prop, props.get(prop).getAsString());
+		}
+		RequestBody body = builder.build();
+
+
+		Request request = new Request.Builder().url(url).post(body).build();
+		try (Response response = client.newCall(request).execute()) {
+			if (!response.isSuccessful())
+				throw new IOException("Unexpected code " + response.code());
+			if(response.body() == null)
+				throw new IOException("Response body is null");
+
+			String responseData = response.body().string();
+			return new Gson().fromJson(responseData, JsonObject.class);
+		}
+	}
+
+
+	/*
 	//Create a new file entry in the database
 	public JsonObject createEntry(@NonNull JsonObject props) throws IOException {
 		Log.i(TAG, "\nCREATE FILE called");
@@ -145,6 +178,7 @@ public class FileConnector {
 			return new Gson().fromJson(responseData, JsonObject.class);
 		}
 	}
+	 */
 
 
 	//---------------------------------------------------------------------------------------------

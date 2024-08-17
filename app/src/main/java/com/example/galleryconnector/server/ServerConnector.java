@@ -1,6 +1,10 @@
 package com.example.galleryconnector.server;
 
+import android.content.ContentResolver;
+import android.content.Context;
+import android.net.Uri;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.annotation.NonNull;
 
@@ -8,8 +12,19 @@ import com.example.galleryconnector.server.subcomponents.AccountConnector;
 import com.example.galleryconnector.server.subcomponents.BlockConnector;
 import com.example.galleryconnector.server.subcomponents.FileConnector;
 import com.example.galleryconnector.server.subcomponents.JournalConnector;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Interceptor;
@@ -22,24 +37,24 @@ public class ServerConnector {
 	OkHttpClient client;
 	private static final String TAG = "Gal.SConnector";
 
-	public final AccountConnector account;
-	public final FileConnector file;
-	public final BlockConnector block;
-	public final JournalConnector journal;
+	public final AccountConnector accountConn;
+	public final FileConnector fileConn;
+	public final BlockConnector blockConn;
+	public final JournalConnector journalConn;
 
 
 	public ServerConnector() {
 		client = new OkHttpClient().newBuilder()
 				.addInterceptor(new LogInterceptor())
 				.followRedirects(true)
-				.connectTimeout(3, TimeUnit.SECONDS)        //TODO Temporary timeout, prob increase later
+				.connectTimeout(3, TimeUnit.SECONDS)	//TODO Temporary timeout, prob increase later
 				.followSslRedirects(true)
 				.build();
 
-		account = new AccountConnector(baseServerUrl, client);
-		file = new FileConnector(baseServerUrl, client);
-		block = new BlockConnector(baseServerUrl, client);
-		journal = new JournalConnector(baseServerUrl, client);
+		accountConn = new AccountConnector(baseServerUrl, client);
+		fileConn = new FileConnector(baseServerUrl, client);
+		blockConn = new BlockConnector(baseServerUrl, client);
+		journalConn = new JournalConnector(baseServerUrl, client);
 	}
 
 	public static ServerConnector getInstance() {
@@ -50,9 +65,32 @@ public class ServerConnector {
 	}
 
 
+	//---------------------------------------------------------------------------------------------
 
 
+	public JsonObject uploadFile(@NonNull JsonObject fileProps, @NonNull Uri source,
+						   @NonNull Context context) throws IOException {
+		Log.i(TAG, String.format("UPLOAD FILE called with fileUID='%s'", fileProps.get("fileuid").getAsString()));
 
+		//Upload the blockset for the file. This does nothing if all blocks already exist.
+		Map<String, String> fileHashAndSize = blockConn.uploadBlockset(source, context);
+
+		//Update the file properties with the hash and size
+		fileProps.addProperty("blockset", fileHashAndSize.get("blockset"));
+		fileProps.addProperty("filehash", fileHashAndSize.get("filehash"));
+		fileProps.addProperty("filesize", fileHashAndSize.get("filesize"));
+
+		//TODO Maybe cache the file? Probably best to be done in GalleryRepo alongside a call to this function
+
+
+		//Now that the blockset is uploaded, create/update the file metadata
+		return fileConn.upsert(fileProps);
+	}
+
+
+	public void downloadFullFile(@NonNull UUID fileUID, @NonNull Uri dest) {
+
+	}
 
 
 
