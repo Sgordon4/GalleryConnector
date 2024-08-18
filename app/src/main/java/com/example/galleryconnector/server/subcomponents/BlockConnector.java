@@ -95,23 +95,12 @@ public class BlockConnector {
 
 		//Alongside the usual url, compile all passed blocks into query parameters
 		String base = Paths.get(baseServerUrl, "blocks", "props").toString();
-		System.out.println("A");
 		HttpUrl.Builder httpBuilder = HttpUrl.parse(base).newBuilder();
-		System.out.println("B");
-		for(String block : blocks) {
-			System.out.println(block);
+
+		for(String block : blocks)
 			httpBuilder.addQueryParameter("blockhash", block);
-		}
-		System.out.println("C");
+		URL url = httpBuilder.build().url();
 
-		URL url = httpBuilder.build().url();//Why it breaking right here?
-		//Wait no now it's just breaking somewhere else. What in the hell is going on?
-
-
-		System.out.println("Here");
-		System.out.println("Here");
-		System.out.println("Here");
-		System.out.println("Here");
 
 		Request request = new Request.Builder().url(url).build();
 		try (Response response = client.newCall(request).execute()) {
@@ -121,33 +110,9 @@ public class BlockConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			System.out.println("Data");
-			System.out.println("Data");
-			System.out.println("Data");
-			System.out.println(responseData);
 			return new Gson().fromJson(responseData, JsonArray.class);
 		}
 	}
-
-
-	/*
-	//TODO No endpoint for this one yet
-	public JsonArray exists(@NonNull List<String> blockHashes) throws IOException {
-		Log.i(TAG, String.format("\nGET BLOCK EXISTS called with blockHashes='"+blockHashes+"'"));
-		String url = Paths.get(baseServerUrl, "blocks", "exist").toString();
-
-		Request request = new Request.Builder().url(url).build();
-		try (Response response = client.newCall(request).execute()) {
-			if (!response.isSuccessful())
-				throw new IOException("Unexpected code " + response.code());
-			if(response.body() == null)
-				throw new IOException("Response body is null");
-
-			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, JsonObject.class).getAsJsonArray();
-		}
-	}
-	 */
 
 
 	//---------------------------------------------------------------------------------------------
@@ -314,8 +279,10 @@ public class BlockConnector {
 	private List<String> getMissingBlocks(List<String> blocks) throws IOException {
 		JsonArray existingBlocks = getProps(blocks);
 
-		for(JsonElement block : existingBlocks) {
-			blocks.remove(block.getAsString());
+
+		for(JsonElement blockElement : existingBlocks) {
+			JsonObject blockProps = blockElement.getAsJsonObject();
+			blocks.remove(blockProps.get("blockhash").getAsString());
 		}
 
 		return blocks;

@@ -100,7 +100,7 @@ public class FileConnector {
 		RequestBody body = builder.build();
 
 
-		Request request = new Request.Builder().url(url).post(body).build();
+		Request request = new Request.Builder().url(url).put(body).build();
 		try (Response response = client.newCall(request).execute()) {
 			if (!response.isSuccessful())
 				throw new IOException("Unexpected code " + response.code());
