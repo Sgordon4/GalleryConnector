@@ -1,4 +1,4 @@
-package com.example.galleryconnector.server.subcomponents;
+package com.example.galleryconnector.server.connectors;
 
 import android.util.Log;
 
@@ -21,7 +21,7 @@ import okhttp3.Response;
 public class AccountConnector {
 	private final String baseServerUrl;
 	private final OkHttpClient client;
-	private static final String TAG = "GCon.Account";
+	private static final String TAG = "Gal.SRepo.Account";
 
 	//For reference
 	private static final String[] accountProps = {

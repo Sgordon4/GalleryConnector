@@ -6,10 +6,10 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import com.example.galleryconnector.server.subcomponents.AccountConnector;
-import com.example.galleryconnector.server.subcomponents.BlockConnector;
-import com.example.galleryconnector.server.subcomponents.FileConnector;
-import com.example.galleryconnector.server.subcomponents.JournalConnector;
+import com.example.galleryconnector.server.connectors.AccountConnector;
+import com.example.galleryconnector.server.connectors.BlockConnector;
+import com.example.galleryconnector.server.connectors.FileConnector;
+import com.example.galleryconnector.server.connectors.JournalConnector;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
@@ -25,7 +25,7 @@ import okhttp3.Response;
 public class ServerRepo {
 	private static final String baseServerUrl = "http://10.0.2.2:3306";
 	OkHttpClient client;
-	private static final String TAG = "Gal.SConnector";
+	private static final String TAG = "Gal.SRepo";
 
 	public final AccountConnector accountConn;
 	public final FileConnector fileConn;
@@ -92,6 +92,7 @@ public class ServerRepo {
 
 	//---------------------------------------------------------------------------------------------
 
+	//TODO Figure out how to log timeouts
 	public static class LogInterceptor implements Interceptor {
 		@NonNull
 		@Override

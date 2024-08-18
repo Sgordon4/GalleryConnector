@@ -1,10 +1,9 @@
-package com.example.galleryconnector.server.subcomponents;
+package com.example.galleryconnector.server.connectors;
 
 import android.content.ContentResolver;
 import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
-import android.util.Pair;
 
 import androidx.annotation.NonNull;
 
@@ -15,7 +14,6 @@ import com.google.gson.JsonObject;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -23,11 +21,9 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import okhttp3.FormBody;
 import okhttp3.HttpUrl;
@@ -40,7 +36,7 @@ import okhttp3.Response;
 public class BlockConnector {
 	private final String baseServerUrl;
 	private final OkHttpClient client;
-	private static final String TAG = "GCon.Block";
+	private static final String TAG = "Gal.SRepo.Block";
 
 	static final int CHUNK_SIZE = 1024 * 1024 * 4;  //4MB
 

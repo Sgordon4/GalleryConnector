@@ -1,4 +1,4 @@
-package com.example.galleryconnector.server.subcomponents;
+package com.example.galleryconnector.server.connectors;
 
 import android.util.Log;
 
@@ -17,7 +17,7 @@ import okhttp3.Response;
 public class JournalConnector {
 	private final String baseServerUrl;
 	private final OkHttpClient client;
-	private static final String TAG = "GCon.Journal";
+	private static final String TAG = "Gal.SRepo.Journal";
 
 
 	public JournalConnector(String baseServerUrl, OkHttpClient client) {

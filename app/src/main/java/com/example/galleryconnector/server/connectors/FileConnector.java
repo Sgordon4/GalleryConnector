@@ -1,4 +1,4 @@
-package com.example.galleryconnector.server.subcomponents;
+package com.example.galleryconnector.server.connectors;
 
 import android.util.Log;
 
@@ -20,7 +20,7 @@ import okhttp3.Response;
 public class FileConnector {
 	private final String baseServerUrl;
 	private final OkHttpClient client;
-	private static final String TAG = "GCon.File";
+	private static final String TAG = "Gal.SRepo.File";
 
 	//For reference
 	private static final String[] fileProps = {
