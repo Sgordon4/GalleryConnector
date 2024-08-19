@@ -1,10 +1,15 @@
 package com.example.galleryconnector;
 
+import android.content.Context;
+import android.net.Uri;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.local.LocalDatabase;
+import com.example.galleryconnector.local.LocalRepo;
 import com.example.galleryconnector.local.account.LAccount;
+import com.example.galleryconnector.local.file.LFile;
 import com.example.galleryconnector.server.ServerRepo;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -23,7 +28,7 @@ public class GalleryRepo {
 	private static final String TAG = "Gal.GRepo";
 	private final ListeningExecutorService executor;
 
-	private LocalDatabase localRepo;
+	private LocalRepo localRepo;
 	private ServerRepo serverRepo;
 
 
@@ -36,7 +41,7 @@ public class GalleryRepo {
 	private GalleryRepo() {
 		executor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(10));
 
-		localRepo = new LocalDatabase.DBBuilder().newInstance( MyApplication.getAppContext() );
+		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
 	}
 
@@ -50,7 +55,7 @@ public class GalleryRepo {
 	public ListenableFuture<JsonObject> getAccountProps(@NonNull UUID accountuid) {
 		return executor.submit(() -> {
 			//Try to get the account data from local. If it exists, return that.
-			List<LAccount> localAccountProps = localRepo.getAccountDao().loadByUID(accountuid);
+			List<LAccount> localAccountProps = localRepo.database.getAccountDao().loadByUID(accountuid);
 			if(!localAccountProps.isEmpty())
 				return new Gson().toJsonTree( localAccountProps.get(0) ).getAsJsonObject();
 
@@ -65,4 +70,62 @@ public class GalleryRepo {
 	}
 
 
+	//---------------------------------------------------------------------------------------------
+	// File
+	//---------------------------------------------------------------------------------------------
+
+
+	@Nullable
+	public ListenableFuture<JsonObject> getFileProps(@NonNull UUID fileuid) {
+		return executor.submit(() -> {
+			//Try to get the file data from local. If it exists, return that.
+			List<LFile> localFileProps = localRepo.database.getFileDao().loadByUID(fileuid);
+			if(!localFileProps.isEmpty())
+				return new Gson().toJsonTree( localFileProps.get(0) ).getAsJsonObject();
+
+
+			//If the file doesn't exist locally, try to get it from the server.
+			try {
+				return serverRepo.fileConn.getProps(fileuid);
+			} catch (SocketTimeoutException e) {
+				return null;
+			}
+		});
+	}
+
+
+	//Import to local
+	//This will be the result of a queue item, and does not interact with the queue itself. Upon return, the queue will be updated.
+	public ListenableFuture<JsonObject> importFile(@NonNull UUID parent, Uri source) {
+		return executor.submit(() -> {
+			Context context = MyApplication.getAppContext();
+
+			throw new RuntimeException("Stub!");
+		});
+	}
+
+
+
+
+
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

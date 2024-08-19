@@ -20,9 +20,9 @@ public class LBlock {
 	public long createtime;
 
 
-	public LBlock(@NonNull String blockhash) {
+	public LBlock(@NonNull String blockhash, int blocksize) {
 		this.blockhash = blockhash;
-		this.blocksize = 0;
+		this.blocksize = blocksize;
 		this.createtime = new Date().getTime();
 	}
 }

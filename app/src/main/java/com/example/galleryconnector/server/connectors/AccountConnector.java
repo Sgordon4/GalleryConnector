@@ -71,8 +71,6 @@ public class AccountConnector {
 	// Put
 	//---------------------------------------------------------------------------------------------
 
-	//TODO Inside the ServerRepo (not here), check for blockset before doing this
-
 
 	//Create a new account entry in the database
 	public JsonObject createEntry(@NonNull JsonObject props) throws IOException {

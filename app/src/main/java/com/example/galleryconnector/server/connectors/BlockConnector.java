@@ -38,7 +38,7 @@ public class BlockConnector {
 	private final OkHttpClient client;
 	private static final String TAG = "Gal.SRepo.Block";
 
-	static final int CHUNK_SIZE = 1024 * 1024 * 4;  //4MB
+	public static final int CHUNK_SIZE = 1024 * 1024 * 4;  //4MB
 
 
 
@@ -180,108 +180,6 @@ public class BlockConnector {
 			if (!response.isSuccessful())
 				throw new IOException("Unexpected code " + response.code());
 		}
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-
-
-	//Returns blockset, filehash, and filesize
-	public Map<String, String> uploadBlockset(@NonNull Uri source, @NonNull Context context) throws IOException {
-		Log.i(TAG, String.format("UPLOAD BLOCKSET called with uri='%s'", source));
-		ContentResolver contentResolver = context.getContentResolver();
-
-		//We need to know what blocks in the blocklist the server is missing.
-		//To do that, we need the blocklist. Get the blocklist.
-		List<String> fileHashes = new ArrayList<>();
-		//Find the filesize and SHA-256 filehash while we do so.
-		int filesize = 0;
-		String filehash;
-		try (InputStream is = contentResolver.openInputStream(source);
-			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
-
-			//Read the next block
-			byte[] block = new byte[CHUNK_SIZE];
-			int read;
-			while((read = dis.read(block)) != -1) {
-				//Trim block if needed (tail of the file, not enough bytes to fill a full block)
-				if (read != CHUNK_SIZE) {
-					byte[] smallerData = new byte[read];
-					System.arraycopy(block, 0, smallerData, 0, read);
-					block = smallerData;
-				}
-
-				if(block.length == 0)   //Don't put empty blocks in the blocklist
-					continue;
-				filesize += block.length;
-
-				//Hash the block
-				byte[] hash = MessageDigest.getInstance("SHA-256").digest(block);
-				String hashString = BlockConnector.bytesToHex(hash);
-
-				//Add to the hash list
-				fileHashes.add(hashString);
-			}
-
-			filehash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
-		} catch (IOException | NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
-		Log.d(TAG, "FileHashes: "+fileHashes);
-
-
-		//Now try to upload/commit blocks
-		List<String> missingBlocks;
-		do {
-			//Get the list of missing blocks
-			missingBlocks = getMissingBlocks(fileHashes);
-
-			for(String missingBlockHash : missingBlocks) {
-
-				//Go to the correct block in the file
-				int index = fileHashes.indexOf(missingBlockHash);
-				int blockStart = index * CHUNK_SIZE;
-
-				Log.d(TAG, String.format("BSUpload: Reading block at %s = '%s'", blockStart, missingBlockHash));
-				try (InputStream is = contentResolver.openInputStream(source)) {
-					//Read the missing block
-					is.skip(blockStart);
-					byte[] block = new byte[CHUNK_SIZE];
-					int read = is.read(block);
-
-					//Trim block if needed
-					if (read != CHUNK_SIZE) {
-						byte[] smallerData = new byte[read];
-						System.arraycopy(block, 0, smallerData, 0, read);
-						block = smallerData;
-					}
-
-					//Upload it
-					uploadData(missingBlockHash, block);
-				}
-			}
-		} while (!missingBlocks.isEmpty());
-		Log.d(TAG, "Successful blockset upload!");
-
-
-		Map<String, String> fileInfo = new HashMap<>();
-		fileInfo.put("blockset", new Gson().toJson(missingBlocks));
-		fileInfo.put("filehash", filehash);
-		fileInfo.put("filesize", String.valueOf(filesize));
-		return fileInfo;
-	}
-
-
-	private List<String> getMissingBlocks(List<String> blocks) throws IOException {
-		JsonArray existingBlocks = getProps(blocks);
-
-
-		for(JsonElement blockElement : existingBlocks) {
-			JsonObject blockProps = blockElement.getAsJsonObject();
-			blocks.remove(blockProps.get("blockhash").getAsString());
-		}
-
-		return blocks;
 	}
 
 
