@@ -185,7 +185,7 @@ public class ServerRepo {
 	}
 
 
-	private List<String> getMissingBlocks(List<String> blocks) throws IOException {
+	public List<String> getMissingBlocks(List<String> blocks) throws IOException {
 		JsonArray existingBlocks = blockConn.getProps(blocks);
 
 		for(JsonElement blockElement : existingBlocks) {

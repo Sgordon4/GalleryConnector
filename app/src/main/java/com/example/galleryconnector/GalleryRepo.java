@@ -9,6 +9,7 @@ import androidx.annotation.Nullable;
 import com.example.galleryconnector.local.LocalDatabase;
 import com.example.galleryconnector.local.LocalRepo;
 import com.example.galleryconnector.local.account.LAccount;
+import com.example.galleryconnector.local.block.LBlock;
 import com.example.galleryconnector.local.file.LFile;
 import com.example.galleryconnector.server.ServerRepo;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -104,6 +105,31 @@ public class GalleryRepo {
 		});
 	}
 
+
+
+	public ListenableFuture<Boolean> copyFileToServer(@NonNull UUID fileuid) {
+		return executor.submit(() -> {
+			List<LFile> localFileProps = localRepo.database.getFileDao().loadByUID(fileuid);
+			if(localFileProps.isEmpty())
+				throw new IllegalStateException("File not found locally! fileuid="+fileuid);
+			LFile file = localFileProps.get(0);
+
+
+			List<String> blockset = file.fileblocks;
+			List<String> missingBlocks;
+			do {
+				missingBlocks = serverRepo.getMissingBlocks(blockset);
+
+				for(String block : missingBlocks) {
+					serverRepo.blockConn.uploadData(block, localRepo.database.getBlockDao().);
+				}
+			} while(!missingBlocks.isEmpty());
+
+
+
+			throw new RuntimeException("Stub!");
+		});
+	}
 
 
 
