@@ -14,7 +14,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Entity(tableName = "file")
-public class LFile {
+public class LFileEntity {
 	@PrimaryKey
 	@NonNull
 	public UUID fileuid;
@@ -52,10 +52,10 @@ public class LFile {
 
 
 	@Ignore
-	public LFile(@NonNull UUID accountuid) {
+	public LFileEntity(@NonNull UUID accountuid) {
 		this(accountuid, UUID.randomUUID());
 	}
-	public LFile(@NonNull UUID fileuid, @NonNull UUID accountuid) {
+	public LFileEntity(@NonNull UUID fileuid, @NonNull UUID accountuid) {
 		this.fileuid = fileuid;
 		this.accountuid = accountuid;
 
@@ -92,7 +92,7 @@ public class LFile {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		LFile file = (LFile) o;
+		LFileEntity file = (LFileEntity) o;
 		return isdir == file.isdir && islink == file.islink && filesize == file.filesize && isdeleted == file.isdeleted && changetime == file.changetime && modifytime == file.modifytime && accesstime == file.accesstime && createtime == file.createtime && Objects.equals(fileuid, file.fileuid) && Objects.equals(accountuid, file.accountuid) && Objects.equals(fileblocks, file.fileblocks) && Objects.equals(filehash, file.filehash);
 	}
 

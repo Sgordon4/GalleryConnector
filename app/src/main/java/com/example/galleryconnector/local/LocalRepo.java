@@ -10,13 +10,10 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.local.block.LBlock;
-import com.example.galleryconnector.local.file.LFile;
+import com.example.galleryconnector.local.block.LBlockHandler;
+import com.example.galleryconnector.local.block.LBlockEntity;
+import com.example.galleryconnector.local.file.LFileEntity;
 import com.example.galleryconnector.server.connectors.BlockConnector;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,17 +21,17 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 public class LocalRepo {
 	private static final String TAG = "Gal.LRepo";
 	public final LocalDatabase database;
+	public final LBlockHandler blockHandler;
 
 	public LocalRepo() {
 		database = new LocalDatabase.DBBuilder().newInstance( MyApplication.getAppContext() );
+
+		blockHandler = new LBlockHandler(database.getBlockDao());
 	}
 
 	public static LocalRepo getInstance() {
@@ -46,13 +43,13 @@ public class LocalRepo {
 
 	//---------------------------------------------------------------------------------------------
 
-	public LFile uploadFile(@NonNull LFile file, @NonNull Uri source,
-								 @NonNull Context context) throws IOException {
+	public LFileEntity uploadFile(@NonNull LFileEntity file, @NonNull Uri source,
+								  @NonNull Context context) throws IOException {
 		Log.i(TAG, String.format("UPLOAD FILE called with fileUID='%s'", file.fileuid));
 
 		//Upload the blockset for the file. This does nothing to the block db if all blocks already exist.
 		//This method updates fileblocks, filehash, and filesize for the passed file object
-		uploadBlockset(file, source, context);
+		file = uploadBlockset(file, source, context);
 
 
 		//Now that the blockset is uploaded, create/update the file metadata
@@ -62,8 +59,8 @@ public class LocalRepo {
 
 
 	//Updates blockset, filehash, and filesize for the passed file object
-	public LFile uploadBlockset(@NonNull LFile file, @NonNull Uri source,
-											  @NonNull Context context) throws IOException {
+	public LFileEntity uploadBlockset(@NonNull LFileEntity file, @NonNull Uri source,
+									  @NonNull Context context) throws IOException {
 		Log.i(TAG, String.format("UPLOAD BLOCKSET called with uri='%s'", source));
 		ContentResolver contentResolver = context.getContentResolver();
 
@@ -154,7 +151,7 @@ public class LocalRepo {
 					// I'm also thinking about making some local connectors for this type of thing
 
 					//Add it to the database
-					LBlock newBlock = new LBlock(missingBlockHash, block.length);
+					LBlockEntity newBlock = new LBlockEntity(missingBlockHash, block.length);
 					database.getBlockDao().put(newBlock);
 				}
 			}
@@ -163,9 +160,9 @@ public class LocalRepo {
 
 
 	private List<String> getMissingBlocks(List<String> blocks) {
-		List<LBlock> existingBlocks = database.getBlockDao().loadAllByHash(blocks);
+		List<LBlockEntity> existingBlocks = database.getBlockDao().loadAllByHash(blocks);
 
-		for(LBlock block : existingBlocks) {
+		for(LBlockEntity block : existingBlocks) {
 			blocks.remove(block.blockhash);
 		}
 		return blocks;

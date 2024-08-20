@@ -9,19 +9,19 @@ import java.util.List;
 
 @Dao
 public interface LBlockDao {
-	@Query("SELECT * FROM block LIMIT 500")
-	List<LBlock> loadAll();
-	@Query("SELECT * FROM block LIMIT 500 OFFSET :offset")
-	List<LBlock> loadAll(int offset);
+	@Query("SELECT * FROM LBlockEntity LIMIT 500")
+	List<LBlockEntity> loadAll();
+	@Query("SELECT * FROM LBlockEntity LIMIT 500 OFFSET :offset")
+	List<LBlockEntity> loadAll(int offset);
 
-	@Query("SELECT * FROM block WHERE blockhash IN (:blockHashes)")
-	List<LBlock> loadAllByHash(String... blockHashes);
-	@Query("SELECT * FROM block WHERE blockhash IN (:blockHashes)")
-	List<LBlock> loadAllByHash(List<String> blockHashes);
+	@Query("SELECT * FROM LBlockEntity WHERE blockhash IN (:blockHashes)")
+	List<LBlockEntity> loadAllByHash(String... blockHashes);
+	@Query("SELECT * FROM LBlockEntity WHERE blockhash IN (:blockHashes)")
+	List<LBlockEntity> loadAllByHash(List<String> blockHashes);
 
 
 	@Upsert
-	List<Long> put(LBlock... blocks);
+	List<Long> put(LBlockEntity... blocks);
 
 	/*
 	@Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -32,5 +32,5 @@ public interface LBlockDao {
 	 */
 
 	@Delete
-	Integer delete(LBlock... blocks);
+	Integer delete(LBlockEntity... blocks);
 }

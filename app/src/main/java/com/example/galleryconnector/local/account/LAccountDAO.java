@@ -5,25 +5,23 @@ import androidx.room.Delete;
 import androidx.room.Query;
 import androidx.room.Upsert;
 
-import com.google.common.util.concurrent.ListenableFuture;
-
 import java.util.List;
 import java.util.UUID;
 
 @Dao
 public interface LAccountDAO {
-	@Query("SELECT * FROM account LIMIT 500")
-	List<LAccount> loadAll();
-	@Query("SELECT * FROM account LIMIT 500 OFFSET :offset")
-	List<LAccount> loadAll(int offset);
+	@Query("SELECT * FROM LAccountEntity LIMIT 500")
+	List<LAccountEntity> loadAll();
+	@Query("SELECT * FROM LAccountEntity LIMIT 500 OFFSET :offset")
+	List<LAccountEntity> loadAll(int offset);
 
-	@Query("SELECT * FROM account WHERE accountuid IN (:accountUIDs)")
-	List<LAccount> loadByUID(UUID... accountUIDs);
+	@Query("SELECT * FROM LAccountEntity WHERE accountuid IN (:accountUIDs)")
+	List<LAccountEntity> loadByUID(UUID... accountUIDs);
 
 
 	@Upsert
-	List<Long> put(LAccount... accounts);
+	List<Long> put(LAccountEntity... accounts);
 
 	@Delete
-	Integer delete(LAccount account);
+	Integer delete(LAccountEntity account);
 }

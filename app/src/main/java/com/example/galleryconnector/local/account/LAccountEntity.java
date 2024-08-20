@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Entity(tableName = "account")
-public class LAccount {
+public class LAccountEntity {
 	@PrimaryKey
 	@NonNull
 	public UUID accountuid;
@@ -37,10 +37,10 @@ public class LAccount {
 
 
 
-	public LAccount(){
+	public LAccountEntity(){
 		this(UUID.randomUUID(), UUID.randomUUID());
 	}
-	public LAccount(@NonNull UUID accountuid, @NonNull UUID rootfileuid) {
+	public LAccountEntity(@NonNull UUID accountuid, @NonNull UUID rootfileuid) {
 		this.accountuid = accountuid;
 		this.rootfileuid = rootfileuid;
 
@@ -60,7 +60,7 @@ public class LAccount {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		LAccount lAccount = (LAccount) o;
+		LAccountEntity lAccount = (LAccountEntity) o;
 		return isdeleted == lAccount.isdeleted && logintime == lAccount.logintime && changetime == lAccount.changetime && createtime == lAccount.createtime && Objects.equals(accountuid, lAccount.accountuid) && Objects.equals(rootfileuid, lAccount.rootfileuid) && Objects.equals(email, lAccount.email) && Objects.equals(displayname, lAccount.displayname) && Objects.equals(password, lAccount.password);
 	}
 

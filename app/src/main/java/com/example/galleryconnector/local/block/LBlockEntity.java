@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey;
 import java.util.Date;
 
 @Entity(tableName = "block")
-public class LBlock {
+public class LBlockEntity {
 	@PrimaryKey
 	@NonNull
 	public String blockhash;
@@ -20,7 +20,7 @@ public class LBlock {
 	public long createtime;
 
 
-	public LBlock(@NonNull String blockhash, int blocksize) {
+	public LBlockEntity(@NonNull String blockhash, int blocksize) {
 		this.blockhash = blockhash;
 		this.blocksize = blocksize;
 		this.createtime = new Date().getTime();

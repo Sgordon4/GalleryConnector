@@ -6,11 +6,9 @@ import android.net.Uri;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.example.galleryconnector.local.LocalDatabase;
 import com.example.galleryconnector.local.LocalRepo;
-import com.example.galleryconnector.local.account.LAccount;
-import com.example.galleryconnector.local.block.LBlock;
-import com.example.galleryconnector.local.file.LFile;
+import com.example.galleryconnector.local.account.LAccountEntity;
+import com.example.galleryconnector.local.file.LFileEntity;
 import com.example.galleryconnector.server.ServerRepo;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -18,10 +16,11 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
 public class GalleryRepo {
@@ -56,7 +55,7 @@ public class GalleryRepo {
 	public ListenableFuture<JsonObject> getAccountProps(@NonNull UUID accountuid) {
 		return executor.submit(() -> {
 			//Try to get the account data from local. If it exists, return that.
-			List<LAccount> localAccountProps = localRepo.database.getAccountDao().loadByUID(accountuid);
+			List<LAccountEntity> localAccountProps = localRepo.database.getAccountDao().loadByUID(accountuid);
 			if(!localAccountProps.isEmpty())
 				return new Gson().toJsonTree( localAccountProps.get(0) ).getAsJsonObject();
 
@@ -80,7 +79,7 @@ public class GalleryRepo {
 	public ListenableFuture<JsonObject> getFileProps(@NonNull UUID fileuid) {
 		return executor.submit(() -> {
 			//Try to get the file data from local. If it exists, return that.
-			List<LFile> localFileProps = localRepo.database.getFileDao().loadByUID(fileuid);
+			List<LFileEntity> localFileProps = localRepo.database.getFileDao().loadByUID(fileuid);
 			if(!localFileProps.isEmpty())
 				return new Gson().toJsonTree( localFileProps.get(0) ).getAsJsonObject();
 
@@ -109,25 +108,46 @@ public class GalleryRepo {
 
 	public ListenableFuture<Boolean> copyFileToServer(@NonNull UUID fileuid) {
 		return executor.submit(() -> {
-			List<LFile> localFileProps = localRepo.database.getFileDao().loadByUID(fileuid);
+			//Get the file properties from the local database
+			List<LFileEntity> localFileProps = localRepo.database.getFileDao().loadByUID(fileuid);
 			if(localFileProps.isEmpty())
 				throw new IllegalStateException("File not found locally! fileuid="+fileuid);
-			LFile file = localFileProps.get(0);
+			LFileEntity file = localFileProps.get(0);
 
 
+			//Get the blockset of the file
 			List<String> blockset = file.fileblocks;
+
 			List<String> missingBlocks;
-			do {
-				missingBlocks = serverRepo.getMissingBlocks(blockset);
+			try {
+				do {
+					//Find if the server is missing any blocks from the local file's blockset
+					missingBlocks = serverRepo.getMissingBlocks(blockset);
 
-				for(String block : missingBlocks) {
-					serverRepo.blockConn.uploadData(block, localRepo.database.getBlockDao().);
-				}
-			} while(!missingBlocks.isEmpty());
+					//For each block the server is missing...
+					for(String block : missingBlocks) {
+						//Read the block data from local block storage
+						byte[] blockData = localRepo.blockHandler.readBlock(block);
+
+						//And upload the data to the server
+						serverRepo.blockConn.uploadData(block, blockData);
+					}
+				} while(!missingBlocks.isEmpty());
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
 
 
 
-			throw new RuntimeException("Stub!");
+			//Now that the blockset is uploaded, create/update the file metadata
+			try {
+				JsonObject fileProps = new Gson().toJsonTree(localFileProps).getAsJsonObject();
+				serverRepo.fileConn.upsert(fileProps);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+
+			return true;
 		});
 	}
 

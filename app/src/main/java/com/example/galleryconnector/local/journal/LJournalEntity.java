@@ -22,7 +22,7 @@ import java.util.UUID;
 			childColumns = "fileuid",
 			onDelete = ForeignKey.CASCADE)
 		}*/)
-public class LJournal {
+public class LJournalEntity {
 	@PrimaryKey(autoGenerate = true)
 	public long journalid;
 
@@ -55,7 +55,7 @@ public class LJournal {
 
 
 
-	public LJournal(@NonNull UUID fileuid, @NonNull UUID accountuid) {
+	public LJournalEntity(@NonNull UUID fileuid, @NonNull UUID accountuid) {
 		this.fileuid = fileuid;
 		this.accountuid = accountuid;
 
