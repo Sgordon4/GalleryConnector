@@ -159,7 +159,7 @@ public class LocalRepo {
 	}
 
 
-	private List<String> getMissingBlocks(List<String> blocks) {
+	public List<String> getMissingBlocks(List<String> blocks) {
 		List<LBlockEntity> existingBlocks = database.getBlockDao().loadAllByHash(blocks);
 
 		for(LBlockEntity block : existingBlocks) {

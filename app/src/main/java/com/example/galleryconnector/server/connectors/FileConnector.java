@@ -185,5 +185,22 @@ public class FileConnector {
 	// Delete
 	//---------------------------------------------------------------------------------------------
 
+	public JsonObject delete(@NonNull UUID fileUID) throws IOException {
+		Log.i(TAG, String.format("\nDELETE FILE called with fileUID='"+fileUID+"'"));
+		String url = Paths.get(baseServerUrl, "files", fileUID.toString()).toString();
+
+
+		Request request = new Request.Builder().url(url).delete().build();
+		try (Response response = client.newCall(request).execute()) {
+			if (!response.isSuccessful())
+				throw new IOException("Unexpected code " + response.code());
+			if(response.body() == null)
+				throw new IOException("Response body is null");
+
+			String responseData = response.body().string();
+			return new Gson().fromJson(responseData, JsonObject.class);
+		}
+	}
+
 
 }

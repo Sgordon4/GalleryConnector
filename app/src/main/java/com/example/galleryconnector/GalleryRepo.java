@@ -8,6 +8,7 @@ import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.local.LocalRepo;
 import com.example.galleryconnector.local.account.LAccountEntity;
+import com.example.galleryconnector.local.block.LBlockEntity;
 import com.example.galleryconnector.local.file.LFileEntity;
 import com.example.galleryconnector.server.ServerRepo;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -15,9 +16,11 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.UUID;
@@ -55,7 +58,8 @@ public class GalleryRepo {
 	public ListenableFuture<JsonObject> getAccountProps(@NonNull UUID accountuid) {
 		return executor.submit(() -> {
 			//Try to get the account data from local. If it exists, return that.
-			List<LAccountEntity> localAccountProps = localRepo.database.getAccountDao().loadByUID(accountuid);
+			List<LAccountEntity> localAccountProps =
+					localRepo.database.getAccountDao().loadByUID(accountuid);
 			if(!localAccountProps.isEmpty())
 				return new Gson().toJsonTree( localAccountProps.get(0) ).getAsJsonObject();
 
@@ -94,13 +98,31 @@ public class GalleryRepo {
 	}
 
 
+	//Note: External links are not imported to the system, and should not be handled with this method.
+	// Instead, their contents should be created and edited through the file creation/edit modals.
+
 	//Import to local
-	//This will be the result of a queue item, and does not interact with the queue itself. Upon return, the queue will be updated.
-	public ListenableFuture<JsonObject> importFile(@NonNull UUID parent, Uri source) {
+	//This will be the result of a queue item, and does not interact with the queue itself.
+	// Upon return, the queue will be updated.
+	public ListenableFuture<JsonObject> importFileToLocal(@NonNull UUID accountuid,
+														  @NonNull UUID parent, Uri source) {
 		return executor.submit(() -> {
 			Context context = MyApplication.getAppContext();
 
-			throw new RuntimeException("Stub!");
+			//Import the file to the local system, starting with baseline file properties
+			LFileEntity file = new LFileEntity(accountuid);
+			try {
+				localRepo.uploadFile(file, source, context);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+
+
+			//Now that the file is imported, we need to add it to the directory
+			//TODO Add the new file to parent's ordering
+
+
+			return new Gson().toJsonTree(file).getAsJsonObject();
 		});
 	}
 
@@ -111,7 +133,7 @@ public class GalleryRepo {
 			//Get the file properties from the local database
 			List<LFileEntity> localFileProps = localRepo.database.getFileDao().loadByUID(fileuid);
 			if(localFileProps.isEmpty())
-				throw new IllegalStateException("File not found locally! fileuid="+fileuid);
+				throw new FileNotFoundException("File not found locally! fileuid="+fileuid);
 			LFileEntity file = localFileProps.get(0);
 
 
@@ -152,6 +174,57 @@ public class GalleryRepo {
 	}
 
 
+	public ListenableFuture<Boolean> copyFileToLocal(@NonNull UUID fileuid) {
+		return executor.submit(() -> {
+			//Get the file properties from the server database
+			JsonObject serverFileProps = serverRepo.fileConn.getProps(fileuid);
+			if(serverFileProps.isEmpty())
+				throw new FileNotFoundException("File not found in server! fileuid="+fileuid);
+
+
+			//Get the blockset of the file
+			Type listType = new TypeToken<List<String>>() {}.getType();
+			List<String> blockset = new Gson().fromJson(serverFileProps.get("blockset"), listType);
+
+			List<String> missingBlocks;
+			do {
+				//Find if local is missing any blocks from the server file's blockset
+				missingBlocks = localRepo.getMissingBlocks(blockset);
+
+				//For each block that local is missing...
+				for(String block : missingBlocks) {
+					//Read the block data from server block storage
+					byte[] blockData = serverRepo.blockConn.getData(block);
+
+					//And write the data to local
+					localRepo.blockHandler.writeBlock(block, blockData);
+				}
+			} while(!missingBlocks.isEmpty());
+
+
+			//Now that the blockset is uploaded, create/update the file metadata
+			LBlockEntity blockEntity = new Gson().fromJson(serverFileProps, LBlockEntity.class);
+			localRepo.blockHandler.blockDao.put(blockEntity);
+
+			return true;
+		});
+	}
+
+
+
+	public ListenableFuture<Boolean> deleteFileFromLocal(@NonNull UUID fileuid) {
+		return executor.submit(() -> {
+			localRepo.database.getFileDao().delete(fileuid);
+			return true;
+		});
+	}
+
+	public ListenableFuture<Boolean> deleteFileFromServer(@NonNull UUID fileuid) {
+		return executor.submit(() -> {
+			serverRepo.fileConn.delete(fileuid);
+			return true;
+		});
+	}
 
 
 
