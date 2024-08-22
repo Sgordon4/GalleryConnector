@@ -8,6 +8,7 @@ import androidx.room.Upsert;
 import java.util.List;
 import java.util.UUID;
 
+/** @noinspection ALL*/
 @Dao
 public interface LAccountDAO {
 	@Query("SELECT * FROM LAccountEntity LIMIT 500")

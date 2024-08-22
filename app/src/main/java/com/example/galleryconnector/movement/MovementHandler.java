@@ -1,19 +1,22 @@
 package com.example.galleryconnector.movement;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 public class MovementHandler {
-	private List<JSONObject> importQueue;
-	private Map<UUID, JSONArray> movementMap;
 
-	
-
+	public FileIOApi ioAPI;
+	public DomainAPI domainAPI;
 
 
+	//TODO Probably just move the ioAPI and domainAPI to the GalleryRepo.
+	// This is here jic I end up needing space after I actually implement the queues and dbs.
 
+	public static MovementHandler getInstance() {
+		return SingletonHelper.INSTANCE;
+	}
+	private static class SingletonHelper {
+		private static final MovementHandler INSTANCE = new MovementHandler();
+	}
+	private MovementHandler() {
+		ioAPI = FileIOApi.getInstance();
+		domainAPI = DomainAPI.getInstance();
+	}
 }
