@@ -12,29 +12,34 @@ import com.example.galleryconnector.local.file.LFileEntity;
 import com.example.galleryconnector.server.ServerRepo;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.lang.reflect.Type;
-import java.nio.channels.FileChannel;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileLock;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class DomainAPI {
-	//private List<JsonObject> domainMovementQueue;
-	//private Map<UUID, Integer> movementMap;
-	private final File operationMap;
+	private final File operationFile;
 
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
+
+	private final ReentrantLock lock;
 
 
 	public static DomainAPI getInstance() {
@@ -44,17 +49,18 @@ public class DomainAPI {
 		private static final DomainAPI INSTANCE = new DomainAPI();
 	}
 	private DomainAPI() {
-		this.movementMap = new HashMap<>();
-
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
 
-		Context context = MyApplication.getAppContext();
-		operationMap = new File(context.getDataDir(), "operations.json");
+		//We need a synchronous read/write lock for the operations file
+		lock = new ReentrantLock();
 
-		if(!operationMap.exists()) {
+		Context context = MyApplication.getAppContext();
+		operationFile = new File(context.getDataDir(), "operations.json");
+
+		if(!operationFile.exists()) {
 			try {
-				operationMap.createNewFile();
+				operationFile.createNewFile();
 			} catch (Exception e) {
 				throw new RuntimeException("Operation mapping file could not be created!");
 			}
@@ -84,67 +90,96 @@ public class DomainAPI {
 
 	//TODO Lock row before read and unlock after write
 	public boolean queueOperation(Operation newOperation, UUID fileUID) {
+		//Lock the file before we make any reads/writes
+		lock.lock();
+
 		try {
-			//Lock the file before we make any reads/writes
+			//Read all operations in the file into a JsonObject (absolute worst case is a few thousand lines)
+			InputStream in = Files.newInputStream(operationFile.toPath());
+			InputStreamReader reader = new InputStreamReader(in);
+			JsonObject allOperations = JsonParser.parseReader(reader).getAsJsonObject();
 
 
-			FileChannel channel = new RandomAccessFile(operationMap, "rw").getChannel();
-			FileLock lock = channel.lock();
-
-			JsonReader jsonReader = new JsonReader(new FileReader());
-
-			JsonObject allOperations = new Gson().toJsonTree(movementMap).getAsJsonObject();
+			//Get the stored bitmask for the fileuid
+			int bitmask = getMask(allOperations, fileUID);
+			//Add the new operation to the bitmask
+			bitmask |= newOperation.flag;
 
 
+			//If adding this flag resulted in BOTH local flags (they conflict)...
+			if ((Operation.LOCAL_MASK & bitmask) == Operation.LOCAL_MASK)
+				bitmask &= ~Operation.LOCAL_MASK;    //Get rid of both flags since they cancel out
 
-			if(lock != null)
-				lock.release();
+			//If adding this flag resulted in BOTH server flags (they conflict)...
+			if ((Operation.SERVER_MASK & bitmask) == Operation.SERVER_MASK)
+				bitmask &= ~Operation.SERVER_MASK;    //Get rid of both flags since they cancel out
+
+
+			//Write the updated bitmask back to the file
+			allOperations.addProperty(fileUID.toString(), bitmask);
+			try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
+				out.write(allOperations.toString().getBytes());
+			}
+
 		} catch (IOException e) {
 			throw new RuntimeException(e);
+		} finally {
+			lock.unlock();
 		}
-
-
-		//Get the stored bitmask for the fileuid
-		int bitmask = getMask(fileUID);
-
-		//Add the new operation to the bitmask
-		bitmask |= newOperation.flag;
-
-
-		//If adding this flag resulted in BOTH local flags (they conflict)...
-		if ((Operation.LOCAL_MASK & bitmask) == Operation.LOCAL_MASK)
-			bitmask &= ~Operation.LOCAL_MASK;    //Get rid of both flags since they cancel out
-
-		//If adding this flag resulted in BOTH server flags (they conflict)...
-		if ((Operation.SERVER_MASK & bitmask) == Operation.SERVER_MASK)
-			bitmask &= ~Operation.SERVER_MASK;    //Get rid of both flags since they cancel out
-
-
-		try (FileInputStream in = new FileInputStream(operationMap);
-			FileLock lock = in.getChannel().lock();) {
-		} catch (IOException ex) {
-			throw new RuntimeException(ex);
-		}
-
-		FileLock lock =
-		operationMap.lock
-		movementMap.put(fileUID, bitmask);
 
 		return true;
 	}
 
-	public void removeOperation(Operation oldOperation, UUID fileUID) {
-		//Get the stored bitmask for the fileuid
-		int bitmask = getMask(fileUID);
+	public boolean removeOperation(Operation oldOperation, UUID fileUID) {
+		//Lock the file before we make any reads/writes
+		lock.lock();
 
-		//Remove the old operation from the bitmask
-		bitmask &= ~oldOperation.flag;
+		try {
+			//Read all operations in the file into a JsonObject (absolute worst case is a few thousand lines)
+			InputStream in = Files.newInputStream(operationFile.toPath());
+			InputStreamReader reader = new InputStreamReader(in);
+			JsonObject allOperations = JsonParser.parseReader(reader).getAsJsonObject();
 
-		movementMap.put(fileUID, bitmask);
+
+			//Get the stored bitmask for the fileuid
+			int bitmask = getMask(allOperations, fileUID);
+			//Remove the old operation from the bitmask
+			bitmask &= ~oldOperation.flag;
+
+
+			//Write the updated bitmask back to the file
+			allOperations.addProperty(fileUID.toString(), bitmask);
+			try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
+				out.write(allOperations.toString().getBytes());
+			}
+
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		} finally {
+			lock.unlock();
+		}
+
+		return true;
 	}
 
-	public int getMask(UUID fileUID) {
-		return movementMap.getOrDefault(fileUID, 0).byteValue();
+	private int getMask(JsonObject operations, UUID fileUID) {
+		return operations.get(fileUID.toString()).getAsInt();
+	}
+
+
+	//FOR TESTING
+	public int getMaskTESTING(UUID fileUID) {
+		try (InputStream in = Files.newInputStream(operationFile.toPath());
+			 InputStreamReader reader = new InputStreamReader(in)){
+
+			//Read all operations in the file into a JsonObject
+			JsonObject allOperations = JsonParser.parseReader(reader).getAsJsonObject();
+
+			//Get the stored bitmask for the fileuid
+			return getMask(allOperations, fileUID);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 
