@@ -8,15 +8,15 @@ import androidx.room.Upsert;
 import java.util.List;
 import java.util.UUID;
 
-/** @noinspection ALL*/
+
 @Dao
 public interface LAccountDAO {
-	@Query("SELECT * FROM LAccountEntity LIMIT 500")
+	@Query("SELECT * FROM account LIMIT 500")
 	List<LAccountEntity> loadAll();
-	@Query("SELECT * FROM LAccountEntity LIMIT 500 OFFSET :offset")
+	@Query("SELECT * FROM account LIMIT 500 OFFSET :offset")
 	List<LAccountEntity> loadAll(int offset);
 
-	@Query("SELECT * FROM LAccountEntity WHERE accountuid IN (:accountUIDs)")
+	@Query("SELECT * FROM account WHERE accountuid IN (:accountUIDs)")
 	List<LAccountEntity> loadByUID(UUID... accountUIDs);
 
 

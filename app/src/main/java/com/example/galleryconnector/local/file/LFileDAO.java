@@ -17,17 +17,17 @@ https://developer.android.com/training/data-storage/room/async-queries#guava-liv
 @Dao
 public interface LFileDAO {
 	//Mostly for testing
-	@Query("SELECT * FROM LFileEntity LIMIT 500")
+	@Query("SELECT * FROM file LIMIT 500")
 	List<LFileEntity> loadAll();
-	@Query("SELECT * FROM LFileEntity LIMIT 500  OFFSET :offset")
+	@Query("SELECT * FROM file LIMIT 500  OFFSET :offset")
 	List<LFileEntity> loadAll(int offset);
 
-	@Query("SELECT * FROM LFileEntity WHERE accountuid IN (:accountuids) LIMIT 500")
+	@Query("SELECT * FROM file WHERE accountuid IN (:accountuids) LIMIT 500")
 	List<LFileEntity> loadAllByAccount(UUID... accountuids);
-	@Query("SELECT * FROM LFileEntity WHERE accountuid IN (:accountuids) LIMIT 500 OFFSET :offset")
+	@Query("SELECT * FROM file WHERE accountuid IN (:accountuids) LIMIT 500 OFFSET :offset")
 	List<LFileEntity>loadAllByAccount(int offset, UUID... accountuids);
 
-	@Query("SELECT * FROM LFileEntity WHERE fileuid IN (:fileUIDs)")
+	@Query("SELECT * FROM file WHERE fileuid IN (:fileUIDs)")
 	List<LFileEntity> loadByUID(UUID... fileUIDs);
 
 
@@ -42,6 +42,6 @@ public interface LFileDAO {
 
 	@Delete
 	Integer delete(LFileEntity... files);
-	@Query("DELETE FROM LFileEntity WHERE fileuid IN (:fileUIDs)")
+	@Query("DELETE FROM file WHERE fileuid IN (:fileUIDs)")
 	Integer delete(UUID... fileUIDs);
 }

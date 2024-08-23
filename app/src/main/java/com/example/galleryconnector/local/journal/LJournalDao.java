@@ -13,7 +13,7 @@ import java.util.List;
 @Dao
 public interface LJournalDao {
 	//TODO Should we change this to 'journalid >= :journalID'? Idk, might make slightly more sense (loadFromID)
-	@Query("SELECT * FROM LJournalEntity WHERE journalid > :journalID")
+	@Query("SELECT * FROM journal WHERE journalid > :journalID")
 	ListenableFuture<List<LJournalEntity>> loadAllAfterID(long journalID);
 
 	//Journal is append-only, no need to update

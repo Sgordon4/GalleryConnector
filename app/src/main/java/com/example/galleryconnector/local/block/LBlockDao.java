@@ -9,14 +9,14 @@ import java.util.List;
 
 @Dao
 public interface LBlockDao {
-	@Query("SELECT * FROM LBlockEntity LIMIT 500")
+	@Query("SELECT * FROM block LIMIT 500")
 	List<LBlockEntity> loadAll();
-	@Query("SELECT * FROM LBlockEntity LIMIT 500 OFFSET :offset")
+	@Query("SELECT * FROM block LIMIT 500 OFFSET :offset")
 	List<LBlockEntity> loadAll(int offset);
 
-	@Query("SELECT * FROM LBlockEntity WHERE blockhash IN (:blockHashes)")
+	@Query("SELECT * FROM block WHERE blockhash IN (:blockHashes)")
 	List<LBlockEntity> loadAllByHash(String... blockHashes);
-	@Query("SELECT * FROM LBlockEntity WHERE blockhash IN (:blockHashes)")
+	@Query("SELECT * FROM block WHERE blockhash IN (:blockHashes)")
 	List<LBlockEntity> loadAllByHash(List<String> blockHashes);
 
 

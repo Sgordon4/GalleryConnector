@@ -1,7 +1,11 @@
 package com.example.galleryconnector.movement;
 
+import android.content.Context;
+import android.util.JsonReader;
+
 import androidx.annotation.NonNull;
 
+import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.local.LocalRepo;
 import com.example.galleryconnector.local.block.LBlockEntity;
 import com.example.galleryconnector.local.file.LFileEntity;
@@ -10,9 +14,15 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.reflect.Type;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +30,8 @@ import java.util.UUID;
 
 public class DomainAPI {
 	//private List<JsonObject> domainMovementQueue;
-	private Map<UUID, Integer> movementMap;
+	//private Map<UUID, Integer> movementMap;
+	private final File operationMap;
 
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
@@ -37,6 +48,17 @@ public class DomainAPI {
 
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
+
+		Context context = MyApplication.getAppContext();
+		operationMap = new File(context.getDataDir(), "operations.json");
+
+		if(!operationMap.exists()) {
+			try {
+				operationMap.createNewFile();
+			} catch (Exception e) {
+				throw new RuntimeException("Operation mapping file could not be created!");
+			}
+		}
 	}
 
 
@@ -62,6 +84,26 @@ public class DomainAPI {
 
 	//TODO Lock row before read and unlock after write
 	public boolean queueOperation(Operation newOperation, UUID fileUID) {
+		try {
+			//Lock the file before we make any reads/writes
+
+
+			FileChannel channel = new RandomAccessFile(operationMap, "rw").getChannel();
+			FileLock lock = channel.lock();
+
+			JsonReader jsonReader = new JsonReader(new FileReader());
+
+			JsonObject allOperations = new Gson().toJsonTree(movementMap).getAsJsonObject();
+
+
+
+			if(lock != null)
+				lock.release();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+
 		//Get the stored bitmask for the fileuid
 		int bitmask = getMask(fileUID);
 
@@ -78,6 +120,14 @@ public class DomainAPI {
 			bitmask &= ~Operation.SERVER_MASK;    //Get rid of both flags since they cancel out
 
 
+		try (FileInputStream in = new FileInputStream(operationMap);
+			FileLock lock = in.getChannel().lock();) {
+		} catch (IOException ex) {
+			throw new RuntimeException(ex);
+		}
+
+		FileLock lock =
+		operationMap.lock
 		movementMap.put(fileUID, bitmask);
 
 		return true;
