@@ -141,6 +141,17 @@ public class GalleryRepo {
 		});
 	}
 
+	protected ListenableFuture<Boolean> copyFileToLocalImmediate(@NonNull UUID fileuid) {
+		return executor.submit(() -> {
+			return movementHandler.domainAPI.copyFileToLocal(fileuid);
+		});
+	}
+	protected ListenableFuture<Boolean> copyFileToServerImmediate(@NonNull UUID fileuid) {
+		return executor.submit(() -> {
+			return movementHandler.domainAPI.copyFileToServer(fileuid);
+		});
+	}
+
 
 	public ListenableFuture<Boolean> removeFileFromLocal(@NonNull UUID fileuid) {
 		return executor.submit(() -> {
