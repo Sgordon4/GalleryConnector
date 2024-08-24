@@ -11,6 +11,7 @@ import com.example.galleryconnector.local.block.LBlockEntity;
 import com.example.galleryconnector.local.file.LFileEntity;
 import com.example.galleryconnector.server.ServerRepo;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
@@ -30,16 +31,18 @@ import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class DomainAPI {
 	private final File operationFile;
+	private final ReentrantLock lock;
 
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
 
-	private final ReentrantLock lock;
 
 
 	public static DomainAPI getInstance() {
