@@ -1,7 +1,6 @@
 package com.example.galleryconnector.movement;
 
 import android.content.Context;
-import android.util.JsonReader;
 
 import androidx.annotation.NonNull;
 
@@ -11,52 +10,25 @@ import com.example.galleryconnector.local.block.LBlockEntity;
 import com.example.galleryconnector.local.file.LFileEntity;
 import com.example.galleryconnector.server.ServerRepo;
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileLock;
 import java.nio.file.Files;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
-
-/*
-
-Operation file is a json file structured as so:
-
-{
-	operations: {
-		- fileuid: bitmask -
-		fileuid1: 1010,
-		fileuid2: 1100,
-		...
-	},
-	queue: [
-		fileuid1,
-		fileuid2,
-		...
-	]
-}
-
-*/
 
 
 public class DomainAPI {
@@ -90,15 +62,6 @@ public class DomainAPI {
 		if(!operationFile.exists()) {
 			try {
 				operationFile.createNewFile();
-
-				//Fill the json file with the basics
-				JsonObject baseJson = new JsonObject();
-				baseJson.add("operations", new JsonObject());
-				baseJson.add("queue", new JsonArray());
-
-				try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
-					out.write(baseJson.toString().getBytes());
-				}
 			} catch (Exception e) {
 				throw new RuntimeException("Operation mapping file could not be created!");
 			}
@@ -126,23 +89,19 @@ public class DomainAPI {
 
 
 
-	//TODO Lock row before read and unlock after write
 	public boolean queueOperation(Operation newOperation, UUID fileUID) {
 		//Lock the file before we make any reads/writes
 		lock.lock();
 
 		try {
-			//Read all operations in the file into a JsonObject (absolute worst case is a few thousand lines)
-			InputStream in = Files.newInputStream(operationFile.toPath());
-			InputStreamReader reader = new InputStreamReader(in);
-			JsonObject allOperations = JsonParser.parseReader(reader).getAsJsonObject();
-
-
+			//Read all operations in the file into a JsonObject
+			JsonObject allOperations = readOps();
 			//Get the stored bitmask for the fileuid
 			int bitmask = getMask(allOperations, fileUID);
+
+
 			//Add the new operation to the bitmask
 			bitmask |= newOperation.flag;
-
 
 			//If adding this flag resulted in BOTH local flags (they conflict)...
 			if ((Operation.LOCAL_MASK & bitmask) == Operation.LOCAL_MASK)
@@ -152,12 +111,11 @@ public class DomainAPI {
 			if ((Operation.SERVER_MASK & bitmask) == Operation.SERVER_MASK)
 				bitmask &= ~Operation.SERVER_MASK;    //Get rid of both flags since they cancel out
 
+			//TODO Maybe do something about copy_to_local & server or remove_from_local & server?
+
 
 			//Write the updated bitmask back to the file
-			allOperations.addProperty(fileUID.toString(), bitmask);
-			try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
-				out.write(allOperations.toString().getBytes());
-			}
+			writeMask(allOperations, fileUID, bitmask);
 
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -173,23 +131,16 @@ public class DomainAPI {
 		lock.lock();
 
 		try {
-			//Read all operations in the file into a JsonObject (absolute worst case is a few thousand lines)
-			InputStream in = Files.newInputStream(operationFile.toPath());
-			InputStreamReader reader = new InputStreamReader(in);
-			JsonObject allOperations = JsonParser.parseReader(reader).getAsJsonObject();
-
-
+			//Read all operations in the file into a JsonObject
+			JsonObject allOperations = readOps();
 			//Get the stored bitmask for the fileuid
 			int bitmask = getMask(allOperations, fileUID);
+
 			//Remove the old operation from the bitmask
 			bitmask &= ~oldOperation.flag;
-
-
+			
 			//Write the updated bitmask back to the file
-			allOperations.addProperty(fileUID.toString(), bitmask);
-			try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
-				out.write(allOperations.toString().getBytes());
-			}
+			writeMask(allOperations, fileUID, bitmask);
 
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -200,19 +151,38 @@ public class DomainAPI {
 		return true;
 	}
 
-	private int getMask(JsonObject operationsFile, UUID fileUID) {
-		return operationsFile.get("operations").getAsJsonObject().get(fileUID.toString()).getAsInt();
+
+	//-----------------------------------------------------------
+
+
+	private JsonObject readOps() throws IOException {
+		//Read all operations in the file into a JsonObject (absolute worst case is a few thousand lines)
+		InputStream in = Files.newInputStream(operationFile.toPath());
+		InputStreamReader reader = new InputStreamReader(in);
+		return JsonParser.parseReader(reader).getAsJsonObject();
 	}
+
+	private int getMask(JsonObject allOperations, UUID fileUID) {
+		//Get the stored bitmask for the fileuid (or 0 if no previous entry)
+		JsonElement bitmaskElement = allOperations.get(fileUID.toString());
+		return bitmaskElement != null ? bitmaskElement.getAsInt() : 0;
+	}
+
+	private void writeMask(JsonObject allOperations, UUID fileUID, int bitmask) throws IOException {
+		//Write the updated bitmask back to the file
+		allOperations.addProperty(fileUID.toString(), bitmask);
+		try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
+			out.write(allOperations.toString().getBytes());
+		}
+	}
+
 
 
 	//FOR TESTING
 	public int getMaskTESTING(UUID fileUID) {
-		try (InputStream in = Files.newInputStream(operationFile.toPath());
-			 InputStreamReader reader = new InputStreamReader(in)){
-
+		try {
 			//Read all operations in the file into a JsonObject
-			JsonObject allOperations = JsonParser.parseReader(reader).getAsJsonObject();
-
+			JsonObject allOperations = readOps();
 			//Get the stored bitmask for the fileuid
 			return getMask(allOperations, fileUID);
 		} catch (IOException e) {
@@ -224,30 +194,58 @@ public class DomainAPI {
 	//---------------------------------------------------------------------------------------------
 
 
+	//TODO Fail if no internet in between, but I guess that would just throw a normal exception
+	// when running copy/remove functions
+	//TODO Also remove if fileuid doesn't exist, or maybe just do nothing in the copy/remove functions
 	public boolean executeAnOperation() {
 		//Lock the file before we make any reads/writes
 		lock.lock();
 
 		try {
-			//Read all operations in the file into a JsonObject (absolute worst case is a few thousand lines)
-			InputStream in = Files.newInputStream(operationFile.toPath());
-			InputStreamReader reader = new InputStreamReader(in);
-			JsonObject allOperations = JsonParser.parseReader(reader).getAsJsonObject();
+			//Read all operations in the file into a JsonObject
+			JsonObject allOperations = readOps();
 
 
 			//Get any operation
-			allOperations.
+			Set<Map.Entry<String, JsonElement>> entrySet = allOperations.entrySet();
+			if(!entrySet.isEmpty()) {
+				Map.Entry<String, JsonElement> entry = entrySet.iterator().next();
 
-			//Get the stored bitmask for the fileuid
-			int bitmask = getMask(allOperations, fileUID);
-			//Remove the old operation from the bitmask
-			bitmask &= ~oldOperation.flag;
+				//Get the ID and bitmask for that operation
+				UUID fileUID = UUID.fromString(entry.getKey());
+				int bitmask = entry.getValue().getAsInt();
 
 
-			//Write the updated bitmask back to the file
-			allOperations.addProperty(fileUID.toString(), bitmask);
-			try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
-				out.write(allOperations.toString().getBytes());
+				try {
+					//If we have a COPY_TO_LOCAL operation...
+					if((bitmask & Operation.COPY_TO_LOCAL.flag) > 0)
+						copyFileToLocal(fileUID);
+
+					//If we have a REMOVE_FROM_LOCAL operation...
+					if((bitmask & Operation.REMOVE_FROM_LOCAL.flag) > 0)
+						removeFileFromLocal(fileUID);
+
+					//If we have a COPY_TO_SERVER operation...
+					if((bitmask & Operation.COPY_TO_SERVER.flag) > 0)
+						copyFileToServer(fileUID);
+
+					//If we have a REMOVE_FROM_SERVER operation...
+					if((bitmask & Operation.REMOVE_FROM_SERVER.flag) > 0)
+						removeFileFromServer(fileUID);
+
+				} catch (FileNotFoundException e) {
+					//We don't really want to do anything but log, this is technically a 'success'.
+					//At least as long as this wasn't somehow caused by internet issues.
+				}
+
+
+				//Now that we've run the operations contained in the mask, remove it
+				allOperations.remove(fileUID.toString());
+
+				//And write the updated operations list back to the file
+				try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
+					out.write(allOperations.toString().getBytes());
+				}
 			}
 
 		} catch (IOException e) {
@@ -261,6 +259,13 @@ public class DomainAPI {
 
 
 
+	//---------------------------------------------------------------------------------------------
+
+
+	//TODO Make sure we get a null serverFileProps if no file is found or whatever.
+	// Just make sure we handle whatever we return correctly.
+	// Or better yet just pass the fileNotFound exception along.
+	// I think we're incorrectly throwing an IOException instead of an FNF in getProps()
 	public boolean copyFileToLocal(@NonNull UUID fileuid) throws IOException {
 		//Get the file properties from the server database
 		JsonObject serverFileProps = serverRepo.fileConn.getProps(fileuid);
@@ -341,7 +346,7 @@ public class DomainAPI {
 	}
 
 
-	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------
 
 
 	public boolean removeFileFromLocal(@NonNull UUID fileuid) {
