@@ -11,6 +11,7 @@ import com.example.galleryconnector.local.block.LBlockEntity;
 import com.example.galleryconnector.local.file.LFileEntity;
 import com.example.galleryconnector.server.ServerRepo;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -36,6 +37,28 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
+
+/*
+
+Operation file is a json file structured as so:
+
+{
+	operations: {
+		- fileuid: bitmask -
+		fileuid1: 1010,
+		fileuid2: 1100,
+		...
+	},
+	queue: [
+		fileuid1,
+		fileuid2,
+		...
+	]
+}
+
+*/
+
+
 public class DomainAPI {
 	private final File operationFile;
 	private final ReentrantLock lock;
@@ -58,12 +81,24 @@ public class DomainAPI {
 		//We need a synchronous read/write lock for the operations file
 		lock = new ReentrantLock();
 
+
 		Context context = MyApplication.getAppContext();
 		operationFile = new File(context.getDataDir(), "operations.json");
 
+
+		//Make sure the operations file exists
 		if(!operationFile.exists()) {
 			try {
 				operationFile.createNewFile();
+
+				//Fill the json file with the basics
+				JsonObject baseJson = new JsonObject();
+				baseJson.add("operations", new JsonObject());
+				baseJson.add("queue", new JsonArray());
+
+				try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
+					out.write(baseJson.toString().getBytes());
+				}
 			} catch (Exception e) {
 				throw new RuntimeException("Operation mapping file could not be created!");
 			}
@@ -165,8 +200,8 @@ public class DomainAPI {
 		return true;
 	}
 
-	private int getMask(JsonObject operations, UUID fileUID) {
-		return operations.get(fileUID.toString()).getAsInt();
+	private int getMask(JsonObject operationsFile, UUID fileUID) {
+		return operationsFile.get("operations").getAsJsonObject().get(fileUID.toString()).getAsInt();
 	}
 
 
@@ -187,6 +222,43 @@ public class DomainAPI {
 
 
 	//---------------------------------------------------------------------------------------------
+
+
+	public boolean executeAnOperation() {
+		//Lock the file before we make any reads/writes
+		lock.lock();
+
+		try {
+			//Read all operations in the file into a JsonObject (absolute worst case is a few thousand lines)
+			InputStream in = Files.newInputStream(operationFile.toPath());
+			InputStreamReader reader = new InputStreamReader(in);
+			JsonObject allOperations = JsonParser.parseReader(reader).getAsJsonObject();
+
+
+			//Get any operation
+			allOperations.
+
+			//Get the stored bitmask for the fileuid
+			int bitmask = getMask(allOperations, fileUID);
+			//Remove the old operation from the bitmask
+			bitmask &= ~oldOperation.flag;
+
+
+			//Write the updated bitmask back to the file
+			allOperations.addProperty(fileUID.toString(), bitmask);
+			try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
+				out.write(allOperations.toString().getBytes());
+			}
+
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		} finally {
+			lock.unlock();
+		}
+
+		return true;
+	}
+
 
 
 	public boolean copyFileToLocal(@NonNull UUID fileuid) throws IOException {

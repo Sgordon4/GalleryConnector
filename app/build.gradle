@@ -49,22 +49,7 @@ dependencies {
     testImplementation "androidx.room:room-testing:2.6.1"
     implementation "androidx.room:room-paging:2.6.1"
 
-//    implementation libs.room.runtime
-//    annotationProcessor libs.room.compiler
-//    implementation libs.room.guava
-//    testImplementation libs.room.testing
-//    implementation libs.room.paging
+    implementation "androidx.work:work-runtime:2.9.1"
+    androidTestImplementation "androidx.work:work-testing:2.9.1"
 
-//    roomCompiler = "2.6.1"
-//    room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomCompiler" }
-//    room-guava = { module = "androidx.room:room-guava", version.ref = "roomCompiler" }
-//    room-paging = { module = "androidx.room:room-paging", version.ref = "roomCompiler" }
-//    room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomCompiler" }
-//    room-testing = { module = "androidx.room:room-testing", version.ref = "roomCompiler" }
-
-//    annotationProcessor "androidx.room:room-compiler:2.6.1"
-//    annotationProcessor "androidx.room:room-guava:2.6.1"
-//    implementation "androidx.room:room-paging:2.6.1"
-//    testImplementation "androidx.room:room-runtime:2.6.1"
-//    implementation "androidx.room:room-testing:2.6.1"
 }

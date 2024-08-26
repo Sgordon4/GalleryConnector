@@ -50,11 +50,29 @@ public class SyncHandler {
 	}
 
 
+
+
+	//Bro HOW do we do this correctly? How do other people even do this correctly? Google?
+	//We can sync all of server to local np, but then syncing local to server is a pain
+	//What if server file is being updated, how do we get a word in.
+	//Realistically I can get away with a shitty implementation, but like wth.
+
+
 	public void trySync() throws ExecutionException, InterruptedException, IOException {
 		List<LJournalEntity> localJournals = localRepo.database.getJournalDao()
 				.loadAllAfterID(lastSyncLocalID).get();
 		List<JsonObject> serverJournals = serverRepo.journalConn
 				.getJournalEntriesAfter(lastSyncServerID);
+
+		//TODO This is the new way we decided to do this:
+		// - Loop through S and put in map, overwriting smaller IDs. Do the same for local.
+		// - Loop through server map and make a list in order of ID
+		// - Update all entries in local one by one, updating lastSyncServerID
+		// Now what? How do we sync l->s while keeping l up to date? What if a server file is being
+		// updated a lot? Do we need server to require a last hash when updating to be sure there
+		// were no updates after sending the request? How do other companies even do this? I'm so confused.
+		// Also we should prob split syncing local and syncing server to different functions with this.
+
 
 		//Map the retrieved journal entries by fileuid. In case there are multiple entries
 		// for the same fileuid, we want to keep the latest one (largest journalid).
@@ -64,7 +82,7 @@ public class SyncHandler {
 		for(JsonObject journal : serverJournals)
 			mapServer.put(UUID.fromString(journal.get("fileuid").getAsString()), journal);
 
-
+		/*
 		//Now, for each local journal entry we received...
 		for(Map.Entry<UUID, JsonObject> entry : mapLocal.entrySet()) {
 			//If there is a conflicting entry in our server map, we need to merge the files
@@ -86,6 +104,7 @@ public class SyncHandler {
 
 
 		//TODO Update IDs sometime before this (efficiently, if possible)
+		 */
 
 	}
 
