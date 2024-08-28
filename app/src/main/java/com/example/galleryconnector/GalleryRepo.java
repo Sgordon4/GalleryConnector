@@ -112,14 +112,18 @@ public class GalleryRepo {
 	public ListenableFuture<Boolean> importFile(@NonNull Uri source,
 												@NonNull UUID accountuid, @NonNull UUID parent) {
 		return executor.submit(() -> {
-			return movementHandler.ioAPI.queueImportFile(source, parent, accountuid);
+			//Start a worker instead
+			throw new RuntimeException("Stub!");
+			//return movementHandler.ioAPI.queueImportFile(source, parent, accountuid);
 		});
 	}
 
 	public ListenableFuture<Boolean> exportFile(@NonNull UUID fileuid, @NonNull UUID parent,
 												   @NonNull Uri destination) {
 		return executor.submit(() -> {
-			return movementHandler.ioAPI.queueExportFile(fileuid, parent, destination);
+			//Start a worker instead
+			throw new RuntimeException("Stub!");
+			//return movementHandler.ioAPI.queueExportFile(fileuid, parent, destination);
 		});
 	}
 

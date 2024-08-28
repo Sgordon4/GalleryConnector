@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.UUID;
@@ -64,6 +65,8 @@ public class FileConnector {
 
 		Request request = new Request.Builder().url(url).build();
 		try (Response response = client.newCall(request).execute()) {
+			if(response.code() == 404)
+				throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");
 			if (!response.isSuccessful())
 				throw new IOException("Unexpected code " + response.code());
 			if(response.body() == null)
@@ -192,6 +195,8 @@ public class FileConnector {
 
 		Request request = new Request.Builder().url(url).delete().build();
 		try (Response response = client.newCall(request).execute()) {
+			if(response.code() == 404)
+				throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");
 			if (!response.isSuccessful())
 				throw new IOException("Unexpected code " + response.code());
 			if(response.body() == null)

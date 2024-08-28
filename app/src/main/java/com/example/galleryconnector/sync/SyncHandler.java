@@ -11,6 +11,7 @@ import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,8 +27,8 @@ public class SyncHandler {
 
 	private final DomainAPI domainAPI;
 
-	private final Map<UUID, JsonObject> mapLocal;
-	private final Map<UUID, JsonObject> mapServer;
+	//private final Map<UUID, JsonObject> mapLocal;
+	//private final Map<UUID, JsonObject> mapServer;
 
 
 	public static SyncHandler getInstance() {
@@ -40,13 +41,20 @@ public class SyncHandler {
 		lastSyncLocalID = 0;	//TODO Get from app props
 		lastSyncServerID = 0;
 
-		mapLocal = new HashMap<>();
-		mapServer = new HashMap<>();
+		//mapLocal = new HashMap<>();
+		//mapServer = new HashMap<>();
 
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
 
 		domainAPI = DomainAPI.getInstance();
+	}
+
+	private void updateLastSyncLocal(int id) {
+		lastSyncLocalID = id;
+	}
+	private void updateLastSyncServer(int id) {
+		lastSyncServerID = id;
 	}
 
 
@@ -58,56 +66,77 @@ public class SyncHandler {
 	//Realistically I can get away with a shitty implementation, but like wth.
 
 
+	/*
+	Note: This sync is shitty af. It works for our current purposes, but will need to be revised.
+	Right now, we disregard currently updating files when syncing l->s and s->l.
+	A possible solution is requiring a last hash when updating to be sure there were no very new changes
+	*/
 	public void trySync() throws ExecutionException, InterruptedException, IOException {
 		List<LJournalEntity> localJournals = localRepo.database.getJournalDao()
 				.loadAllAfterID(lastSyncLocalID).get();
 		List<JsonObject> serverJournals = serverRepo.journalConn
 				.getJournalEntriesAfter(lastSyncServerID);
 
-		//TODO This is the new way we decided to do this:
-		// - Loop through S and put in map, overwriting smaller IDs. Do the same for local.
-		// - Loop through server map and make a list in order of ID
-		// - Update all entries in local one by one, updating lastSyncServerID
-		// Now what? How do we sync l->s while keeping l up to date? What if a server file is being
-		// updated a lot? Do we need server to require a last hash when updating to be sure there
-		// were no updates after sending the request? How do other companies even do this? I'm so confused.
-		// Also we should prob split syncing local and syncing server to different functions with this.
 
+		//There may be multiple journal entries with the same fileuid
+		//Journal entries come in order of journalID (largest == latest)
+		//We want an ordered map of journal entries by fileuid, with the largest journalID overwriting smaller ones
 
-		//Map the retrieved journal entries by fileuid. In case there are multiple entries
-		// for the same fileuid, we want to keep the latest one (largest journalid).
-		//They should be in order by ID when coming in, so we just have to loop through.
-		for(LJournalEntity journal : localJournals)
+		Map<UUID, JsonObject> mapLocal = new LinkedHashMap<>();
+		Map<UUID, JsonObject> mapServer = new LinkedHashMap<>();
+
+		for(LJournalEntity journal : localJournals) {
+			if(journal == null) continue;
+			mapLocal.remove(journal.fileuid);
 			mapLocal.put(journal.fileuid, new Gson().toJsonTree(journal).getAsJsonObject());
-		for(JsonObject journal : serverJournals)
-			mapServer.put(UUID.fromString(journal.get("fileuid").getAsString()), journal);
-
-		/*
-		//Now, for each local journal entry we received...
-		for(Map.Entry<UUID, JsonObject> entry : mapLocal.entrySet()) {
-			//If there is a conflicting entry in our server map, we need to merge the files
-			if(mapServer.containsKey(entry.getKey()))
-				merge(entry.getValue(), mapServer.get(entry.getKey()));
-
-			//Otherwise, we can just sync the local file to the server
-			else syncLocalToServer(entry.getValue());
-
-			//TODO What if we error? What do?
-			//Now that we've synced, we're good to remove the entries
-			mapLocal.remove(entry.getKey());
-			mapServer.remove(entry.getKey());
+		}
+		for(JsonObject journal : serverJournals) {
+			if(journal == null) continue;
+			UUID uuid = UUID.fromString(journal.get("fileuid").getAsString());
+			mapServer.remove(uuid);
+			mapServer.put(uuid, journal);
 		}
 
-		//We've gone through all local entries, but there may still be server entries remaining
+		System.out.println("Local Entries: ");
+		for(Map.Entry<UUID, JsonObject> entry : mapLocal.entrySet())
+			System.out.println(entry.getValue());
+		System.out.println("Server Entries: ");
 		for(Map.Entry<UUID, JsonObject> entry : mapServer.entrySet())
-			syncServerToLocal(entry.getValue());
+			System.out.println(entry.getValue());
 
 
-		//TODO Update IDs sometime before this (efficiently, if possible)
-		 */
 
+		//For each of the server journal entries
+		for(Map.Entry<UUID, JsonObject> entry : mapServer.entrySet()) {
+			//If we have conflicting local edits, we need to merge the files
+			if(mapLocal.containsKey(entry.getKey()))
+				merge(mapLocal.get(entry.getKey()), entry.getValue());
+			else
+				syncServerToLocal(entry.getValue());
+
+			//Update the ID we've reached
+			updateLastSyncServer(entry.getValue().get("journalid").getAsInt());
+		}
+
+
+		//Now that we've updated some files, reload the local map
+		localJournals = localRepo.database.getJournalDao().loadAllAfterID(lastSyncLocalID).get();
+		mapLocal.clear();
+		for(LJournalEntity journal : localJournals) {
+			if(journal == null) continue;
+			mapLocal.remove(journal.fileuid);
+			mapLocal.put(journal.fileuid, new Gson().toJsonTree(journal).getAsJsonObject());
+		}
+
+
+		//Now sync each local entry
+		for(Map.Entry<UUID, JsonObject> entry : mapLocal.entrySet()) {
+			syncLocalToServer(entry.getValue());
+		}
 	}
 
+
+	//---------------------------------------------------------------------------------------------
 
 	private void merge(JsonObject local, JsonObject server) throws IOException {
 		//If the files are identical, just return

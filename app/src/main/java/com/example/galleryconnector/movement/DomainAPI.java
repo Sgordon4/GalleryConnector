@@ -111,7 +111,8 @@ public class DomainAPI {
 			if ((Operation.SERVER_MASK & bitmask) == Operation.SERVER_MASK)
 				bitmask &= ~Operation.SERVER_MASK;    //Get rid of both flags since they cancel out
 
-			//TODO Maybe do something about copy_to_local & server or remove_from_local & server?
+			//(COPY_TO_LOCAL & SERVER) and (REMOVE_FROM_LOCAL & SERVER) do not conflict or cause problems.
+			//Although both removes probably means something went wrong...
 
 
 			//Write the updated bitmask back to the file

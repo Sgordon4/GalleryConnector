@@ -37,6 +37,7 @@ import okhttp3.Response;
 
 public class ServerRepo {
 	private static final String baseServerUrl = "http://10.0.2.2:3306";
+	//private static final String baseServerUrl = "http://localhost:3306";
 	OkHttpClient client;
 	private static final String TAG = "Gal.SRepo";
 

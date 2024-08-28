@@ -20,6 +20,6 @@ public class IOTest {
 
 		FileIOApi ioApi = FileIOApi.getInstance();
 
-		ioApi.queueImportFile(Uri.EMPTY,UUID.randomUUID(), UUID.randomUUID());
+		//ioApi.queueImportFile(Uri.EMPTY,UUID.randomUUID(), UUID.randomUUID());
 	}
 }

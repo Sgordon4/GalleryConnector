@@ -27,12 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class FileIOApi {
-	private final File queueFile;
-	private final ReentrantLock lock;
-
-
 	private final LocalRepo localRepo;
-	private final ServerRepo serverRepo;
 
 
 	public static FileIOApi getInstance() {
@@ -43,88 +38,8 @@ public class FileIOApi {
 	}
 	private FileIOApi() {
 		localRepo = LocalRepo.getInstance();
-		serverRepo = ServerRepo.getInstance();
-
-		//We need a synchronous read/write lock for the operations file
-		lock = new ReentrantLock();
-
-		Context context = MyApplication.getAppContext();
-		queueFile = new File(context.getDataDir(), "IOQueue.txt");
-
-		if(!queueFile.exists()) {
-			try {
-				queueFile.createNewFile();
-			} catch (Exception e) {
-				throw new RuntimeException("IO Queue file could not be created!");
-			}
-		}
 	}
 
-
-
-	public boolean queueImportFile(Uri source, UUID destDir, UUID account) {
-		//Build the queue item to add to the queue file
-		JsonObject newImportItem = new JsonObject();
-		newImportItem.addProperty("operation", "import");
-		newImportItem.addProperty("source", source.toString());
-		newImportItem.addProperty("parent", destDir.toString());
-		newImportItem.addProperty("account", account.toString());
-
-		//Add the new item to the queue
-		queueItem(newImportItem);
-
-		return true;
-	}
-
-	public boolean queueExportFile(UUID file, UUID parent, Uri dest) {
-		//Build the queue item to add to the queue file
-		JsonObject newExportItem = new JsonObject();
-		newExportItem.addProperty("operation", "export");
-		newExportItem.addProperty("source", file.toString());
-		newExportItem.addProperty("parent", parent.toString());
-		newExportItem.addProperty("destination", dest.toString());
-
-		//Add the new item to the queue
-		queueItem(newExportItem);
-
-		return true;
-	}
-
-
-	private void queueItem(JsonObject newQueueItem) {
-		//Lock the file before we make any reads/writes
-		lock.lock();
-
-		try (BufferedReader reader = new BufferedReader(new FileReader(queueFile))) {
-			//Read the queue into a JsonObject
-			JsonObject queueObj = new Gson().fromJson(reader, JsonObject.class);
-			if(queueObj == null) queueObj = new JsonObject();
-
-			//Get the queue itself
-			JsonElement element = queueObj.get("queue");
-			if(element == null) element = new JsonArray();
-
-
-			//Add the new item to the queue
-			JsonArray queue = element.getAsJsonArray();
-			queue.add(newQueueItem);
-			queueObj.add("queue", queue);
-
-
-			//And write the json back to the file
-			try (FileWriter writer = new FileWriter(queueFile)) {
-				writer.write(new Gson().toJson(queueObj));
-			}
-
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		} finally {
-			lock.unlock();
-		}
-	}
-
-
-	//---------------------------------------------------------------------------------------------
 
 
 	public JsonObject importFileToLocal(@NonNull UUID accountuid, @NonNull UUID parent, @NonNull Uri source) {
