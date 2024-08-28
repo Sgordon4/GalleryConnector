@@ -8,7 +8,7 @@
       <SelectionState runConfigName="SRepoTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="test()">
+      <SelectionState runConfigName="GRepoTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
       <SelectionState runConfigName="SyncTest">

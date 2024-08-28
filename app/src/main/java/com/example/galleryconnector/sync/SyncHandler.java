@@ -139,6 +139,8 @@ public class SyncHandler {
 	//---------------------------------------------------------------------------------------------
 
 	private void merge(JsonObject local, JsonObject server) throws IOException {
+		System.out.println("Merging: "+local.get("fileuid"));
+
 		//If the files are identical, just return
 		if(local.equals(server))
 			return;
@@ -157,6 +159,8 @@ public class SyncHandler {
 
 
 	private void syncLocalToServer(JsonObject localFile) throws IOException {
+		System.out.println("Syncing to server: "+localFile.get("fileuid"));
+
 		//For efficiency, check if the server's entry is actually any different before syncing
 		JsonObject serverFile = serverRepo.fileConn
 				.getProps(UUID.fromString(localFile.get("fileuid").getAsString()));
@@ -170,6 +174,8 @@ public class SyncHandler {
 	}
 
 	private void syncServerToLocal(JsonObject serverFile) throws IOException {
+		System.out.println("Syncing to local: "+serverFile.get("fileuid"));
+
 		//For efficiency, check if the local's entry is actually any different before syncing
 		List<LFileEntity> lList = localRepo.database.getFileDao()
 				.loadByUID(UUID.fromString(serverFile.get("fileuid").getAsString()));
