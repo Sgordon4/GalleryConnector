@@ -5,11 +5,14 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.Objects;
 import java.util.UUID;
 
 import okhttp3.FormBody;
@@ -97,8 +100,11 @@ public class FileConnector {
 
 		//Compile all passed properties into a form body
 		FormBody.Builder builder = new FormBody.Builder();
-		for(String prop : props.keySet()) {
-			builder.add(prop, props.get(prop).getAsString());
+		System.out.println("Keyset: "+props.keySet());
+		for(String key : props.keySet()) {
+			System.out.println("Key: "+key+" Value: "+props.get(key));
+			System.out.println("ToString: "+props.get(key).toString());
+			builder.add(key, props.get(key).toString());
 		}
 		RequestBody body = builder.build();
 

@@ -80,9 +80,9 @@ public class ServerRepo {
 		Map<String, String> fileHashAndSize = uploadBlockset(source, context);
 
 		//Update the file properties with the hash and size
-		fileProps.addProperty("blockset", fileHashAndSize.get("blockset"));
+		fileProps.addProperty("fileblocks", fileHashAndSize.get("fileblocks"));
 		fileProps.addProperty("filehash", fileHashAndSize.get("filehash"));
-		fileProps.addProperty("filesize", fileHashAndSize.get("filesize"));
+		fileProps.addProperty("filesize", Integer.parseInt(fileHashAndSize.get("filesize")));
 
 
 		//TODO Maybe cache the file? Probably best to be done in GalleryRepo alongside a call to this function
@@ -143,7 +143,7 @@ public class ServerRepo {
 
 
 		Map<String, String> fileInfo = new HashMap<>();
-		fileInfo.put("blockset", new Gson().toJson(fileHashes));
+		fileInfo.put("fileblocks", new Gson().toJson(fileHashes));
 		fileInfo.put("filehash", filehash);
 		fileInfo.put("filesize", String.valueOf(filesize));
 		return fileInfo;

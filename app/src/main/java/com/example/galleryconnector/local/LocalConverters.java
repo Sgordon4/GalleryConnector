@@ -6,6 +6,8 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -52,5 +54,17 @@ public class LocalConverters {
 	@TypeConverter
 	public static String fromMap(Map<String, Object> list) {
 		return new Gson().toJson(list);
+	}
+
+	//---------------------------------------------------------------------------------------------
+
+	@TypeConverter
+	public static Timestamp toTimestamp(String value) {
+		return Timestamp.valueOf(value);
+	}
+
+	@TypeConverter
+	public static String fromTimestamp(Timestamp timestamp) {
+		return timestamp.toString();
 	}
 }

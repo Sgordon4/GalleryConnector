@@ -7,6 +7,13 @@ import androidx.room.Entity;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -28,7 +35,7 @@ public class LFileEntity {
 	public boolean islink;
 
 	@NonNull
-	@ColumnInfo(defaultValue = "[]")
+	@ColumnInfo(defaultValue = "{}")
 	public List<String> fileblocks;
 	@ColumnInfo(defaultValue = "0")
 	public int filesize;
@@ -48,7 +55,7 @@ public class LFileEntity {
 	//Last time the file contents were accessed
 	public long accesstime;
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
-	public long createtime;
+	public Timestamp createtime;
 
 
 	@Ignore
@@ -67,24 +74,50 @@ public class LFileEntity {
 		this.changetime = -1;
 		this.modifytime = -1;
 		this.accesstime = -1;
-		this.createtime = new Date().getTime();
+		this.createtime = new Timestamp(new Date().getTime());
 
 	}
+
+
+	//We want to exclude some fields with default values from the JSON output
+	@Ignore
+	public ExclusionStrategy strategy = new ExclusionStrategy() {
+		@Override
+		public boolean shouldSkipField(FieldAttributes f) {
+			switch (f.getName()) {
+				case "isdir": return !isdir;
+				case "islink": return !islink;
+				case "changetime": return changetime == -1;
+				case "modifytime": return modifytime == -1;
+				case "accesstime": return accesstime == -1;
+				default:
+					return false;
+			}
+		}
+
+		@Override
+		public boolean shouldSkipClass(Class<?> clazz) {
+			return false;
+		}
+	};
+
+
+	public JsonObject toJson() {
+		Gson gson = new GsonBuilder()
+				.addSerializationExclusionStrategy(strategy)
+				.create();
+
+		return gson.toJsonTree(this).getAsJsonObject();
+	}
+
+
 
 
 	@NonNull
 	@Override
 	public String toString() {
-		return "LFile{" +
-				"fileuid=" + fileuid +
-				", accountuid=" + accountuid +
-				", isdir=" + isdir +
-				", islink=" + islink +
-				", fileblocks=" + fileblocks +
-				", filesize=" + filesize +
-				", filehash=" + filehash +
-				", isdeleted=" + isdeleted +
-				'}';
+		JsonObject json = toJson();
+		return json.toString();
 	}
 
 

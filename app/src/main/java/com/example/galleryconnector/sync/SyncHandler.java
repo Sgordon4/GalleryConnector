@@ -181,14 +181,19 @@ public class SyncHandler {
 				.loadByUID(UUID.fromString(serverFile.get("fileuid").getAsString()));
 
 		//If local no longer has the file, don't sync
-		if(lList.isEmpty())
+		if(lList.isEmpty()) {
+			System.out.println("Local does not have the file, skipping sync");
 			return;
+		}
 
 		JsonObject localFile = new Gson().toJsonTree(lList.get(0)).getAsJsonObject();
 
 		//If local does have different data, send over the server file
 		if(!serverFile.equals(localFile)) {
+			System.out.println("Local file has different data, syncing...");
 			domainAPI.copyFileToLocal(UUID.fromString(serverFile.get("fileuid").getAsString()));
 		}
+		else
+			System.out.println("Local file has identical data, skipping sync");
 	}
 }
