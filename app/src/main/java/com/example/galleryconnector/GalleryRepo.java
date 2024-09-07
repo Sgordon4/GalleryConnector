@@ -32,6 +32,8 @@ public class GalleryRepo {
 
 	private final MovementHandler movementHandler;
 
+	private GFileUpdateObservers observers;
+
 
 	public static GalleryRepo getInstance() {
 		return SingletonHelper.INSTANCE;
@@ -46,6 +48,10 @@ public class GalleryRepo {
 		serverRepo = ServerRepo.getInstance();
 
 		movementHandler = MovementHandler.getInstance();
+
+		observers = new GFileUpdateObservers();
+		observers.attachToLocal(localRepo);
+		observers.attachToServer(serverRepo);
 	}
 
 

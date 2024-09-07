@@ -43,10 +43,6 @@ public abstract class LocalDatabase extends RoomDatabase {
 						public void onCreate(@NonNull SupportSQLiteDatabase db) {
 							super.onCreate(db);
 
-							LFileEntity a = new LFileEntity(UUID.randomUUID());
-
-
-							//---------------------------------------------------------------------
 							//Journal triggers
 
 							//When a file row is inserted or updated, add a record to the Journal.

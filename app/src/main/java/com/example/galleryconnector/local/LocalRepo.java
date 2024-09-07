@@ -28,10 +28,14 @@ public class LocalRepo {
 	public final LocalDatabase database;
 	public final LBlockHandler blockHandler;
 
+	private final LFileUpdateObservers observers;
+
 	public LocalRepo() {
 		database = new LocalDatabase.DBBuilder().newInstance( MyApplication.getAppContext() );
 
 		blockHandler = new LBlockHandler(database.getBlockDao());
+
+		observers = new LFileUpdateObservers();
 	}
 
 	public static LocalRepo getInstance() {
@@ -39,6 +43,15 @@ public class LocalRepo {
 	}
 	private static class SingletonHelper {
 		private static final LocalRepo INSTANCE = new LocalRepo();
+	}
+
+	//---------------------------------------------------------------------------------------------
+
+	public void addObserver(LFileUpdateObservers.LFileObservable observer) {
+		observers.addObserver(observer);
+	}
+	public void removeObserver(LFileUpdateObservers.LFileObservable observer) {
+		observers.removeObserver(observer);
 	}
 
 	//---------------------------------------------------------------------------------------------
@@ -54,6 +67,11 @@ public class LocalRepo {
 
 		//Now that the blockset is uploaded, create/update the file metadata
 		database.getFileDao().put(file);
+
+
+		//TODO I'm not sure if there's a way for room to do this after an trigger insert to Journal instead
+		observers.notifyObservers(file);
+
 		return file;
 	}
 
