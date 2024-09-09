@@ -1,5 +1,6 @@
 package com.example.galleryconnector;
 
+import android.content.Context;
 import android.net.Uri;
 
 import androidx.annotation.NonNull;
@@ -32,7 +33,7 @@ public class GalleryRepo {
 
 	private final MovementHandler movementHandler;
 
-	private GFileUpdateObservers observers;
+	private final GFileUpdateObservers observers;
 
 
 	public static GalleryRepo getInstance() {
@@ -49,12 +50,18 @@ public class GalleryRepo {
 
 		movementHandler = MovementHandler.getInstance();
 
-		observers = new GFileUpdateObservers();
-		observers.attachToLocal(localRepo);
-		observers.attachToServer(serverRepo);
+		Context context = MyApplication.getAppContext();
+		observers = new GFileUpdateObservers(context, localRepo, serverRepo);
 	}
 
+	//---------------------------------------------------------------------------------------------
 
+	public void addObserver(GFileUpdateObservers.GFileObservable observer) {
+		observers.addObserver(observer);
+	}
+	public void removeObserver(GFileUpdateObservers.GFileObservable observer) {
+		observers.removeObserver(observer);
+	}
 
 	//---------------------------------------------------------------------------------------------
 	// Account

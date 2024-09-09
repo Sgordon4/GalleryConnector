@@ -47,6 +47,7 @@ public class LocalRepo {
 
 	//---------------------------------------------------------------------------------------------
 
+	//Local observers could possibly be moved to GRepo
 	public void addObserver(LFileUpdateObservers.LFileObservable observer) {
 		observers.addObserver(observer);
 	}

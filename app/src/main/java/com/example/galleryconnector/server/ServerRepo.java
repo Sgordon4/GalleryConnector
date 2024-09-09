@@ -46,6 +46,8 @@ public class ServerRepo {
 	public final BlockConnector blockConn;
 	public final JournalConnector journalConn;
 
+	private final SFileUpdateObservers observers;
+
 
 	public ServerRepo() {
 		client = new OkHttpClient().newBuilder()
@@ -59,6 +61,8 @@ public class ServerRepo {
 		fileConn = new FileConnector(baseServerUrl, client);
 		blockConn = new BlockConnector(baseServerUrl, client);
 		journalConn = new JournalConnector(baseServerUrl, client);
+
+		observers = new SFileUpdateObservers();
 	}
 
 	public static ServerRepo getInstance() {
@@ -68,6 +72,15 @@ public class ServerRepo {
 		private static final ServerRepo INSTANCE = new ServerRepo();
 	}
 
+	//---------------------------------------------------------------------------------------------
+
+	//Server observers could possibly be moved to GRepo
+	public void addObserver(SFileUpdateObservers.SFileObservable observer) {
+		observers.addObserver(observer);
+	}
+	public void removeObserver(SFileUpdateObservers.SFileObservable observer) {
+		observers.removeObserver(observer);
+	}
 
 	//---------------------------------------------------------------------------------------------
 
