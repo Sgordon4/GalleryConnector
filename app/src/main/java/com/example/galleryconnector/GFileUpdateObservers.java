@@ -21,7 +21,7 @@ import java.util.List;
 
 public class GFileUpdateObservers {
 
-	private List<GFileObservable> listeners;
+	private final List<GFileObservable> listeners;
 
 	public GFileUpdateObservers(@NonNull Context context, @NonNull LocalRepo lRepo, @NonNull ServerRepo sRepo) {
 		listeners = new ArrayList<>();
