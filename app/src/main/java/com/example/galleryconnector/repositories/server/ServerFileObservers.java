@@ -1,16 +1,15 @@
-package com.example.galleryconnector.server;
+package com.example.galleryconnector.repositories.server;
 
-import com.example.galleryconnector.local.file.LFileEntity;
 import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class SFileUpdateObservers {
+public class ServerFileObservers {
 
 	private List<SFileObservable> listeners;
 
-	public SFileUpdateObservers() {
+	public ServerFileObservers() {
 		listeners = new ArrayList<>();
 	}
 

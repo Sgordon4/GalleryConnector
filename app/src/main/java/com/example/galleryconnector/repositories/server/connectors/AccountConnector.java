@@ -1,4 +1,4 @@
-package com.example.galleryconnector.server.connectors;
+package com.example.galleryconnector.repositories.server.connectors;
 
 import android.util.Log;
 

@@ -5,19 +5,15 @@ import static com.google.common.reflect.Reflection.getPackageName;
 import android.content.Context;
 import android.net.Uri;
 
-import com.example.galleryconnector.local.LocalRepo;
-import com.example.galleryconnector.local.file.LFileEntity;
-import com.example.galleryconnector.server.ServerRepo;
+import com.example.galleryconnector.repositories.local.LocalRepo;
+import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.sync.SyncHandler;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 

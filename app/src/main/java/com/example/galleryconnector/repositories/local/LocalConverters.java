@@ -1,4 +1,4 @@
-package com.example.galleryconnector.local;
+package com.example.galleryconnector.repositories.local;
 
 import androidx.room.TypeConverter;
 

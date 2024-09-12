@@ -1,4 +1,4 @@
-package com.example.galleryconnector.local.journal;
+package com.example.galleryconnector.repositories.local.journal;
 
 import androidx.room.Dao;
 import androidx.room.Delete;

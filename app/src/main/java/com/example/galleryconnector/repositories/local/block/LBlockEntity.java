@@ -1,4 +1,4 @@
-package com.example.galleryconnector.local.block;
+package com.example.galleryconnector.repositories.local.block;
 
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;

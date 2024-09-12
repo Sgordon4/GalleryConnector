@@ -6,37 +6,25 @@ import android.net.Uri;
 import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.local.LocalRepo;
-import com.example.galleryconnector.local.file.LFileEntity;
-import com.example.galleryconnector.server.ServerRepo;
+import com.example.galleryconnector.repositories.local.LocalRepo;
+import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
 import java.util.UUID;
-import java.util.concurrent.locks.ReentrantLock;
 
-public class FileIOApi {
+public class ImportExportApi {
 	private final LocalRepo localRepo;
 
 
-	public static FileIOApi getInstance() {
+	public static ImportExportApi getInstance() {
 		return SingletonHelper.INSTANCE;
 	}
 	private static class SingletonHelper {
-		private static final FileIOApi INSTANCE = new FileIOApi();
+		private static final ImportExportApi INSTANCE = new ImportExportApi();
 	}
-	private FileIOApi() {
+	private ImportExportApi() {
 		localRepo = LocalRepo.getInstance();
 	}
 

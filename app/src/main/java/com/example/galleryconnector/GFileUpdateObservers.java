@@ -6,13 +6,12 @@ import androidx.annotation.NonNull;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
-import androidx.work.WorkerParameters;
 
-import com.example.galleryconnector.local.LFileUpdateObservers;
-import com.example.galleryconnector.local.LocalRepo;
-import com.example.galleryconnector.movement.FileIOWorker;
-import com.example.galleryconnector.server.SFileUpdateObservers;
-import com.example.galleryconnector.server.ServerRepo;
+import com.example.galleryconnector.repositories.local.LocalFileObservers;
+import com.example.galleryconnector.repositories.local.LocalRepo;
+import com.example.galleryconnector.movement.ImportExportWorker;
+import com.example.galleryconnector.repositories.server.ServerFileObservers;
+import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
@@ -22,12 +21,14 @@ import java.util.List;
 public class GFileUpdateObservers {
 
 	private final List<GFileObservable> listeners;
+	private final Context context;
 
 	public GFileUpdateObservers(@NonNull Context context, @NonNull LocalRepo lRepo, @NonNull ServerRepo sRepo) {
 		listeners = new ArrayList<>();
+		this.context = context;
 
-		attachToLocal(lRepo, context);
-		attachToServer(sRepo, context);
+		attachToLocal(lRepo);
+		attachToServer(sRepo);
 	}
 
 
@@ -39,33 +40,40 @@ public class GFileUpdateObservers {
 	}
 
 
-	public void attachToLocal(@NonNull LocalRepo localRepo, @NonNull Context context) {
-		LFileUpdateObservers.LFileObservable lFileChangedObs = file -> {
-			JsonObject fileJson = new Gson().toJsonTree(file).getAsJsonObject();
-			notifyObservers(fileJson);
 
-			//Now that we know there's been an update, start a sync
-			//The WorkRequest can be configured
-			WorkRequest syncRequest = new OneTimeWorkRequest.Builder(FileIOWorker.class).build();
-			WorkManager.getInstance(context).enqueue(syncRequest);
+	private void onFileUpdate(@NonNull JsonObject file) {
+		//Now that we know there's been an update, start a sync (does nothing if one already exists)
+		launchSyncWorker();
+
+		notifyObservers(file);
+	}
+
+
+	public void attachToLocal(@NonNull LocalRepo localRepo) {
+		LocalFileObservers.LFileObservable lFileChangedObs = file -> {
+			JsonObject fileJson = new Gson().toJsonTree(file).getAsJsonObject();
+			onFileUpdate(fileJson);
 		};
 
 		localRepo.addObserver(lFileChangedObs);
 	}
-	public void attachToServer(@NonNull ServerRepo serverRepo, @NonNull Context context) {
-		SFileUpdateObservers.SFileObservable sFileChangedObs = file -> {
+	public void attachToServer(@NonNull ServerRepo serverRepo) {
+		ServerFileObservers.SFileObservable sFileChangedObs = file -> {
 			//TODO Perhaps on getting an update from server, compare to local (cheap) to prevent unnecessary update notifications
-
-			notifyObservers(file);
-
-			//Now that we know there's been an update, start a sync
-			//The WorkRequest can be configured
-			WorkRequest syncRequest = new OneTimeWorkRequest.Builder(FileIOWorker.class).build();
-			WorkManager.getInstance(context).enqueue(syncRequest);
+			onFileUpdate(file);
 		};
 
 		serverRepo.addObserver(sFileChangedObs);
 	}
+
+
+	private void launchSyncWorker() {
+		//TODO Be sure to set this up to ignore if a sync is already in progress
+		//The WorkRequest can be configured
+		WorkRequest syncRequest = new OneTimeWorkRequest.Builder(ImportExportWorker.class).build();
+		WorkManager.getInstance(context).enqueue(syncRequest);
+	}
+
 
 
 	public void notifyObservers(JsonObject file) {

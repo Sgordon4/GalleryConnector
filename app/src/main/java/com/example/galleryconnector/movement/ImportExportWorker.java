@@ -8,20 +8,20 @@ import androidx.annotation.NonNull;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
-import com.example.galleryconnector.local.LocalRepo;
-import com.example.galleryconnector.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.LocalRepo;
+import com.example.galleryconnector.repositories.local.file.LFileEntity;
 
 import java.io.IOException;
 import java.util.Objects;
 import java.util.UUID;
 
-public class FileIOWorker extends Worker {
+public class ImportExportWorker extends Worker {
 	private static final String TAG = "Gal.FIO";
 	private final Context context;
 
 	private final LocalRepo localRepo;
 
-	public FileIOWorker(@NonNull Context context, @NonNull WorkerParameters params) {
+	public ImportExportWorker(@NonNull Context context, @NonNull WorkerParameters params) {
 		super(context, params);
 		this.context = context;
 

@@ -6,12 +6,12 @@ import android.net.Uri;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.example.galleryconnector.local.LocalRepo;
-import com.example.galleryconnector.local.account.LAccountEntity;
-import com.example.galleryconnector.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.LocalRepo;
+import com.example.galleryconnector.repositories.local.account.LAccountEntity;
+import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.movement.DomainAPI;
-import com.example.galleryconnector.movement.MovementHandler;
-import com.example.galleryconnector.server.ServerRepo;
+import com.example.galleryconnector.movement.ImportExportApi;
+import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -31,7 +31,8 @@ public class GalleryRepo {
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
 
-	private final MovementHandler movementHandler;
+	private final DomainAPI domainAPI;
+	private final ImportExportApi importExportApi;
 
 	private final GFileUpdateObservers observers;
 
@@ -48,7 +49,8 @@ public class GalleryRepo {
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
 
-		movementHandler = MovementHandler.getInstance();
+		domainAPI = DomainAPI.getInstance();
+		importExportApi = ImportExportApi.getInstance();
 
 		Context context = MyApplication.getAppContext();
 		observers = new GFileUpdateObservers(context, localRepo, serverRepo);
@@ -127,7 +129,7 @@ public class GalleryRepo {
 		return executor.submit(() -> {
 			//Start a worker instead
 			throw new RuntimeException("Stub!");
-			//return movementHandler.ioAPI.queueImportFile(source, parent, accountuid);
+			//return importExportApi.queueImportFile(source, parent, accountuid);
 		});
 	}
 
@@ -136,7 +138,7 @@ public class GalleryRepo {
 		return executor.submit(() -> {
 			//Start a worker instead
 			throw new RuntimeException("Stub!");
-			//return movementHandler.ioAPI.queueExportFile(fileuid, parent, destination);
+			//return importExportApi.queueExportFile(fileuid, parent, destination);
 		});
 	}
 
@@ -149,35 +151,35 @@ public class GalleryRepo {
 
 	public ListenableFuture<Boolean> copyFileToLocal(@NonNull UUID fileuid) {
 		return executor.submit(() -> {
-			return movementHandler.domainAPI.queueOperation(DomainAPI.Operation.COPY_TO_LOCAL, fileuid);
+			return domainAPI.queueOperation(DomainAPI.Operation.COPY_TO_LOCAL, fileuid);
 		});
 	}
 	public ListenableFuture<Boolean> copyFileToServer(@NonNull UUID fileuid) {
 		return executor.submit(() -> {
-			return movementHandler.domainAPI.queueOperation(DomainAPI.Operation.COPY_TO_SERVER, fileuid);
+			return domainAPI.queueOperation(DomainAPI.Operation.COPY_TO_SERVER, fileuid);
 		});
 	}
 
 	protected ListenableFuture<Boolean> copyFileToLocalImmediate(@NonNull UUID fileuid) {
 		return executor.submit(() -> {
-			return movementHandler.domainAPI.copyFileToLocal(fileuid);
+			return domainAPI.copyFileToLocal(fileuid);
 		});
 	}
 	protected ListenableFuture<Boolean> copyFileToServerImmediate(@NonNull UUID fileuid) {
 		return executor.submit(() -> {
-			return movementHandler.domainAPI.copyFileToServer(fileuid);
+			return domainAPI.copyFileToServer(fileuid);
 		});
 	}
 
 
 	public ListenableFuture<Boolean> removeFileFromLocal(@NonNull UUID fileuid) {
 		return executor.submit(() -> {
-			return movementHandler.domainAPI.queueOperation(DomainAPI.Operation.REMOVE_FROM_LOCAL, fileuid);
+			return domainAPI.queueOperation(DomainAPI.Operation.REMOVE_FROM_LOCAL, fileuid);
 		});
 	}
 	public ListenableFuture<Boolean> removeFileFromServer(@NonNull UUID fileuid) {
 		return executor.submit(() -> {
-			return movementHandler.domainAPI.queueOperation(DomainAPI.Operation.REMOVE_FROM_SERVER, fileuid);
+			return domainAPI.queueOperation(DomainAPI.Operation.REMOVE_FROM_SERVER, fileuid);
 		});
 	}
 }

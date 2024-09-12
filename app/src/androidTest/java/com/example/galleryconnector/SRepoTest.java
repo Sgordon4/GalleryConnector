@@ -7,7 +7,7 @@ import android.net.Uri;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 
-import com.example.galleryconnector.server.ServerRepo;
+import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.gson.JsonObject;
 
 import org.junit.After;

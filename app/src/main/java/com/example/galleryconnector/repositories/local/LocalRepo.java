@@ -1,6 +1,6 @@
-package com.example.galleryconnector.local;
+package com.example.galleryconnector.repositories.local;
 
-import static com.example.galleryconnector.server.connectors.BlockConnector.CHUNK_SIZE;
+import static com.example.galleryconnector.repositories.server.connectors.BlockConnector.CHUNK_SIZE;
 
 import android.content.ContentResolver;
 import android.content.Context;
@@ -10,10 +10,10 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.local.block.LBlockHandler;
-import com.example.galleryconnector.local.block.LBlockEntity;
-import com.example.galleryconnector.local.file.LFileEntity;
-import com.example.galleryconnector.server.connectors.BlockConnector;
+import com.example.galleryconnector.repositories.local.block.LBlockHandler;
+import com.example.galleryconnector.repositories.local.block.LBlockEntity;
+import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,14 +28,14 @@ public class LocalRepo {
 	public final LocalDatabase database;
 	public final LBlockHandler blockHandler;
 
-	private final LFileUpdateObservers observers;
+	private final LocalFileObservers observers;
 
 	public LocalRepo() {
 		database = new LocalDatabase.DBBuilder().newInstance( MyApplication.getAppContext() );
 
 		blockHandler = new LBlockHandler(database.getBlockDao());
 
-		observers = new LFileUpdateObservers();
+		observers = new LocalFileObservers();
 	}
 
 	public static LocalRepo getInstance() {
@@ -48,10 +48,10 @@ public class LocalRepo {
 	//---------------------------------------------------------------------------------------------
 
 	//Local observers could possibly be moved to GRepo
-	public void addObserver(LFileUpdateObservers.LFileObservable observer) {
+	public void addObserver(LocalFileObservers.LFileObservable observer) {
 		observers.addObserver(observer);
 	}
-	public void removeObserver(LFileUpdateObservers.LFileObservable observer) {
+	public void removeObserver(LocalFileObservers.LFileObservable observer) {
 		observers.removeObserver(observer);
 	}
 

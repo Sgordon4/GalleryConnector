@@ -1,6 +1,6 @@
-package com.example.galleryconnector.server;
+package com.example.galleryconnector.repositories.server;
 
-import static com.example.galleryconnector.server.connectors.BlockConnector.CHUNK_SIZE;
+import static com.example.galleryconnector.repositories.server.connectors.BlockConnector.CHUNK_SIZE;
 
 import android.content.ContentResolver;
 import android.content.Context;
@@ -9,10 +9,10 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import com.example.galleryconnector.server.connectors.AccountConnector;
-import com.example.galleryconnector.server.connectors.BlockConnector;
-import com.example.galleryconnector.server.connectors.FileConnector;
-import com.example.galleryconnector.server.connectors.JournalConnector;
+import com.example.galleryconnector.repositories.server.connectors.AccountConnector;
+import com.example.galleryconnector.repositories.server.connectors.FileConnector;
+import com.example.galleryconnector.repositories.server.connectors.JournalConnector;
+import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -46,7 +46,7 @@ public class ServerRepo {
 	public final BlockConnector blockConn;
 	public final JournalConnector journalConn;
 
-	private final SFileUpdateObservers observers;
+	private final ServerFileObservers observers;
 
 
 	public ServerRepo() {
@@ -62,7 +62,7 @@ public class ServerRepo {
 		blockConn = new BlockConnector(baseServerUrl, client);
 		journalConn = new JournalConnector(baseServerUrl, client);
 
-		observers = new SFileUpdateObservers();
+		observers = new ServerFileObservers();
 	}
 
 	public static ServerRepo getInstance() {
@@ -75,10 +75,10 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 
 	//Server observers could possibly be moved to GRepo
-	public void addObserver(SFileUpdateObservers.SFileObservable observer) {
+	public void addObserver(ServerFileObservers.SFileObservable observer) {
 		observers.addObserver(observer);
 	}
-	public void removeObserver(SFileUpdateObservers.SFileObservable observer) {
+	public void removeObserver(ServerFileObservers.SFileObservable observer) {
 		observers.removeObserver(observer);
 	}
 

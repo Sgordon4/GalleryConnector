@@ -1,4 +1,4 @@
-package com.example.galleryconnector.local.journal;
+package com.example.galleryconnector.repositories.local.journal;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;

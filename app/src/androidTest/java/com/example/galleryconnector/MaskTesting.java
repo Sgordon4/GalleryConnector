@@ -1,7 +1,6 @@
 package com.example.galleryconnector;
 
 import com.example.galleryconnector.movement.DomainAPI;
-import com.example.galleryconnector.movement.MovementHandler;
 
 import org.junit.Test;
 
@@ -11,8 +10,7 @@ public class MaskTesting {
 
 	@Test
 	public void testOperations() {
-		MovementHandler movementHandler = MovementHandler.getInstance();
-		DomainAPI domainAPI = movementHandler.domainAPI;
+		DomainAPI domainAPI = DomainAPI.getInstance();
 		UUID fileUID = UUID.randomUUID();
 
 		System.out.println("Testing Operations:");

@@ -1,10 +1,9 @@
-package com.example.galleryconnector.local.block;
+package com.example.galleryconnector.repositories.local.block;
 
 import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.MyApplication;
 

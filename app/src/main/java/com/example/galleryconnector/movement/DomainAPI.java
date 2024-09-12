@@ -5,10 +5,10 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.local.LocalRepo;
-import com.example.galleryconnector.local.block.LBlockEntity;
-import com.example.galleryconnector.local.file.LFileEntity;
-import com.example.galleryconnector.server.ServerRepo;
+import com.example.galleryconnector.repositories.local.LocalRepo;
+import com.example.galleryconnector.repositories.local.block.LBlockEntity;
+import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

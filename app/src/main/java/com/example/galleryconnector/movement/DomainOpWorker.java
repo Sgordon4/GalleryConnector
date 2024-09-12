@@ -43,7 +43,7 @@ public class DomainOpWorker extends Worker {
 			fileUID = UUID.fromString( file );
 
 		} catch (IllegalArgumentException e) {
-			Log.e(TAG, "Invalid parameter passed to QueueMoveWorker!");
+			Log.e(TAG, "Invalid parameter passed to DomainOpWorker!");
 			throw new RuntimeException(e);
 		}
 

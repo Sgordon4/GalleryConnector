@@ -1,15 +1,15 @@
-package com.example.galleryconnector.local;
+package com.example.galleryconnector.repositories.local;
 
-import com.example.galleryconnector.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.file.LFileEntity;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class LFileUpdateObservers {
+public class LocalFileObservers {
 
 	private List<LFileObservable> listeners;
 
-	public LFileUpdateObservers() {
+	public LocalFileObservers() {
 		listeners = new ArrayList<>();
 	}
 

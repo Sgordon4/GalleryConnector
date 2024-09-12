@@ -1,16 +1,15 @@
 package com.example.galleryconnector.sync;
 
-import com.example.galleryconnector.local.LocalRepo;
-import com.example.galleryconnector.local.file.LFileEntity;
-import com.example.galleryconnector.local.journal.LJournalEntity;
+import com.example.galleryconnector.repositories.local.LocalRepo;
+import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
 import com.example.galleryconnector.movement.DomainAPI;
-import com.example.galleryconnector.server.ServerRepo;
+import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,9 +39,6 @@ public class SyncHandler {
 	private SyncHandler() {
 		lastSyncLocalID = 0;	//TODO Get from app props
 		lastSyncServerID = 0;
-
-		//mapLocal = new HashMap<>();
-		//mapServer = new HashMap<>();
 
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
