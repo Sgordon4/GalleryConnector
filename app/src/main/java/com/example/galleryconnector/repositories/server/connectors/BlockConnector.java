@@ -21,6 +21,7 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,6 +86,13 @@ public class BlockConnector {
 		}
 	}
 
+
+	public JsonObject getProps(@NonNull String block) throws IOException {
+		JsonArray arr = getProps(Collections.singletonList(block));
+
+		if(arr.isEmpty()) return null;
+		return arr.get(0).getAsJsonObject();
+	}
 
 	public JsonArray getProps(@NonNull List<String> blocks) throws IOException {
 		Log.i(TAG, String.format("\nGET BLOCK PROPS called with blocks='%s'", blocks));

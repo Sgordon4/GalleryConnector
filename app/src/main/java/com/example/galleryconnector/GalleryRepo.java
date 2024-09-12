@@ -98,9 +98,9 @@ public class GalleryRepo {
 	public ListenableFuture<JsonObject> getFileProps(@NonNull UUID fileuid) {
 		return executor.submit(() -> {
 			//Try to get the file data from local. If it exists, return that.
-			List<LFileEntity> localFileProps = localRepo.database.getFileDao().loadByUID(fileuid);
-			if(!localFileProps.isEmpty())
-				return new Gson().toJsonTree( localFileProps.get(0) ).getAsJsonObject();
+			LFileEntity localFileProps = localRepo.database.getFileDao().loadByUID(fileuid);
+			if(localFileProps != null)
+				return new Gson().toJsonTree( localFileProps ).getAsJsonObject();
 
 
 			//If the file doesn't exist locally, try to get it from the server.

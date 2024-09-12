@@ -56,7 +56,7 @@ public class FileConnector {
 	// Get
 	//---------------------------------------------------------------------------------------------
 
-	//TODO No endpoint for this one yet
+	//TODO No endpoint for this one yet. I'll probably just keep using (getProps() != null).
 	public Boolean exists(@NonNull UUID fileUID) {
 		throw new RuntimeException("Stub");
 	}
@@ -84,8 +84,6 @@ public class FileConnector {
 	//---------------------------------------------------------------------------------------------
 	// Put
 	//---------------------------------------------------------------------------------------------
-
-	//TODO Inside the ServerRepo (not here), check for blockset before doing this
 
 
 	//Create or update a file entry in the database
@@ -212,6 +210,4 @@ public class FileConnector {
 			return new Gson().fromJson(responseData, JsonObject.class);
 		}
 	}
-
-
 }

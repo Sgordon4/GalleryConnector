@@ -1,9 +1,5 @@
 package com.example.galleryconnector.repositories.server;
 
-import static com.example.galleryconnector.repositories.server.connectors.BlockConnector.CHUNK_SIZE;
-
-import android.content.ContentResolver;
-import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
 
@@ -14,26 +10,23 @@ import com.example.galleryconnector.repositories.server.connectors.FileConnector
 import com.example.galleryconnector.repositories.server.connectors.JournalConnector;
 import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.lang.reflect.Type;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+
+
+//TODO Eventually change most/all of the serverRepo.blockConn or fileConn or whatever to just the SRepo method
 
 public class ServerRepo {
 	private static final String baseServerUrl = "http://10.0.2.2:3306";
@@ -74,7 +67,6 @@ public class ServerRepo {
 
 	//---------------------------------------------------------------------------------------------
 
-	//Server observers could possibly be moved to GRepo
 	public void addObserver(ServerFileObservers.SFileObservable observer) {
 		observers.addObserver(observer);
 	}
@@ -83,130 +75,48 @@ public class ServerRepo {
 	}
 
 	//---------------------------------------------------------------------------------------------
+	// File
+	//---------------------------------------------------------------------------------------------
 
 
-	public JsonObject uploadFile(@NonNull JsonObject fileProps, @NonNull Uri source,
-								 @NonNull Context context) throws IOException {
-		Log.i(TAG, String.format("UPLOAD FILE called with fileUID='%s'", fileProps.get("fileuid").getAsString()));
+	public JsonObject getFileProps(@NonNull UUID fileUID) throws IOException {
+		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
 
-		//Upload the blockset for the file. This does nothing to the block db if all blocks already exist.
-		Map<String, String> fileHashAndSize = uploadBlockset(source, context);
-
-		//Update the file properties with the hash and size
-		fileProps.addProperty("fileblocks", fileHashAndSize.get("fileblocks"));
-		fileProps.addProperty("filehash", fileHashAndSize.get("filehash"));
-		fileProps.addProperty("filesize", Integer.parseInt(fileHashAndSize.get("filesize")));
-
-
-		//TODO Maybe cache the file? Probably best to be done in GalleryRepo alongside a call to this function
-
-
-		//Now that the blockset is uploaded, create/update the file metadata
-		return fileConn.upsert(fileProps);
+		return fileConn.getProps(fileUID);
 	}
 
 
-	//Returns blockset, filehash, and filesize
-	public Map<String, String> uploadBlockset(@NonNull Uri source, @NonNull Context context) throws IOException {
-		Log.i(TAG, String.format("UPLOAD BLOCKSET called with uri='%s'", source));
-		ContentResolver contentResolver = context.getContentResolver();
+	public void putFileProps(@NonNull JsonObject fileProps) throws IOException {
+		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", fileProps.get("fileuid")));
 
-		//We need to know what blocks in the blocklist the server is missing.
-		//To do that, we need the blocklist. Get the blocklist.
-		List<String> fileHashes = new ArrayList<>();
-		//Find the filesize and SHA-256 filehash while we do so.
-		int filesize = 0;
-		String filehash;
-		try (InputStream is = contentResolver.openInputStream(source);
-			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
+		//Grab the blockset from the file properties
+		Type listType = new TypeToken<List<String>>() {}.getType();
+		List<String> blockset = new Gson().fromJson(fileProps.get("fileblocks"), listType);
 
-			//Read the next block
-			byte[] block = new byte[CHUNK_SIZE];
-			int read;
-			while((read = dis.read(block)) != -1) {
-				//Trim block if needed (tail of the file, not enough bytes to fill a full block)
-				if (read != CHUNK_SIZE) {
-					byte[] smallerData = new byte[read];
-					System.arraycopy(block, 0, smallerData, 0, read);
-					block = smallerData;
-				}
-
-				if(block.length == 0)   //Don't put empty blocks in the blocklist
-					continue;
-				filesize += block.length;
-
-				//Hash the block
-				byte[] hash = MessageDigest.getInstance("SHA-256").digest(block);
-				String hashString = BlockConnector.bytesToHex(hash);
-
-				//Add to the hash list
-				fileHashes.add(hashString);
-			}
-
-			filehash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
-		} catch (IOException | NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
-		Log.d(TAG, "FileHashes: "+fileHashes);
+		//Check if the blocks repo is missing any blocks from the blockset
+		List<String> missingBlocks = getMissingBlocks(blockset);
 
 
-		//Now try to upload/commit blocks
-		commitBlocks(fileHashes, source, context);
-		Log.d(TAG, "Successful blockset upload!");
+		//If any are missing, we can't commit the file changes
+		if(!missingBlocks.isEmpty())
+			throw new IllegalStateException("Missing blocks: "+missingBlocks);
 
 
-		Map<String, String> fileInfo = new HashMap<>();
-		fileInfo.put("fileblocks", new Gson().toJson(fileHashes));
-		fileInfo.put("filehash", filehash);
-		fileInfo.put("filesize", String.valueOf(filesize));
-		return fileInfo;
+		//Now that we've confirmed all blocks exist, create/update the file metadata
+		fileConn.upsert(fileProps);
+
+		//TODO Maybe cache the file?
 	}
-
-	private void commitBlocks(@NonNull List<String> fileHashes, @NonNull Uri source, @NonNull Context context) throws IOException {
-		ContentResolver contentResolver = context.getContentResolver();
-
-		List<String> missingBlocks;
-		do {
-			//Get the list of missing blocks
-			missingBlocks = getMissingBlocks(fileHashes);
-
-			//For each missing block (if any)...
-			for(String missingBlockHash : missingBlocks) {
-
-				//Go to the correct position in the file
-				int index = fileHashes.indexOf(missingBlockHash);
-				int blockStart = index * CHUNK_SIZE;
-
-				Log.d(TAG, String.format("BSUpload: Reading block at %s = '%s'", blockStart, missingBlockHash));
-				try (InputStream is = contentResolver.openInputStream(source)) {
-					//Read the missing block
-					is.skip(blockStart);
-					byte[] block = new byte[CHUNK_SIZE];
-					int read = is.read(block);
-
-					//Trim block if needed (tail of the file, not enough bytes to fill a full block)
-					if (read != CHUNK_SIZE) {
-						byte[] smallerData = new byte[read];
-						System.arraycopy(block, 0, smallerData, 0, read);
-						block = smallerData;
+	public List<String> getMissingBlocks(List<String> blockset) {
+		//Check if the blocks repo is missing any blocks from the blockset
+		return blockset.stream()
+				.filter(block -> {
+					try {
+						return blockConn.getProps(block) != null;
+					} catch (IOException e) {
+						throw new RuntimeException(e);
 					}
-
-					//Upload it
-					blockConn.uploadData(missingBlockHash, block);
-				}
-			}
-		} while (!missingBlocks.isEmpty());
-	}
-
-
-	public List<String> getMissingBlocks(List<String> blocks) throws IOException {
-		JsonArray existingBlocks = blockConn.getProps(blocks);
-
-		for(JsonElement blockElement : existingBlocks) {
-			JsonObject blockProps = blockElement.getAsJsonObject();
-			blocks.remove(blockProps.get("blockhash").getAsString());
-		}
-		return blocks;
+				}).collect(Collectors.toList());
 	}
 
 
@@ -215,6 +125,22 @@ public class ServerRepo {
 
 	}
 
+
+	//---------------------------------------------------------------------------------------------
+	// Block
+	//---------------------------------------------------------------------------------------------
+
+	public JsonObject getBlockProps(@NonNull String blockHash) throws IOException {
+		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
+
+		return blockConn.getProps(blockHash);
+	}
+
+	public byte[] getBlockData(@NonNull String blockHash) throws IOException {
+		Log.i(TAG, String.format("GET BLOCK DATA called with blockHash='%s'", blockHash));
+
+		return blockConn.getData(blockHash);
+	}
 
 
 	//---------------------------------------------------------------------------------------------

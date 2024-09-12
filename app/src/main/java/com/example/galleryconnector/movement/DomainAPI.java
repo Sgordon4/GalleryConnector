@@ -6,7 +6,6 @@ import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.local.LocalRepo;
-import com.example.galleryconnector.repositories.local.block.LBlockEntity;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.gson.Gson;
@@ -263,20 +262,17 @@ public class DomainAPI {
 	//---------------------------------------------------------------------------------------------
 
 
-	//TODO Make sure we get a null serverFileProps if no file is found or whatever.
-	// Just make sure we handle whatever we return correctly.
-	// Or better yet just pass the fileNotFound exception along.
-	// I think we're incorrectly throwing an IOException instead of an FNF in getProps()
+
 	public boolean copyFileToLocal(@NonNull UUID fileuid) throws IOException {
 		//Get the file properties from the server database
-		JsonObject serverFileProps = serverRepo.fileConn.getProps(fileuid);
+		JsonObject serverFileProps = serverRepo.getFileProps(fileuid);
 		if(serverFileProps.isEmpty())
 			throw new FileNotFoundException("File not found in server! fileuid="+fileuid);
 
 
 		//Get the blockset of the file
 		Type listType = new TypeToken<List<String>>() {}.getType();
-		List<String> blockset = new Gson().fromJson(serverFileProps.get("blockset"), listType);
+		List<String> blockset = new Gson().fromJson(serverFileProps.get("fileblocks"), listType);
 
 		List<String> missingBlocks;
 		do {
@@ -286,7 +282,7 @@ public class DomainAPI {
 			//For each block that local is missing...
 			for(String block : missingBlocks) {
 				//Read the block data from server block storage
-				byte[] blockData = serverRepo.blockConn.getData(block);
+				byte[] blockData = serverRepo.getBlockData(block);
 
 				//And write the data to local
 				localRepo.blockHandler.writeBlock(block, blockData);
@@ -294,21 +290,20 @@ public class DomainAPI {
 		} while(!missingBlocks.isEmpty());
 
 
-		//Now that the blockset is uploaded, create/update the file metadata
-		LBlockEntity blockEntity = new Gson().fromJson(serverFileProps, LBlockEntity.class);
-		localRepo.blockHandler.blockDao.put(blockEntity);
+		//Now that the blockset is uploaded, put the file metadata into the local database
+		LFileEntity file = new Gson().fromJson(serverFileProps, LFileEntity.class);
+		localRepo.putFile(file);
 
 		return true;
 	}
 
 	//---------------------------------------------------
 
-	public boolean copyFileToServer(@NonNull UUID fileuid) throws FileNotFoundException {
+	public boolean copyFileToServer(@NonNull UUID fileuid) throws IOException {
 		//Get the file properties from the local database
-		List<LFileEntity> localFileProps = localRepo.database.getFileDao().loadByUID(fileuid);
-		if(localFileProps.isEmpty())
+		LFileEntity file = localRepo.database.getFileDao().loadByUID(fileuid);
+		if(file == null)
 			throw new FileNotFoundException("File not found locally! fileuid="+fileuid);
-		LFileEntity file = localFileProps.get(0);
 
 
 		//Get the blockset of the file
@@ -334,14 +329,9 @@ public class DomainAPI {
 		}
 
 
-
 		//Now that the blockset is uploaded, create/update the file metadata
-		try {
-			JsonObject fileProps = new Gson().toJsonTree(localFileProps).getAsJsonObject();
-			serverRepo.fileConn.upsert(fileProps);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+		JsonObject fileProps = new Gson().toJsonTree(file).getAsJsonObject();
+		serverRepo.putFileProps(fileProps);
 
 		return true;
 	}
@@ -359,6 +349,4 @@ public class DomainAPI {
 		serverRepo.fileConn.delete(fileuid);
 		return true;
 	}
-
-
 }

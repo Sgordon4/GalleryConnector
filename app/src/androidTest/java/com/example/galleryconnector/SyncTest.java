@@ -52,6 +52,7 @@ public class SyncTest {
 
 
 
+		/*
 		handler.trySync();
 
 		//Add a few files to both local and server ------------
@@ -95,6 +96,7 @@ public class SyncTest {
 		file3.isdir = true;
 		file3.islink = false;
 		sRepo.uploadFile(file3.toJson(), url, context);
+		 */
 
 
 

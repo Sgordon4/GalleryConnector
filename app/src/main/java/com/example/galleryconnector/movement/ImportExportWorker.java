@@ -17,15 +17,9 @@ import java.util.UUID;
 
 public class ImportExportWorker extends Worker {
 	private static final String TAG = "Gal.FIO";
-	private final Context context;
-
-	private final LocalRepo localRepo;
 
 	public ImportExportWorker(@NonNull Context context, @NonNull WorkerParameters params) {
 		super(context, params);
-		this.context = context;
-
-		localRepo = LocalRepo.getInstance();
 	}
 
 
@@ -61,20 +55,18 @@ public class ImportExportWorker extends Worker {
 		}
 
 
+		//---------------------------------------------
+
+
 		//Start the operation
 		if(Objects.equals(operation, "IMPORT")) {
-			Log.i(TAG, "Importing file "+target);
+			Log.i(TAG, "Importing file '"+target+"'");
 			UUID accountUID = UUID.fromString(account);
 			UUID parentUID = UUID.fromString(parent);
 			Uri sourceUri = Uri.parse(target);
 
-			//Import the file to the local system, starting with baseline file properties
-			LFileEntity fileObj = new LFileEntity(accountUID);
-			try {
-				localRepo.uploadFile(fileObj, sourceUri, context);
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
+			//Import the file to the local system
+			ImportExportApi.getInstance().importFileToLocal(accountUID, parentUID, sourceUri);
 		}
 		if(Objects.equals(operation, "EXPORT")) {
 			Log.i(TAG, "Exporting file '"+file+"'");

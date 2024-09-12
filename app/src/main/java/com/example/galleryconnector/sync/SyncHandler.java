@@ -173,16 +173,16 @@ public class SyncHandler {
 		System.out.println("Syncing to local: "+serverFile.get("fileuid"));
 
 		//For efficiency, check if the local's entry is actually any different before syncing
-		List<LFileEntity> lList = localRepo.database.getFileDao()
+		LFileEntity lFile = localRepo.database.getFileDao()
 				.loadByUID(UUID.fromString(serverFile.get("fileuid").getAsString()));
 
 		//If local no longer has the file, don't sync
-		if(lList.isEmpty()) {
+		if(lFile == null) {
 			System.out.println("Local does not have the file, skipping sync");
 			return;
 		}
 
-		JsonObject localFile = new Gson().toJsonTree(lList.get(0)).getAsJsonObject();
+		JsonObject localFile = new Gson().toJsonTree(lFile).getAsJsonObject();
 
 		//If local does have different data, send over the server file
 		if(!serverFile.equals(localFile)) {

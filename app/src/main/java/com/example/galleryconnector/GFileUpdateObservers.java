@@ -3,6 +3,7 @@ package com.example.galleryconnector;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
@@ -10,6 +11,7 @@ import androidx.work.WorkRequest;
 import com.example.galleryconnector.repositories.local.LocalFileObservers;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.movement.ImportExportWorker;
+import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.server.ServerFileObservers;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.gson.Gson;
@@ -42,17 +44,18 @@ public class GFileUpdateObservers {
 
 
 	private void onFileUpdate(@NonNull JsonObject file) {
-		//Now that we know there's been an update, start a sync (does nothing if one already exists)
-		launchSyncWorker();
+		//Now that we know there's been an update, start a sync. OK to have multiple consecutive syncs for same file
+		//TODO Launch a sync per-file
 
 		notifyObservers(file);
 	}
 
+	
 
 	public void attachToLocal(@NonNull LocalRepo localRepo) {
-		LocalFileObservers.LFileObservable lFileChangedObs = file -> {
+		LocalFileObservers.LFileObservable lFileChangedObs = (file, prevFile) -> {
 			JsonObject fileJson = new Gson().toJsonTree(file).getAsJsonObject();
-			onFileUpdate(fileJson);
+			GFileUpdateObservers.this.onFileUpdate(fileJson);
 		};
 
 		localRepo.addObserver(lFileChangedObs);
@@ -64,14 +67,6 @@ public class GFileUpdateObservers {
 		};
 
 		serverRepo.addObserver(sFileChangedObs);
-	}
-
-
-	private void launchSyncWorker() {
-		//TODO Be sure to set this up to ignore if a sync is already in progress
-		//The WorkRequest can be configured
-		WorkRequest syncRequest = new OneTimeWorkRequest.Builder(ImportExportWorker.class).build();
-		WorkManager.getInstance(context).enqueue(syncRequest);
 	}
 
 

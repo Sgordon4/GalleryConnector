@@ -4,6 +4,7 @@ import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.MyApplication;
 
@@ -19,8 +20,18 @@ public class LBlockHandler {
 	private final String blockDir = "blocks";
 	public final LBlockDao blockDao;
 
+	public static final int CHUNK_SIZE = 1024 * 1024 * 4;  //4MB
+	
+
 	public LBlockHandler(LBlockDao blockDao) {
 		this.blockDao = blockDao;
+	}
+
+
+	//TODO Make sure this returns null if not exist, or maybe throw exception idk. Prob just null.
+	@Nullable
+	public LBlockEntity getBlock(@NonNull String blockHash) {
+		return blockDao.loadAllByHash(blockHash).get(0);
 	}
 
 

@@ -1,5 +1,7 @@
 package com.example.galleryconnector.repositories.local;
 
+import androidx.annotation.Nullable;
+
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 
 import java.util.ArrayList;
@@ -22,14 +24,14 @@ public class LocalFileObservers {
 	}
 
 
-	public void notifyObservers(LFileEntity file) {
+	public void notifyObservers(LFileEntity file, @Nullable LFileEntity prevFile) {
 		for (LFileObservable listener : listeners) {
-			listener.onFileUpdate(file);
+			listener.onFileUpdate(file, prevFile);
 		}
 	}
 
 
 	public interface LFileObservable {
-		void onFileUpdate(LFileEntity file);
+		void onFileUpdate(LFileEntity file, @Nullable LFileEntity prevFile);
 	}
 }
