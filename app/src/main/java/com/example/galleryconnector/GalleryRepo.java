@@ -141,6 +141,8 @@ public class GalleryRepo {
 		});
 	}
 
+	//TODO Be sure that when we import or export, files remain in order.
+
 
 
 	//---------------------------------------------------------------------------------------------
