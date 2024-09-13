@@ -149,6 +149,8 @@ public class GalleryRepo {
 	// Domain Movements
 	//---------------------------------------------------------------------------------------------
 
+	//TODO We never actually run these
+	// We should queue what we need, then call a runOps method from that og function that queued these
 
 	public ListenableFuture<Boolean> copyFileToLocal(@NonNull UUID fileuid) {
 		return executor.submit(() -> {
