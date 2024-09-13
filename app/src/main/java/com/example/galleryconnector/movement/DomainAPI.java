@@ -197,7 +197,7 @@ public class DomainAPI {
 	//TODO Fail if no internet in between, but I guess that would just throw a normal exception
 	// when running copy/remove functions
 	//TODO Also remove if fileuid doesn't exist, or maybe just do nothing in the copy/remove functions
-	public boolean executeAnOperation() {
+	public boolean executeAQueuedOperation() {
 		//Lock the file before we make any reads/writes
 		lock.lock();
 
@@ -262,6 +262,8 @@ public class DomainAPI {
 	//---------------------------------------------------------------------------------------------
 
 
+	//TODO These eventually need to accept a hash of the previous entry for the endpoint to be sure there
+	// were no updates done while we were computing/sending this. Endpoints would need to be updated as well.
 
 	public boolean copyFileToLocal(@NonNull UUID fileuid) throws IOException {
 		//Get the file properties from the server database

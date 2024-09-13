@@ -46,7 +46,7 @@ public class ServerRepo {
 		client = new OkHttpClient().newBuilder()
 				.addInterceptor(new LogInterceptor())
 				.followRedirects(true)
-				.connectTimeout(3, TimeUnit.SECONDS)	//TODO Temporary timeout, prob increase later
+				.connectTimeout(5, TimeUnit.SECONDS)	//TODO Temporary timeout, prob increase later
 				.followSslRedirects(true)
 				.build();
 

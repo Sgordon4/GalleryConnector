@@ -52,8 +52,7 @@ public class GalleryRepo {
 		domainAPI = DomainAPI.getInstance();
 		importExportApi = ImportExportApi.getInstance();
 
-		Context context = MyApplication.getAppContext();
-		observers = new GFileUpdateObservers(context, localRepo, serverRepo);
+		observers = new GFileUpdateObservers(localRepo, serverRepo);
 	}
 
 	//---------------------------------------------------------------------------------------------

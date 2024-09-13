@@ -32,9 +32,6 @@ public class SyncHandler {
 
 	private final DomainAPI domainAPI;
 
-	//private final Map<UUID, JsonObject> mapLocal;
-	//private final Map<UUID, JsonObject> mapServer;
-
 
 	public static SyncHandler getInstance() {
 		return SingletonHelper.INSTANCE;
@@ -43,7 +40,7 @@ public class SyncHandler {
 		private static final SyncHandler INSTANCE = new SyncHandler();
 	}
 	private SyncHandler() {
-		lastSyncLocalID = 0;	//TODO Get from app props
+		lastSyncLocalID = 0;
 		lastSyncServerID = 0;
 
 		localRepo = LocalRepo.getInstance();
@@ -52,6 +49,7 @@ public class SyncHandler {
 		domainAPI = DomainAPI.getInstance();
 	}
 
+	//TODO We don't actually update or store these yet. Right now they're always 0 and do nothing.
 	private void updateLastSyncLocal(int id) {
 		lastSyncLocalID = id;
 	}
@@ -71,7 +69,9 @@ public class SyncHandler {
 	/*
 	Note: This sync is shitty af. It works for our current purposes, but will need to be revised.
 	Right now, we disregard currently updating files when syncing l->s and s->l.
-	A possible solution is requiring a last hash when updating to be sure there were no very new changes
+	A possible solution is requiring a last hash when updating to be sure there were no very new changes.
+	If last has does not match, then require client to merge and then try syncing again.
+	Also, our merge rn is just last writer wins.
 	*/
 
 	//Returns true if data was written, false if not
@@ -125,10 +125,12 @@ public class SyncHandler {
 		//In this case, only the server has updates, so we need to sync to local
 		else if(localIndex == localJournals.size()-1 && serverIndex < serverJournals.size()-1) {
 			domainAPI.copyFileToLocal(fileUID);
+			//Once we start sending prevHash, if this returns as a fail send it to merge
 		}
 		//In this case, only the local has updates, so we need to sync to server
 		else if(localIndex < localJournals.size()-1 && serverIndex == serverJournals.size()-1) {
 			domainAPI.copyFileToServer(fileUID);
+			//Once we start sending prevHash, if this returns as a fail send it to merge
 		}
 		//Otherwise, both have updates and we need to merge
 		else {
@@ -143,7 +145,9 @@ public class SyncHandler {
 		return true;
 	}
 
+
 	//Merging is going to take a significant amount of effort, so for now we're doing last writer wins.
+	//Maybe we should just always copy from Server. Idk.
 	public void merge(LJournalEntity local, JsonObject server) throws IOException {
 		//TODO Don't know if these date conversions work from the different sql
 		// Might need to convert to epoch during sql gets
@@ -173,7 +177,7 @@ public class SyncHandler {
 
 	//----------------------------------------------
 
-	public void trySync() throws ExecutionException, InterruptedException, IOException {
+	public void trySyncAll() throws ExecutionException, InterruptedException, IOException {
 		//Get all new journal entries
 		List<LJournalEntity> localJournals = localRepo.database.getJournalDao()
 				.loadAllAfterID(lastSyncLocalID).get();

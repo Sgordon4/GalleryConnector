@@ -96,11 +96,13 @@ public class SyncTest {
 		file3.isdir = true;
 		file3.islink = false;
 		sRepo.uploadFile(file3.toJson(), url, context);
-		 */
+
 
 
 
 		handler.trySync();
+
+		 */
 
 
 

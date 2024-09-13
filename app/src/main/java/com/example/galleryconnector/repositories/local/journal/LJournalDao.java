@@ -21,6 +21,7 @@ public interface LJournalDao {
 	ListenableFuture<List<LJournalEntity>> loadAllByFileUID(UUID fileUID);
 
 	//Journal is append-only, no need to update
+	//TODO Make sure the OnConflict is not just checking for fileUID or something.
 	@Insert(onConflict = OnConflictStrategy.IGNORE)
 	ListenableFuture<List<Long>> insert(LJournalEntity... entries);
 
