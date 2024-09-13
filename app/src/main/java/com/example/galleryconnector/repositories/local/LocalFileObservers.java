@@ -24,14 +24,14 @@ public class LocalFileObservers {
 	}
 
 
-	public void notifyObservers(LFileEntity file, @Nullable LFileEntity prevFile) {
+	public void notifyObservers(LFileEntity file) {
 		for (LFileObservable listener : listeners) {
-			listener.onFileUpdate(file, prevFile);
+			listener.onFileUpdate(file);
 		}
 	}
 
 
 	public interface LFileObservable {
-		void onFileUpdate(LFileEntity file, @Nullable LFileEntity prevFile);
+		void onFileUpdate(LFileEntity file);
 	}
 }

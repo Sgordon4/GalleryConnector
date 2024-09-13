@@ -144,6 +144,25 @@ public class ServerRepo {
 
 
 	//---------------------------------------------------------------------------------------------
+	// Journal
+	//---------------------------------------------------------------------------------------------
+
+
+	public List<JsonObject> getJournalEntriesAfter(int journalID) throws IOException {
+		Log.i(TAG, String.format("GET JOURNAL ENTRIES called with journalID='%s'", journalID));
+
+		return journalConn.getJournalEntriesAfter(journalID);
+	}
+
+	public List<JsonObject> getJournalEntriesForFile(UUID fileUID) throws IOException {
+		Log.i(TAG, String.format("GET JOURNAL ENTRIES FOR FILE called with fileUID='%s'", fileUID));
+
+		return journalConn.getJournalEntriesForFile(fileUID);
+	}
+
+
+
+	//---------------------------------------------------------------------------------------------
 
 	//TODO Figure out how to log timeouts
 	public static class LogInterceptor implements Interceptor {

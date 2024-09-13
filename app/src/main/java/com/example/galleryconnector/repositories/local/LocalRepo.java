@@ -73,14 +73,11 @@ public class LocalRepo {
 			throw new IllegalStateException("Missing blocks: "+missingBlocks);
 
 
-		//Get the previous file entry for sync purposes (can be null)
-		LFileEntity prevFile = database.getFileDao().loadByUID(file.fileuid);
-
 		//Now that we've confirmed all blocks exist, create/update the file metadata
 		database.getFileDao().put(file);
 
 		//Notify observers that there's been a change in file data
-		observers.notifyObservers(file, prevFile);
+		observers.notifyObservers(file);
 	}
 	public List<String> getMissingBlocks(List<String> blockset) {
 		//Check if the blocks repo is missing any blocks from the blockset

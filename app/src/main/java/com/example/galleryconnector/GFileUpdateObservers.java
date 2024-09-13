@@ -14,6 +14,7 @@ import com.example.galleryconnector.movement.ImportExportWorker;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.server.ServerFileObservers;
 import com.example.galleryconnector.repositories.server.ServerRepo;
+import com.example.galleryconnector.sync.SyncHandler;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
@@ -23,11 +24,13 @@ import java.util.List;
 public class GFileUpdateObservers {
 
 	private final List<GFileObservable> listeners;
+	private final SyncHandler syncHandler;
 	private final Context context;
 
 	public GFileUpdateObservers(@NonNull Context context, @NonNull LocalRepo lRepo, @NonNull ServerRepo sRepo) {
 		listeners = new ArrayList<>();
 		this.context = context;
+		this.syncHandler = SyncHandler.getInstance();
 
 		attachToLocal(lRepo);
 		attachToServer(sRepo);
@@ -43,19 +46,27 @@ public class GFileUpdateObservers {
 
 
 
-	private void onFileUpdate(@NonNull JsonObject file) {
+	private void onLocalFileUpdate(@NonNull JsonObject file) {
+		//Now that we know there's been an update, start a sync. OK to have multiple consecutive syncs for same file
+		//TODO Launch a sync per-file
+		syncHandler.syncLocalToServer(file);
+
+		notifyObservers(file);
+	}
+
+	private void onServerFileUpdate(@NonNull JsonObject file) {
 		//Now that we know there's been an update, start a sync. OK to have multiple consecutive syncs for same file
 		//TODO Launch a sync per-file
 
 		notifyObservers(file);
 	}
 
-	
+
 
 	public void attachToLocal(@NonNull LocalRepo localRepo) {
-		LocalFileObservers.LFileObservable lFileChangedObs = (file, prevFile) -> {
+		LocalFileObservers.LFileObservable lFileChangedObs = file -> {
 			JsonObject fileJson = new Gson().toJsonTree(file).getAsJsonObject();
-			GFileUpdateObservers.this.onFileUpdate(fileJson);
+			onLocalFileUpdate(fileJson);
 		};
 
 		localRepo.addObserver(lFileChangedObs);
@@ -63,7 +74,7 @@ public class GFileUpdateObservers {
 	public void attachToServer(@NonNull ServerRepo serverRepo) {
 		ServerFileObservers.SFileObservable sFileChangedObs = file -> {
 			//TODO Perhaps on getting an update from server, compare to local (cheap) to prevent unnecessary update notifications
-			onFileUpdate(file);
+			onServerFileUpdate(file);
 		};
 
 		serverRepo.addObserver(sFileChangedObs);

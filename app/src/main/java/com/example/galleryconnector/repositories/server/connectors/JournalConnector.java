@@ -9,6 +9,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.UUID;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -32,8 +33,26 @@ public class JournalConnector {
 
 	//Get all journal entries after a given journalID
 	public List<JsonObject> getJournalEntriesAfter(int journalID) throws IOException {
-		Log.i(TAG, String.format("\nGET JOURNAL called with journalID='"+journalID+"'"));
+		Log.i(TAG, String.format("\nGET JOURNAL called with journalID='%s'", journalID));
 		String url = Paths.get(baseServerUrl, "journal", ""+journalID).toString();
+
+		Request request = new Request.Builder().url(url).build();
+		try (Response response = client.newCall(request).execute()) {
+			if (!response.isSuccessful())
+				throw new IOException("Unexpected code " + response.code());
+			if(response.body() == null)
+				throw new IOException("Response body is null");
+
+			String responseData = response.body().string();
+			return new Gson().fromJson(responseData, new TypeToken< List<JsonObject> >(){}.getType());
+		}
+	}
+
+
+	//Get all journal entries for a given fileUID
+	public List<JsonObject> getJournalEntriesForFile(UUID fileUID) throws IOException {
+		Log.i(TAG, String.format("\nGET JOURNAL BY ID called with fileUID='%s'", fileUID));
+		String url = Paths.get(baseServerUrl, "journal", "file", fileUID.toString()).toString();
 
 		Request request = new Request.Builder().url(url).build();
 		try (Response response = client.newCall(request).execute()) {

@@ -301,7 +301,7 @@ public class DomainAPI {
 
 	public boolean copyFileToServer(@NonNull UUID fileuid) throws IOException {
 		//Get the file properties from the local database
-		LFileEntity file = localRepo.database.getFileDao().loadByUID(fileuid);
+		LFileEntity file = localRepo.getFile(fileuid);
 		if(file == null)
 			throw new FileNotFoundException("File not found locally! fileuid="+fileuid);
 

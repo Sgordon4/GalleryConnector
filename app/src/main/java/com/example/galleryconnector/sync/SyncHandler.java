@@ -1,5 +1,7 @@
 package com.example.galleryconnector.sync;
 
+import android.util.Log;
+
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
@@ -8,8 +10,11 @@ import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 public class SyncHandler {
+	private static final String TAG = "Gal.SRepo.Sync";
 
 	private int lastSyncLocalID;
 	private int lastSyncServerID;
@@ -67,129 +73,130 @@ public class SyncHandler {
 	Right now, we disregard currently updating files when syncing l->s and s->l.
 	A possible solution is requiring a last hash when updating to be sure there were no very new changes
 	*/
-	public void trySync() throws ExecutionException, InterruptedException, IOException {
-		List<LJournalEntity> localJournals = localRepo.database.getJournalDao()
-				.loadAllAfterID(lastSyncLocalID).get();
-		List<JsonObject> serverJournals = serverRepo.journalConn
-				.getJournalEntriesAfter(lastSyncServerID);
 
+	//Returns true if data was written, false if not
+	public boolean trySync(UUID fileUID) throws ExecutionException, InterruptedException, IOException {
+		Log.i(TAG, String.format("SYNC TO SERVER called with fileUID='%s'", fileUID));
 
-		//There may be multiple journal entries with the same fileuid
-		//Journal entries come in order of journalID (largest == latest)
-		//We want an ordered map of journal entries by fileuid, with the largest journalID overwriting smaller ones
+		List<LJournalEntity> localJournals = localRepo.database.getJournalDao().loadAllByFileUID(fileUID).get();
+		List<JsonObject> serverJournals = serverRepo.getJournalEntriesForFile(fileUID);
 
-		Map<UUID, JsonObject> mapLocal = new LinkedHashMap<>();
-		Map<UUID, JsonObject> mapServer = new LinkedHashMap<>();
+		//if(localJournals.isEmpty() && serverJournals.isEmpty())
+		//	throw new FileNotFoundException("File not found in local or server! FileUID='"+fileUID+"'");
 
-		for(LJournalEntity journal : localJournals) {
-			if(journal == null) continue;
-			mapLocal.remove(journal.fileuid);
-			mapLocal.put(journal.fileuid, new Gson().toJsonTree(journal).getAsJsonObject());
-		}
-		for(JsonObject journal : serverJournals) {
-			if(journal == null) continue;
-			UUID uuid = UUID.fromString(journal.get("fileuid").getAsString());
-			mapServer.remove(uuid);
-			mapServer.put(uuid, journal);
-		}
-
-		System.out.println("Local Entries: ");
-		for(Map.Entry<UUID, JsonObject> entry : mapLocal.entrySet())
-			System.out.println(entry.getValue());
-		System.out.println("Server Entries: ");
-		for(Map.Entry<UUID, JsonObject> entry : mapServer.entrySet())
-			System.out.println(entry.getValue());
+		//If the file is missing from one or both repos, there is nothing to sync
+		if(localJournals.isEmpty() || serverJournals.isEmpty())
+			return false;
 
 
 
-		//For each of the server journal entries
-		for(Map.Entry<UUID, JsonObject> entry : mapServer.entrySet()) {
-			//If we have conflicting local edits, we need to merge the files
-			if(mapLocal.containsKey(entry.getKey()))
-				merge(mapLocal.get(entry.getKey()), entry.getValue());
-			else
-				syncServerToLocal(entry.getValue());
+		//To determine how we need to sync, we need to find the last spot these files were synced
+		//TODO Naive LCD implementation O(n^2). Improve later with a map and some fancy comparing.
+		int localIndex = -1;
+		int serverIndex = -1;
+		for(int i = localJournals.size()-1; i >= 0; i--) {
+			LJournalEntity lJournal = localJournals.get(i);
 
-			//Update the ID we've reached
-			updateLastSyncServer(entry.getValue().get("journalid").getAsInt());
+			for(int j = serverJournals.size()-1; j >= 0; j--) {
+				JsonObject sJournal = serverJournals.get(j);
+
+				if(entriesMatch(lJournal, sJournal)) {
+					localIndex = i;
+					serverIndex = j;
+					break;
+				}
+			}
+			if(localIndex != -1)
+				break;
 		}
 
+		if(localIndex == -1 || serverIndex == -1)
+			throw new RuntimeException("No matching entries found for sync!");
 
-		//Now that we've updated some files, reload the local map
-		localJournals = localRepo.database.getJournalDao().loadAllAfterID(lastSyncLocalID).get();
-		mapLocal.clear();
-		for(LJournalEntity journal : localJournals) {
-			if(journal == null) continue;
-			mapLocal.remove(journal.fileuid);
-			mapLocal.put(journal.fileuid, new Gson().toJsonTree(journal).getAsJsonObject());
+
+
+		//Now that we have the last matching indices, figure out what to do to get things in sync
+
+		//If the first two items are matching, there's nothing to sync
+		if(localIndex == localJournals.size()-1 && serverIndex == serverJournals.size()-1) {
+			//No data has been written, return false
+			return false;
+		}
+		//In this case, only the server has updates, so we need to sync to local
+		else if(localIndex == localJournals.size()-1 && serverIndex < serverJournals.size()-1) {
+			domainAPI.copyFileToLocal(fileUID);
+		}
+		//In this case, only the local has updates, so we need to sync to server
+		else if(localIndex < localJournals.size()-1 && serverIndex == serverJournals.size()-1) {
+			domainAPI.copyFileToServer(fileUID);
+		}
+		//Otherwise, both have updates and we need to merge
+		else {
+			LJournalEntity local = localJournals.get(localIndex);
+			JsonObject server = serverJournals.get(serverIndex);
+
+			merge(local, server);
 		}
 
 
-		//Now sync each local entry
-		for(Map.Entry<UUID, JsonObject> entry : mapLocal.entrySet()) {
-			syncLocalToServer(entry.getValue());
-		}
+		//Data has been written, return true
+		return true;
 	}
 
-
-	//---------------------------------------------------------------------------------------------
-
-	private void merge(JsonObject local, JsonObject server) throws IOException {
-		System.out.println("Merging: "+local.get("fileuid"));
-
-		//If the files are identical, just return
-		if(local.equals(server))
-			return;
-
-		//Merging is going to take a significant amount of effort, so for now we're
-		// just doing last writer wins.
+	//Merging is going to take a significant amount of effort, so for now we're doing last writer wins.
+	public void merge(LJournalEntity local, JsonObject server) throws IOException {
 		//TODO Don't know if these date conversions work from the different sql
 		// Might need to convert to epoch during sql gets
-		Date localDate = new Date(local.get("changetime").getAsLong());
+		Date localDate = new Date(local.changetime);
 		Date serverDate = new Date(server.get("changetime").getAsLong());
 		if(localDate.after(serverDate))
-			domainAPI.copyFileToServer(UUID.fromString(local.get("fileuid").getAsString()));
+			domainAPI.copyFileToServer(local.fileuid);
 		else
 			domainAPI.copyFileToLocal(UUID.fromString(server.get("fileuid").getAsString()));
 	}
 
 
-	private void syncLocalToServer(JsonObject localFile) throws IOException {
-		System.out.println("Syncing to server: "+localFile.get("fileuid"));
 
-		//For efficiency, check if the server's entry is actually any different before syncing
-		JsonObject serverFile = serverRepo.fileConn
-				.getProps(UUID.fromString(localFile.get("fileuid").getAsString()));
 
-		//TODO If there is no file on server, don't sync
-		//if(serverFile == null)
-
-		//If the server does have different data, send over the local file
-		if(!localFile.equals(serverFile))
-			domainAPI.copyFileToServer(UUID.fromString(localFile.get("fileuid").getAsString()));
+	private boolean entriesMatch(LJournalEntity local, JsonObject server) {
+		return local.fileuid.toString().equals(server.get("fileuid").getAsString()) &&
+				local.accountuid.toString().equals(server.get("accountuid").toString()) &&
+				local.isdir == server.get("isdir").getAsBoolean() &&
+				local.islink == server.get("islink").getAsBoolean() &&
+				local.fileblocks.toString().equals(server.get("fileblocks").toString()) &&
+				local.filesize == server.get("filesize").getAsInt() &&
+				((local.filehash == null && server.get("filehash") == null) ||
+						local.filehash.equals(server.get("filehash").getAsString())) &&
+				local.isdeleted == server.get("isdeleted").getAsBoolean();
 	}
 
-	private void syncServerToLocal(JsonObject serverFile) throws IOException {
-		System.out.println("Syncing to local: "+serverFile.get("fileuid"));
 
-		//For efficiency, check if the local's entry is actually any different before syncing
-		LFileEntity lFile = localRepo.database.getFileDao()
-				.loadByUID(UUID.fromString(serverFile.get("fileuid").getAsString()));
+	//----------------------------------------------
 
-		//If local no longer has the file, don't sync
-		if(lFile == null) {
-			System.out.println("Local does not have the file, skipping sync");
-			return;
+	public void trySync() throws ExecutionException, InterruptedException, IOException {
+		//Get all new journal entries
+		List<LJournalEntity> localJournals = localRepo.database.getJournalDao()
+				.loadAllAfterID(lastSyncLocalID).get();
+		List<JsonObject> serverJournals = serverRepo.getJournalEntriesAfter(lastSyncServerID);
+
+
+		//We just want the fileUIDs of the new journal entries
+		HashSet<UUID> fileUIDs = new HashSet<>();
+
+		for(LJournalEntity journal : localJournals) {
+			if(journal == null) continue;
+			fileUIDs.add(journal.fileuid);
+		}
+		for(JsonObject journal : serverJournals) {
+			if(journal == null) continue;
+			UUID uuid = UUID.fromString(journal.get("fileuid").getAsString());
+			fileUIDs.add(uuid);
 		}
 
-		JsonObject localFile = new Gson().toJsonTree(lFile).getAsJsonObject();
 
-		//If local does have different data, send over the server file
-		if(!serverFile.equals(localFile)) {
-			System.out.println("Local file has different data, syncing...");
-			domainAPI.copyFileToLocal(UUID.fromString(serverFile.get("fileuid").getAsString()));
+		//For each fileUID, try to sync
+		for(UUID fileUID : fileUIDs) {
+			trySync(fileUID);
 		}
-		else
-			System.out.println("Local file has identical data, skipping sync");
 	}
 }

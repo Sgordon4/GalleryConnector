@@ -9,12 +9,16 @@ import androidx.room.Query;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.List;
+import java.util.UUID;
 
 @Dao
 public interface LJournalDao {
 	//TODO Should we change this to 'journalid >= :journalID'? Idk, might make slightly more sense (loadFromID)
 	@Query("SELECT * FROM journal WHERE journalid > :journalID")
 	ListenableFuture<List<LJournalEntity>> loadAllAfterID(long journalID);
+
+	@Query("SELECT * FROM journal WHERE fileuid = :fileUID")
+	ListenableFuture<List<LJournalEntity>> loadAllByFileUID(UUID fileUID);
 
 	//Journal is append-only, no need to update
 	@Insert(onConflict = OnConflictStrategy.IGNORE)
