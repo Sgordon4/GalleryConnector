@@ -5,7 +5,13 @@ import android.net.Uri;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.work.Data;
+import androidx.work.ExistingWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkContinuation;
+import androidx.work.WorkManager;
 
+import com.example.galleryconnector.movement.ImportExportWorker;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.account.LAccountEntity;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
@@ -19,7 +25,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.net.SocketTimeoutException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
@@ -118,31 +126,53 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 
 
+	private final String IMPORT_GROUP = "import";
+	private final String EXPORT_GROUP = "export";
+
 	//Note: External links are not imported to the system, and should not be handled with this method.
 	// Instead, their link file should be created and edited through the file creation/edit modals.
 
-	//Queue an import to the local filesystem. A job will pick up the queue item.
-	//Upon a successful import, the file will be moved between local/server based on its parent.
-	public ListenableFuture<Boolean> importFile(@NonNull Uri source,
-												@NonNull UUID accountuid, @NonNull UUID parent) {
-		return executor.submit(() -> {
-			//Start a worker instead
-			throw new RuntimeException("Stub!");
-			//return importExportApi.queueImportFile(source, parent, accountuid);
-		});
+
+	//Launch a WorkManager to import an external uri to the system.
+	public void importFile(@NonNull Uri source, @NonNull UUID accountuid, @NonNull UUID parent) {
+		//Compile the information we'll need for the import
+		Data.Builder builder = new Data.Builder();
+		builder.putString("OPERATION", "IMPORT");
+		builder.putString("TARGET_URI", source.toString());
+		builder.putString("PARENTUID", parent.toString());
+		builder.putString("ACCOUNTUID", accountuid.toString());
+
+		OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(ImportExportWorker.class)
+				.setInputData(builder.build())
+				.build();
+
+		//Create the work request that will handle the import
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+
+		//Add the work request to the queue so that the imports run in order
+		WorkContinuation continuation = workManager.beginUniqueWork(IMPORT_GROUP, ExistingWorkPolicy.APPEND, request);
+		continuation.enqueue();
 	}
 
-	public ListenableFuture<Boolean> exportFile(@NonNull UUID fileuid, @NonNull UUID parent,
-												   @NonNull Uri destination) {
-		return executor.submit(() -> {
-			//Start a worker instead
-			throw new RuntimeException("Stub!");
-			//return importExportApi.queueExportFile(fileuid, parent, destination);
-		});
+	public void exportFile(@NonNull UUID fileuid, @NonNull UUID parent, @NonNull Uri destination) {
+		//Compile the information we'll need for the export
+		Data.Builder builder = new Data.Builder();
+		builder.putString("OPERATION", "EXPORT");
+		builder.putString("TARGET_URI", destination.toString());
+		builder.putString("PARENTUID", parent.toString());
+		builder.putString("FILEUID", fileuid.toString());
+
+		OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(ImportExportWorker.class)
+				.setInputData(builder.build())
+				.build();
+
+		//Create the work request that will handle the import
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+
+		//Add the work request to the queue so that the imports run in order
+		WorkContinuation continuation = workManager.beginUniqueWork(EXPORT_GROUP, ExistingWorkPolicy.APPEND, request);
+		continuation.enqueue();
 	}
-
-	//TODO Be sure that when we import or export, files remain in order.
-
 
 
 	//---------------------------------------------------------------------------------------------

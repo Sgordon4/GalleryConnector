@@ -46,7 +46,8 @@ public class ImportExportApi {
 
 
 
-
+	//Import a file to the local system from a uri.
+	//Upon a successful import, the file will be moved between local/server based on its parent.
 	public LFileEntity importFileToLocal(@NonNull UUID accountuid, @NonNull UUID parent, @NonNull Uri source) {
 		Context context = MyApplication.getAppContext();
 
@@ -89,6 +90,8 @@ public class ImportExportApi {
 		throw new RuntimeException("Stub!");
 	}
 
+
+	//---------------------------------------------------------------------------------------------
 
 
 	//Import a file from a uri to the local block repository & table
