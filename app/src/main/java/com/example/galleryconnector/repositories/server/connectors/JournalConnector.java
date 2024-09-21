@@ -65,4 +65,22 @@ public class JournalConnector {
 			return new Gson().fromJson(responseData, new TypeToken< List<JsonObject> >(){}.getType());
 		}
 	}
+
+
+	//LONGPOLL all journal entries after a given journalID
+	public List<JsonObject> longpollJournalEntriesAfter(int journalID) throws IOException {
+		Log.i(TAG, String.format("\nLONGPOLL JOURNAL called with journalID='%s'", journalID));
+		String url = Paths.get(baseServerUrl, "journal", "longpoll", ""+journalID).toString();
+
+		Request request = new Request.Builder().url(url).build();
+		try (Response response = client.newCall(request).execute()) {
+			if (!response.isSuccessful())
+				throw new IOException("Unexpected code " + response.code());
+			if(response.body() == null)
+				throw new IOException("Response body is null");
+
+			String responseData = response.body().string();
+			return new Gson().fromJson(responseData, new TypeToken< List<JsonObject> >(){}.getType());
+		}
+	}
 }

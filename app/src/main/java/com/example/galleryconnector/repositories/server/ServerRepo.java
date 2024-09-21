@@ -160,6 +160,12 @@ public class ServerRepo {
 		return journalConn.getJournalEntriesForFile(fileUID);
 	}
 
+	public List<JsonObject> longpollJournalEntriesAfter(int journalID) throws IOException {
+		Log.i(TAG, String.format("LONGPOLL JOURNAL ENTRIES called with journalID='%s'", journalID));
+
+		return journalConn.longpollJournalEntriesAfter(journalID);
+	}
+
 
 
 	//---------------------------------------------------------------------------------------------

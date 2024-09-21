@@ -9,7 +9,7 @@ import java.util.List;
 
 public class LocalFileObservers {
 
-	private List<LFileObservable> listeners;
+	private final List<LFileObservable> listeners;
 
 	public LocalFileObservers() {
 		listeners = new ArrayList<>();

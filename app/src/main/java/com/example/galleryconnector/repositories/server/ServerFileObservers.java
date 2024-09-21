@@ -7,7 +7,9 @@ import java.util.List;
 
 public class ServerFileObservers {
 
-	private List<SFileObservable> listeners;
+	private final List<SFileObservable> listeners;
+	private boolean isListening = false;
+
 
 	public ServerFileObservers() {
 		listeners = new ArrayList<>();
@@ -27,6 +29,17 @@ public class ServerFileObservers {
 			listener.onFileUpdate(file);
 		}
 	}
+
+
+	//TODO Make a listener thread for longpoll
+	public boolean startListening() {
+		if(isListening) return true;
+
+
+
+	}
+
+
 
 
 	public interface SFileObservable {

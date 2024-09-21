@@ -40,7 +40,6 @@ public class GalleryRepo {
 	private final ServerRepo serverRepo;
 
 	private final DomainAPI domainAPI;
-	private final ImportExportApi importExportApi;
 
 	private final GFileUpdateObservers observers;
 
@@ -58,7 +57,6 @@ public class GalleryRepo {
 		serverRepo = ServerRepo.getInstance();
 
 		domainAPI = DomainAPI.getInstance();
-		importExportApi = ImportExportApi.getInstance();
 
 		observers = new GFileUpdateObservers(localRepo, serverRepo);
 	}
