@@ -1,5 +1,7 @@
 package com.example.galleryconnector.repositories.server;
 
+import android.util.Log;
+
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
@@ -14,13 +16,13 @@ import java.util.concurrent.Future;
 public class ServerFileObservers {
 
 	private final List<SFileObservable> listeners;
-	private final ExecutorService executor;
-	private Future<?> longpoller;
+	private Thread longpollThread;
+
+	private static final String TAG = "Gal.SRepo.Obs";
 
 
 	public ServerFileObservers() {
 		listeners = new ArrayList<>();
-		executor = Executors.newSingleThreadExecutor();
 	}
 
 
@@ -39,41 +41,54 @@ public class ServerFileObservers {
 	}
 
 
-	//TODO Make a listener thread for longpoll
-	public void startListening(int journalID, UUID accountUID) throws ExecutionException, InterruptedException {
-		//If we're already listening, return
-		if(longpoller != null)
+	public void startListening(int journalID, UUID accountUID) {
+		//If we're already listening, do nothing
+		if(longpollThread != null && !longpollThread.isInterrupted() && longpollThread.isAlive())
 			return;
 
-		//Start listening
-		longpoller = executor.submit(() -> {
-
-			while (true) {
-
-				try {
-					longpoll(journalID);
-				} catch (IOException e) {
-					throw new RuntimeException(e);
+		//Otherwise start perpetually longpolling the server for new journal entries
+		Runnable runnable = () -> {
+			int latestID = journalID;
+			try {
+				while (!Thread.currentThread().isInterrupted()) {
+					Log.v(TAG, "Longpolling...");
+					latestID = longpoll(latestID);
 				}
-
+			} catch (IOException e) {
+				throw new RuntimeException(e);
 			}
+		};
+		// Create and start the thread
+		longpollThread = new Thread(runnable);
+		longpollThread.start();
+	}
 
-
-		});
-		longpoller.get();
+	public void stopListening() {
+		//If we're already listening, interrupt
+		if(longpollThread != null && !longpollThread.isInterrupted() && longpollThread.isAlive())
+			longpollThread.interrupt();
 	}
 
 
-
-	public void longpoll(int journalID) throws IOException {
-		//Try to get any new journal entries
+	//Check the server for new journal entries. Returns the largest journal ID found.
+	public int longpoll(int journalID) throws IOException {
+		//Try to get any new journal entries. The request is designed to hang until new data is made
 		List<JsonObject> entries = ServerRepo.getInstance().longpollJournalEntriesAfter(journalID);
 
 		//If we get any entries back, notify the observers
 		for(JsonObject entry : entries)
 			notifyObservers(entry);
-	}
 
+
+
+		//If we have any new data, return the largest journalID from the bunch (will always be last)
+		if(!entries.isEmpty()) {
+			return entries.get(entries.size() - 1).get("journalid").getAsInt();
+		}
+
+		//If no new data was found, don't update the latest journalID
+		return journalID;
+	}
 
 
 
