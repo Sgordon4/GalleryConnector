@@ -40,10 +40,6 @@ public interface LFileDAO {
 	@Upsert
 	List<Long> put(LFileEntity... files);
 
-	//@Insert(onConflict = OnConflictStrategy.IGNORE)
-	//ListenableFuture<List<Long>> insert(LFile... files);
-	//@Update
-	//ListenableFuture<Integer> update(LFile... files);
 
 	@Delete
 	Integer delete(LFileEntity... files);

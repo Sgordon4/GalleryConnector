@@ -33,16 +33,20 @@ public class FileConnector {
 
 			"isdir",
 			"islink",
+			"isdeleted",
+			"ishidden",
+			"userattr",
 
 			"fileblocks",
 			"filesize",
 			"filehash",
 
-			"isdeleted",
 			"changetime",
 			"modifytime",
 			"accesstime",
-			"createtime"
+			"createtime",
+
+			"attrhash"
 	};
 
 
@@ -96,7 +100,7 @@ public class FileConnector {
 			throw new IllegalArgumentException("File upsert request must contain fileuid & accountuid!");
 
 
-		//Compile all passed properties into a form body
+		//Compile all passed properties into a form body. Doesn't matter what they are, send them all.
 		FormBody.Builder builder = new FormBody.Builder();
 		System.out.println("Keyset: "+props.keySet());
 		for(String key : props.keySet()) {
@@ -118,75 +122,7 @@ public class FileConnector {
 			return new Gson().fromJson(responseData, JsonObject.class);
 		}
 	}
-
-
-	/*
-	//Create a new file entry in the database
-	public JsonObject createEntry(@NonNull JsonObject props) throws IOException {
-		Log.i(TAG, "\nCREATE FILE called");
-		String url = Paths.get(baseServerUrl, "files", "insert").toString();
-
-		String[] reqInsert = {"fileuid", "accountuid"};
-		if(!props.has(reqInsert[0]) || !props.has(reqInsert[1]))
-			throw new IllegalArgumentException("File creation request must contain fileuid & accountuid!");
-
-
-		//Compile all passed properties into a form body
-		FormBody.Builder builder = new FormBody.Builder();
-		for(String prop : props.keySet()) {
-			builder.add(prop, props.get(prop).getAsString());
-		}
-		RequestBody body = builder.build();
-
-
-		Request request = new Request.Builder().url(url).post(body).build();
-		try (Response response = client.newCall(request).execute()) {
-			if (!response.isSuccessful())
-				throw new IOException("Unexpected code " + response.code());
-			if(response.body() == null)
-				throw new IOException("Response body is null");
-
-			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, JsonObject.class);
-		}
-	}
-
-
-	public JsonObject updateEntry(@NonNull JsonObject props) throws IOException {
-		if(!props.has("fileuid"))
-			throw new IllegalArgumentException("File update request must contain fileuid!");
-
-		UUID fileUID = UUID.fromString(props.get("fileuid").getAsString());
-		Log.i(TAG, "\nUPDATE FILE called with fileUID='"+fileUID+"'");
-		String url = Paths.get(baseServerUrl, "files", "update", fileUID.toString()).toString();
-
-		//Note: This isn't checking that any usable props are sent, maybe we should but server can do that
-		if(!(props.keySet().size() > 1))
-			throw new IllegalArgumentException("File update request must contain " +
-					"at least one property other than fileuid!");
-
-
-		//Compile all passed properties into a form body
-		FormBody.Builder builder = new FormBody.Builder();
-		for(String prop : props.asMap().keySet()) {
-			builder.add(prop, props.get(prop).getAsString());
-		}
-		RequestBody body = builder.build();
-
-
-		Request request = new Request.Builder().url(url).post(body).build();
-		try (Response response = client.newCall(request).execute()) {
-			if (!response.isSuccessful())
-				throw new IOException("Unexpected code " + response.code());
-			if(response.body() == null)
-				throw new IOException("Response body is null");
-
-			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, JsonObject.class);
-		}
-	}
-	 */
-
+	
 
 	//---------------------------------------------------------------------------------------------
 	// Delete

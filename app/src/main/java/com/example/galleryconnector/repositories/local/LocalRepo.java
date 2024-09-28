@@ -7,8 +7,11 @@ import androidx.annotation.NonNull;
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 
 import java.io.FileNotFoundException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -73,7 +76,34 @@ public class LocalRepo {
 			throw new IllegalStateException("Missing blocks: "+missingBlocks);
 
 
-		//Now that we've confirmed all blocks exist, create/update the file metadata
+		//Now that we've confirmed all blocks exist, create/update the file metadata ------
+
+		//Hash the file attributes
+		try {
+			//Ordering is important, should match the hash the server does (mostly, this isn't too important)
+			StringBuilder sb = new StringBuilder();
+			sb.append(file.fileuid);
+			sb.append(file.accountuid);
+			sb.append(file.isdir);
+			sb.append(file.islink);
+			sb.append(file.isdeleted);
+			sb.append(file.userattr);
+			sb.append(file.fileblocks);
+			sb.append(file.filesize);
+			sb.append(file.filehash);
+			sb.append(file.changetime);
+			sb.append(file.modifytime);
+			sb.append(file.accesstime);
+			sb.append(file.createtime);
+
+			byte[] attrHashBytes = MessageDigest.getInstance("SHA-1").digest(sb.toString().getBytes());
+			file.attrhash = BlockConnector.bytesToHex(attrHashBytes);
+		} catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
+
+
+		//Create/update the file
 		database.getFileDao().put(file);
 
 		//Notify observers that there's been a change in file data

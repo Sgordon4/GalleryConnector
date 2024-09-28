@@ -33,6 +33,12 @@ public class LFileEntity {
 	public boolean isdir;
 	@ColumnInfo(defaultValue = "false")
 	public boolean islink;
+	@ColumnInfo(defaultValue = "false")
+	public boolean isdeleted;
+
+	@NonNull
+	@ColumnInfo(defaultValue = "{}")
+	public String userattr;
 
 	@NonNull
 	@ColumnInfo(defaultValue = "{}")
@@ -42,20 +48,22 @@ public class LFileEntity {
 	@Nullable
 	public String filehash;
 
-	@ColumnInfo(defaultValue = "false")
-	public boolean isdeleted;
-
-	@ColumnInfo(defaultValue = "-1")
+	@NonNull
+	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
 	//Last time the file properties (database row) were changed
-	public long changetime;
-	@ColumnInfo(defaultValue = "-1")
+	public Timestamp changetime;
+	@Nullable
 	//Last time the file contents were modified
-	public long modifytime;
-	@ColumnInfo(defaultValue = "-1")
+	public Timestamp modifytime;
+	@Nullable
 	//Last time the file contents were accessed
-	public long accesstime;
+	public Timestamp accesstime;
+	@NonNull
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
 	public Timestamp createtime;
+
+	@Nullable
+	public String attrhash;
 
 
 	@Ignore
@@ -68,12 +76,11 @@ public class LFileEntity {
 
 		this.isdir = false;
 		this.islink = false;
+		this.isdeleted = false;
+		this.userattr = "{}";
 		this.fileblocks = new ArrayList<>();
 		this.filesize = 0;
-		this.isdeleted = false;
-		this.changetime = -1;
-		this.modifytime = -1;
-		this.accesstime = -1;
+		this.changetime = new Timestamp(new Date().getTime());
 		this.createtime = new Timestamp(new Date().getTime());
 
 	}
@@ -85,11 +92,8 @@ public class LFileEntity {
 		@Override
 		public boolean shouldSkipField(FieldAttributes f) {
 			switch (f.getName()) {
-				case "isdir": return !isdir;
-				case "islink": return !islink;
-				case "changetime": return changetime == -1;
-				case "modifytime": return modifytime == -1;
-				case "accesstime": return accesstime == -1;
+				case "modifytime": return modifytime == null;
+				case "accesstime": return accesstime == null;
 				default:
 					return false;
 			}
@@ -125,12 +129,19 @@ public class LFileEntity {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		LFileEntity file = (LFileEntity) o;
-		return isdir == file.isdir && islink == file.islink && filesize == file.filesize && isdeleted == file.isdeleted && changetime == file.changetime && modifytime == file.modifytime && accesstime == file.accesstime && createtime == file.createtime && Objects.equals(fileuid, file.fileuid) && Objects.equals(accountuid, file.accountuid) && Objects.equals(fileblocks, file.fileblocks) && Objects.equals(filehash, file.filehash);
+		LFileEntity that = (LFileEntity) o;
+		return isdir == that.isdir && islink == that.islink && isdeleted == that.isdeleted &&
+				filesize == that.filesize && Objects.equals(fileuid, that.fileuid) &&
+				Objects.equals(accountuid, that.accountuid) && Objects.equals(userattr, that.userattr) &&
+				Objects.equals(fileblocks, that.fileblocks) && Objects.equals(filehash, that.filehash) &&
+				Objects.equals(changetime, that.changetime) && Objects.equals(modifytime, that.modifytime) &&
+				Objects.equals(accesstime, that.accesstime) && Objects.equals(createtime, that.createtime) &&
+				Objects.equals(attrhash, that.attrhash);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(fileuid, accountuid, isdir, islink, fileblocks, filesize, filehash, isdeleted, changetime, modifytime, accesstime, createtime);
+		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, userattr,
+				fileblocks, filesize, filehash, changetime, modifytime, accesstime, createtime, attrhash);
 	}
 }
