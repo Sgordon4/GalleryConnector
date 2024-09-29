@@ -93,6 +93,6 @@ public class ServerFileObservers {
 
 
 	public interface SFileObservable {
-		void onFileUpdate(JsonObject file);
+		void onFileUpdate(JsonObject file, int journalID);
 	}
 }

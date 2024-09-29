@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity(tableName = "journal"
@@ -32,22 +33,15 @@ public class LJournalEntity {
 	public UUID accountuid;
 
 
-	@ColumnInfo(defaultValue = "false")
-	public boolean isdir;
-	@ColumnInfo(defaultValue = "false")
-	public boolean islink;
-
-
 	@NonNull
 	@ColumnInfo(defaultValue = "[]")
 	public List<String> fileblocks;
-	@ColumnInfo(defaultValue = "0")
-	public int filesize;
 	@Nullable
 	public String filehash;
 
-	@ColumnInfo(defaultValue = "false")
-	public boolean isdeleted;
+
+	@Nullable
+	public String attrhash;
 
 
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
@@ -58,29 +52,37 @@ public class LJournalEntity {
 	public LJournalEntity(@NonNull UUID fileuid, @NonNull UUID accountuid) {
 		this.fileuid = fileuid;
 		this.accountuid = accountuid;
-
-		this.filesize = 0;
-		this.isdir = false;
-		this.islink = false;
 		this.fileblocks = new ArrayList<>();
-		this.isdeleted = false;
 		this.changetime = -1;
 	}
 
 	@NonNull
 	@Override
 	public String toString() {
-		return "LJournal{" +
+		return "LJournal {" +
 				"journalid=" + journalid +
 				", fileuid=" + fileuid +
 				", accountuid=" + accountuid +
-				", isdir=" + isdir +
-				", islink=" + islink +
 				", fileblocks=" + fileblocks +
-				", filesize=" + filesize +
-				", filehash=" + filehash +
-				", isdeleted=" + isdeleted +
+				", filehash='" + filehash + '\'' +
+				", attrhash='" + attrhash + '\'' +
 				", changetime=" + changetime +
 				'}';
+	}
+
+
+	@Override
+	public boolean equals(Object object) {
+		if (this == object) return true;
+		if (object == null || getClass() != object.getClass()) return false;
+		LJournalEntity that = (LJournalEntity) object;
+		return Objects.equals(fileuid, that.fileuid) && Objects.equals(accountuid, that.accountuid) &&
+				Objects.equals(fileblocks, that.fileblocks) && Objects.equals(filehash, that.filehash) &&
+				Objects.equals(attrhash, that.attrhash);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(fileuid, accountuid, fileblocks, filehash, attrhash);
 	}
 }

@@ -76,15 +76,25 @@ public class GFileUpdateObservers {
 
 
 	public void attachToLocal(@NonNull LocalRepo localRepo) {
-		LocalFileObservers.LFileObservable lFileChangedObs = file -> {
+		LocalFileObservers.LFileObservable lFileChangedObs = (file, journalID) -> {
+			//Notify listeners
 			JsonObject fileJson = new Gson().toJsonTree(file).getAsJsonObject();
 			onLocalFileUpdate(fileJson);
+
+			//Update the latest synced journalID
+			syncHandler.updateLastSyncLocal(journalID);
 		};
 
 		localRepo.addObserver(lFileChangedObs);
 	}
 	public void attachToServer(@NonNull ServerRepo serverRepo) {
-		ServerFileObservers.SFileObservable sFileChangedObs = this::onServerFileUpdate;
+		ServerFileObservers.SFileObservable sFileChangedObs = (file, journalID) -> {
+			//Notify listeners
+			onServerFileUpdate(file);
+
+			//Update the latest synced journalID
+			syncHandler.updateLastSyncServer(journalID);
+		};
 
 		serverRepo.addObserver(sFileChangedObs);
 	}
