@@ -4,9 +4,12 @@ import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.work.Data;
+import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkInfo;
 import androidx.work.WorkManager;
 import androidx.work.WorkQuery;
+import androidx.work.WorkRequest;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
@@ -99,12 +102,21 @@ public class DomainOpWorker extends Worker {
 				.filter(workInfo -> workInfo.getTags().contains(oppositeOperation.toString()))
 				.collect(Collectors.toList());
 
+		//TODO God fucking damnit, I hadn't realized canceling a Worker cancels all following Workers as well.
+		// Of fucking course we gotta find a different way to do this, right as I fucking finish.
 
-		//If a conflicting operation exists, cancel it. Cancel only one if there happen to be multiple.
+
+		//If a conflicting operation exists, cancel it. Cancel only the first in line if there happen to be multiple.
 		if(!workInfos.isEmpty()) {
 			Log.i(TAG, "Found a conflicting operation for "+operation+", cancelling...");
 			WorkInfo workInfo = workInfos.get(0);
 
+			OneTimeWorkRequest.Builder builder = domainAPI.buildWorker(fileUID, operation);
+			builder.addTag("SKIPPED");
+			WorkRequest updatedRequest = builder.build();
+
+			WorkRequest.Builder
+			workManager.updateWork(updatedRequest);
 			workManager.cancelWorkById(workInfo.getId());
 			return true;
 		}

@@ -1,6 +1,7 @@
 package com.example.galleryconnector.movement;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.work.Data;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.Operation;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -70,8 +72,8 @@ public class DomainAPI {
 
 
 
-	//TODO Make sure when these are queued, they're queued AFTER any existing work for the file
-	public OneTimeWorkRequest buildWorker(@NonNull UUID fileuid, @NonNull Operation operation) {
+	//TODO Make sure when these are queued, they're appended AFTER any existing work for the file
+	public OneTimeWorkRequest.Builder buildWorker(@NonNull UUID fileuid, @NonNull Operation operation) {
 		Data.Builder data = new Data.Builder();
 		data.putString("OPERATION", operation.toString());
 		data.putString("FILEUID", fileuid.toString());
@@ -79,8 +81,7 @@ public class DomainAPI {
 		return new OneTimeWorkRequest.Builder(DomainOpWorker.class)
 				.setInputData(data.build())
 				.addTag(fileuid.toString())
-				.addTag(operation.toString())
-				.build();
+				.addTag(operation.toString());
 	}
 
 
