@@ -4,7 +4,6 @@ import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
-import androidx.work.Data;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkInfo;
 import androidx.work.WorkManager;
@@ -39,6 +38,11 @@ public class DomainOpWorker extends Worker {
 	public Result doWork() {
 		Log.i(TAG, "DomainOpWorker doing work");
 
+		//If this work should be skipped (see skipConflict(), just return success and don't do any actual work)
+		if(getTags().contains("SKIPPED"))
+			return Result.success();
+
+
 		String operationString = getInputData().getString("OPERATION");
 		assert operationString != null;
 		DomainAPI.Operation operation = DomainAPI.Operation.valueOf(operationString);
@@ -49,11 +53,11 @@ public class DomainOpWorker extends Worker {
 
 
 
-		//Look for any conflicting operation, and if found cancel it AND the current operation.
+		//Look for any conflicting operation and, if found, skip it AND the current operation.
 		//E.g. This Worker is COPY_TO_LOCAL, but there is a later worker designated REMOVE_FROM_LOCAL.
 		//Copying a file to local just to remove it would be redundant, so we can safely cancel both.
 		try {
-			boolean conflict = cancelConflict(operation, fileUID);
+			boolean conflict = skipConflict(operation, fileUID);
 			if(conflict) return Result.success();
 
 		} catch (ExecutionException | InterruptedException e) {
@@ -81,8 +85,9 @@ public class DomainOpWorker extends Worker {
 	}
 
 
-	//Returns true if a conflicting operation was found and cancelled
-	private boolean cancelConflict(DomainAPI.Operation operation, UUID fileUID)
+
+	//Returns true if a conflicting operation was found and skipped
+	private boolean skipConflict(DomainAPI.Operation operation, UUID fileUID)
 									throws ExecutionException, InterruptedException {
 		DomainAPI.Operation oppositeOperation = operation.getOpposite();
 
@@ -99,25 +104,23 @@ public class DomainOpWorker extends Worker {
 		//Filter for only workers with the tag of the conflicting/opposite operation
 		//Can't do this in the workQuery because the tags would be ORed rather than ANDed like we need
 		workInfos = workInfos.stream()
-				.filter(workInfo -> workInfo.getTags().contains(oppositeOperation.toString()))
+				.filter(workInfo -> workInfo.getTags().contains(oppositeOperation.toString()) &&
+									!workInfo.getTags().contains("SKIPPED"))
 				.collect(Collectors.toList());
 
-		//TODO God fucking damnit, I hadn't realized canceling a Worker cancels all following Workers as well.
-		// Of fucking course we gotta find a different way to do this, right as I fucking finish.
 
-
-		//If a conflicting operation exists, cancel it. Cancel only the first in line if there happen to be multiple.
+		//If a conflicting operation exists, skip it. Skip only the first in line if there happen to be multiple.
 		if(!workInfos.isEmpty()) {
 			Log.i(TAG, "Found a conflicting operation for "+operation+", cancelling...");
 			WorkInfo workInfo = workInfos.get(0);
 
+			//Replace the conflicting worker with this one, adding a SKIPPED tag
 			OneTimeWorkRequest.Builder builder = domainAPI.buildWorker(fileUID, operation);
+			builder.setId(workInfo.getId());
 			builder.addTag("SKIPPED");
 			WorkRequest updatedRequest = builder.build();
 
-			WorkRequest.Builder
 			workManager.updateWork(updatedRequest);
-			workManager.cancelWorkById(workInfo.getId());
 			return true;
 		}
 
