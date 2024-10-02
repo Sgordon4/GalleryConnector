@@ -1,42 +1,31 @@
 package com.example.galleryconnector.movement;
 
-import android.content.Context;
-
 import androidx.annotation.NonNull;
+import androidx.work.Data;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.Operation;
+import androidx.work.WorkInfo;
+import androidx.work.WorkQuery;
 
-import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.lang.reflect.Type;
-import java.nio.file.Files;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.locks.ReentrantLock;
-
+import java.util.stream.Collectors;
 
 
 public class DomainAPI {
-	private final File operationFile;
-	private final ReentrantLock lock;
-
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
-
 
 
 	public static DomainAPI getInstance() {
@@ -48,23 +37,6 @@ public class DomainAPI {
 	private DomainAPI() {
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
-
-		//We need a synchronous read/write lock for the operations file
-		lock = new ReentrantLock();
-
-
-		Context context = MyApplication.getAppContext();
-		operationFile = new File(context.getDataDir(), "operations.json");
-
-
-		//Make sure the operations file exists
-		if(!operationFile.exists()) {
-			try {
-				operationFile.createNewFile();
-			} catch (Exception e) {
-				throw new RuntimeException("Operation mapping file could not be created!");
-			}
-		}
 	}
 
 
@@ -73,7 +45,6 @@ public class DomainAPI {
 		REMOVE_FROM_LOCAL(2),
 		COPY_TO_SERVER(4),
 		REMOVE_FROM_SERVER(8);
-		//FOLLOW_PARENT(16);		//Removed
 
 
 		private final int flag;
@@ -88,175 +59,56 @@ public class DomainAPI {
 
 
 
-	public boolean queueOperation(Operation newOperation, UUID fileUID) {
-		//Lock the file before we make any reads/writes
-		lock.lock();
 
-		try {
-			//Read all operations in the file into a JsonObject
-			JsonObject allOperations = readOps();
-			//Get the stored bitmask for the fileuid
-			int bitmask = getMask(allOperations, fileUID);
+	public OneTimeWorkRequest buildWorker(@NonNull UUID fileuid, @NonNull Operation operation) {
+		Data.Builder data = new Data.Builder();
+		data.putString("OPERATION", operation.toString());
+		data.putString("FILEUID", fileuid.toString());
 
-
-			//Add the new operation to the bitmask
-			bitmask |= newOperation.flag;
-
-			//If adding this flag resulted in BOTH local flags (they conflict)...
-			if ((Operation.LOCAL_MASK & bitmask) == Operation.LOCAL_MASK)
-				bitmask &= ~Operation.LOCAL_MASK;    //Get rid of both flags since they cancel out
-
-			//If adding this flag resulted in BOTH server flags (they conflict)...
-			if ((Operation.SERVER_MASK & bitmask) == Operation.SERVER_MASK)
-				bitmask &= ~Operation.SERVER_MASK;    //Get rid of both flags since they cancel out
-
-			//(COPY_TO_LOCAL & SERVER) and (REMOVE_FROM_LOCAL & SERVER) do not conflict or cause problems.
-			//Although both removes probably means something went wrong...
-
-
-			//Write the updated bitmask back to the file
-			writeMask(allOperations, fileUID, bitmask);
-
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		} finally {
-			lock.unlock();
-		}
-
-		return true;
-	}
-
-	public boolean removeOperation(Operation oldOperation, UUID fileUID) {
-		//Lock the file before we make any reads/writes
-		lock.lock();
-
-		try {
-			//Read all operations in the file into a JsonObject
-			JsonObject allOperations = readOps();
-			//Get the stored bitmask for the fileuid
-			int bitmask = getMask(allOperations, fileUID);
-
-			//Remove the old operation from the bitmask
-			bitmask &= ~oldOperation.flag;
-			
-			//Write the updated bitmask back to the file
-			writeMask(allOperations, fileUID, bitmask);
-
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		} finally {
-			lock.unlock();
-		}
-
-		return true;
+		return new OneTimeWorkRequest.Builder(DomainOpWorker.class)
+				.setInputData(data.build())
+				.addTag(fileuid.toString())
+				.addTag(operation.toString())
+				.build();
 	}
 
 
-	//-----------------------------------------------------------
+	/*
+	TODO When queueing these workers, we need to implement a system to remove certain workers based on
+	 existing work, like queueing REMOVE_FROM_LOCAL when COPY_TO_LOCAL is already queued.
+	 This is difficult as a straight up cancel might not make it in time, alongside other race conditions
+
+	Possible solution may involve trying to await the cancel, making sure the worker was actually cancelled
+	 before it did any work. Not sure how to do that though.
+	 */
+	/*
+	private void cancelJobExample() {
+		Operation lookingFor = Operation.COPY_TO_LOCAL;
+
+		WorkQuery workQuery = WorkQuery.Builder
+				.fromTags(Collections.singletonList("ID1"))	//Can't add the lookingFor tag here as these are ORed
+				.addStates(Collections.singletonList(WorkInfo.State.ENQUEUED))
+				.build();
+
+		List<WorkInfo> workInfos = workManager.getWorkInfos(workQuery).get();
+		workInfos = workInfos.stream()
+				.filter(workInfo -> workInfo.getTags().contains(lookingFor.toString()))
+				.collect(Collectors.toList());
 
 
-	private JsonObject readOps() throws IOException {
-		//Read all operations in the file into a JsonObject (absolute worst case is a few thousand lines)
-		InputStream in = Files.newInputStream(operationFile.toPath());
-		InputStreamReader reader = new InputStreamReader(in);
-		return JsonParser.parseReader(reader).getAsJsonObject();
-	}
+		//If there is a queued job, cancel it
+		if(!workInfos.isEmpty()) {
+			System.out.println("A job exists, canceling... ");
+			WorkInfo workInfo = workInfos.get(0);
 
-	private int getMask(JsonObject allOperations, UUID fileUID) {
-		//Get the stored bitmask for the fileuid (or 0 if no previous entry)
-		JsonElement bitmaskElement = allOperations.get(fileUID.toString());
-		return bitmaskElement != null ? bitmaskElement.getAsInt() : 0;
-	}
+			//WARNING: Possible race condition if the job runs between our query and this cancellation.
+			androidx.work.Operation operation = workManager.cancelWorkById(workInfo.getId());
 
-	private void writeMask(JsonObject allOperations, UUID fileUID, int bitmask) throws IOException {
-		//Write the updated bitmask back to the file
-		allOperations.addProperty(fileUID.toString(), bitmask);
-		try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
-			out.write(allOperations.toString().getBytes());
+			//We were able to cancel the conflicting job, so don't queue the one we're working on
+			//return;
 		}
 	}
-
-
-
-	//FOR TESTING
-	public int getMaskTESTING(UUID fileUID) {
-		try {
-			//Read all operations in the file into a JsonObject
-			JsonObject allOperations = readOps();
-			//Get the stored bitmask for the fileuid
-			return getMask(allOperations, fileUID);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-
-
-	//TODO Fail if no internet in between, but I guess that would just throw a normal exception
-	// when running copy/remove functions
-	//TODO Also remove if fileuid doesn't exist, or maybe just do nothing in the copy/remove functions
-	public boolean executeAQueuedOperation() {
-		//Lock the file before we make any reads/writes
-		lock.lock();
-
-		try {
-			//Read all operations in the file into a JsonObject
-			JsonObject allOperations = readOps();
-
-
-			//Get any operation
-			Set<Map.Entry<String, JsonElement>> entrySet = allOperations.entrySet();
-			if(!entrySet.isEmpty()) {
-				Map.Entry<String, JsonElement> entry = entrySet.iterator().next();
-
-				//Get the ID and bitmask for that operation
-				UUID fileUID = UUID.fromString(entry.getKey());
-				int bitmask = entry.getValue().getAsInt();
-
-
-				try {
-					//If we have a COPY_TO_LOCAL operation...
-					if((bitmask & Operation.COPY_TO_LOCAL.flag) > 0)
-						copyFileToLocal(fileUID);
-
-					//If we have a REMOVE_FROM_LOCAL operation...
-					if((bitmask & Operation.REMOVE_FROM_LOCAL.flag) > 0)
-						removeFileFromLocal(fileUID);
-
-					//If we have a COPY_TO_SERVER operation...
-					if((bitmask & Operation.COPY_TO_SERVER.flag) > 0)
-						copyFileToServer(fileUID);
-
-					//If we have a REMOVE_FROM_SERVER operation...
-					if((bitmask & Operation.REMOVE_FROM_SERVER.flag) > 0)
-						removeFileFromServer(fileUID);
-
-				} catch (FileNotFoundException e) {
-					//We don't really want to do anything but log, this is technically a 'success'.
-					//At least as long as this wasn't somehow caused by internet issues.
-				}
-
-
-				//Now that we've run the operations contained in the mask, remove it
-				allOperations.remove(fileUID.toString());
-
-				//And write the updated operations list back to the file
-				try (OutputStream out = Files.newOutputStream(operationFile.toPath())) {
-					out.write(allOperations.toString().getBytes());
-				}
-			}
-
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		} finally {
-			lock.unlock();
-		}
-
-		return true;
-	}
-
+	 */
 
 
 	//---------------------------------------------------------------------------------------------

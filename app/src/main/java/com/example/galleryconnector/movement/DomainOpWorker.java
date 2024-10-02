@@ -7,7 +7,9 @@ import androidx.annotation.NonNull;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
+import java.io.IOException;
 import java.util.UUID;
+
 
 public class DomainOpWorker extends Worker {
 	private static final String TAG = "Gal.DOp";
@@ -20,33 +22,41 @@ public class DomainOpWorker extends Worker {
 	}
 
 
+	//TODO Make sure to rerun if no internet
+
 	@NonNull
 	@Override
 	public Result doWork() {
 		Log.i(TAG, "DomainOpWorker doing work");
 
-		boolean addingToQueue;
-		DomainAPI.Operation operation;
-		UUID fileUID;
+		String operationString = getInputData().getString("OPERATION");
+		assert operationString != null;
+		DomainAPI.Operation operation = DomainAPI.Operation.valueOf(operationString);
+
+		String fileUIDString = getInputData().getString("FILEUID");
+		assert fileUIDString != null;
+		UUID fileUID = UUID.fromString(fileUIDString);
+
 
 		try {
-			String queueing = getInputData().getString("QUEUEING");
-			String operationStr = getInputData().getString("OPERATION");
-			String file = getInputData().getString("FILEUID");
-
-			assert queueing != null;
-			assert operationStr != null;
-			assert file != null;
-
-			addingToQueue = Boolean.getBoolean( queueing );
-			operation = DomainAPI.Operation.valueOf( operationStr );
-			fileUID = UUID.fromString( file );
-
-		} catch (IllegalArgumentException e) {
-			Log.e(TAG, "Invalid parameter passed to DomainOpWorker!");
+			switch (operation) {
+				case COPY_TO_LOCAL:
+					domainAPI.copyFileToLocal(fileUID);
+					break;
+				case REMOVE_FROM_LOCAL:
+					domainAPI.removeFileFromLocal(fileUID);
+					break;
+				case COPY_TO_SERVER:
+					domainAPI.copyFileToServer(fileUID);
+					break;
+				case REMOVE_FROM_SERVER:
+					domainAPI.removeFileFromServer(fileUID);
+			}
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 
-		return null;
+
+		return Result.success();
 	}
 }
