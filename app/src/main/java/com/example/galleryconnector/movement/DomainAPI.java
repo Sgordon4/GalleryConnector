@@ -55,11 +55,22 @@ public class DomainAPI {
 		public static final int LOCAL_MASK = COPY_TO_LOCAL.flag | REMOVE_FROM_LOCAL.flag;
 		public static final int SERVER_MASK = COPY_TO_SERVER.flag | REMOVE_FROM_SERVER.flag;
 		public static final int MASK = LOCAL_MASK | SERVER_MASK;
+
+
+		public Operation getOpposite() {
+			switch (this) {
+				case COPY_TO_LOCAL: return REMOVE_FROM_LOCAL;
+				case REMOVE_FROM_LOCAL: return COPY_TO_LOCAL;
+				case COPY_TO_SERVER: return REMOVE_FROM_SERVER;
+				case REMOVE_FROM_SERVER: return COPY_TO_SERVER;
+			}
+			throw new RuntimeException("Invalid operation? "+this);
+		}
 	}
 
 
 
-
+	//TODO Make sure when these are queued, they're queued AFTER any existing work for the file
 	public OneTimeWorkRequest buildWorker(@NonNull UUID fileuid, @NonNull Operation operation) {
 		Data.Builder data = new Data.Builder();
 		data.putString("OPERATION", operation.toString());
@@ -72,43 +83,6 @@ public class DomainAPI {
 				.build();
 	}
 
-
-	/*
-	TODO When queueing these workers, we need to implement a system to remove certain workers based on
-	 existing work, like queueing REMOVE_FROM_LOCAL when COPY_TO_LOCAL is already queued.
-	 This is difficult as a straight up cancel might not make it in time, alongside other race conditions
-
-	Possible solution may involve trying to await the cancel, making sure the worker was actually cancelled
-	 before it did any work. Not sure how to do that though.
-	 */
-	/*
-	private void cancelJobExample() {
-		Operation lookingFor = Operation.COPY_TO_LOCAL;
-
-		WorkQuery workQuery = WorkQuery.Builder
-				.fromTags(Collections.singletonList("ID1"))	//Can't add the lookingFor tag here as these are ORed
-				.addStates(Collections.singletonList(WorkInfo.State.ENQUEUED))
-				.build();
-
-		List<WorkInfo> workInfos = workManager.getWorkInfos(workQuery).get();
-		workInfos = workInfos.stream()
-				.filter(workInfo -> workInfo.getTags().contains(lookingFor.toString()))
-				.collect(Collectors.toList());
-
-
-		//If there is a queued job, cancel it
-		if(!workInfos.isEmpty()) {
-			System.out.println("A job exists, canceling... ");
-			WorkInfo workInfo = workInfos.get(0);
-
-			//WARNING: Possible race condition if the job runs between our query and this cancellation.
-			androidx.work.Operation operation = workManager.cancelWorkById(workInfo.getId());
-
-			//We were able to cancel the conflicting job, so don't queue the one we're working on
-			//return;
-		}
-	}
-	 */
 
 
 	//---------------------------------------------------------------------------------------------
