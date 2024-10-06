@@ -109,7 +109,7 @@ public class LocalRepo {
 
 		//TODO This won't work, we need the journalID. Need to set up a longpoll on local as well for listening goddamnit.
 		//Notify observers that there's been a change in file data
-		observers.notifyObservers(file);
+		observers.notifyObservers(journalID, file);
 	}
 	public List<String> getMissingBlocks(List<String> blockset) {
 		//Check if the blocks repo is missing any blocks from the blockset

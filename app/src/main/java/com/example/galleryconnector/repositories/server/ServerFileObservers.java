@@ -34,9 +34,9 @@ public class ServerFileObservers {
 	}
 
 
-	public void notifyObservers(JsonObject file) {
+	public void notifyObservers(int journalID, JsonObject file) {
 		for (SFileObservable listener : listeners) {
-			listener.onFileUpdate(file);
+			listener.onFileUpdate(journalID, file);
 		}
 	}
 
@@ -76,9 +76,10 @@ public class ServerFileObservers {
 		List<JsonObject> entries = ServerRepo.getInstance().longpollJournalEntriesAfter(journalID);
 
 		//If we get any entries back, notify the observers
-		for(JsonObject entry : entries)
-			notifyObservers(entry);
-
+		for(JsonObject entry : entries) {
+			int objJournalID = entry.remove("journalID").getAsInt();
+			notifyObservers(objJournalID, entry);
+		}
 
 
 		//If we have any new data, return the largest journalID from the bunch (will always be last)
@@ -93,6 +94,6 @@ public class ServerFileObservers {
 
 
 	public interface SFileObservable {
-		void onFileUpdate(JsonObject file, int journalID);
+		void onFileUpdate(int journalID, JsonObject file);
 	}
 }
