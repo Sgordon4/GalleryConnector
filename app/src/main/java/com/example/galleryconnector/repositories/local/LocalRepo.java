@@ -1,18 +1,22 @@
 package com.example.galleryconnector.repositories.local;
 
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
 import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 
 import java.io.FileNotFoundException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -67,6 +71,24 @@ public class LocalRepo {
 			throw new RuntimeException(e);
 		}
 	}
+
+	public Map<Integer, LFileEntity> longpoll(int journalID) {
+		Map<Integer, LFileEntity> journalFileMap = new HashMap<>();
+		try {
+			List<LJournalEntity> recentJournals = database.getJournalDao().loadAllAfterID(journalID).get();
+
+
+			for(LJournalEntity journal : recentJournals) {
+				//Go through and indiscriminately add to map, fileuid : LJournalEntity
+			}
+
+
+		} catch (ExecutionException | InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+
 
 
 	public void putFile(@NonNull LFileEntity file) {

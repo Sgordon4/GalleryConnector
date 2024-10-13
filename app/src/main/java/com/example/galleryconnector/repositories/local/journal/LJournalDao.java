@@ -21,10 +21,6 @@ public interface LJournalDao {
 	ListenableFuture<List<LJournalEntity>> loadAllByFileUID(UUID fileUID);
 
 
-	@Query("SELECT J.journalID FROM journal J WHERE journalid = :journalID")
-	ListenableFuture<List<LJournalEntity>> longpoll(long journalID);
-
-
 	//Journal is append-only, no need to update
 	//TODO Make sure the OnConflict is not just checking for fileUID or something.
 	@Insert(onConflict = OnConflictStrategy.IGNORE)
