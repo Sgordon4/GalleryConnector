@@ -14,6 +14,7 @@ import com.example.galleryconnector.repositories.server.connectors.BlockConnecto
 import java.io.FileNotFoundException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,17 +73,41 @@ public class LocalRepo {
 		}
 	}
 
-	public Map<Integer, LFileEntity> longpoll(int journalID) {
-		Map<Integer, LFileEntity> journalFileMap = new HashMap<>();
+
+	public List<Pair<Long, LFileEntity>> longpoll(int journalID) {
+		//Try to get new data from the journal 6 times
+		int tries = 6;
+		do {
+			
+
+		} while(tries-- > 0);
+	}
+
+
+	public List<Pair<Long, LFileEntity>> longpollHelper(int journalID) {
 		try {
+			//Get all recent journals after the given journalID
 			List<LJournalEntity> recentJournals = database.getJournalDao().loadAllAfterID(journalID).get();
 
 
-			for(LJournalEntity journal : recentJournals) {
-				//Go through and indiscriminately add to map, fileuid : LJournalEntity
-			}
+			//We want all distinct fileUIDs with their greatest journalID. Journals come in sorted order.
+			Map<UUID, LJournalEntity> tempJournalMap = new HashMap<>();
+			for(LJournalEntity journal : recentJournals)
+				tempJournalMap.put(journal.fileuid, journal);
 
 
+			//Now grab each fileUID and get the file data
+			List<LFileEntity> files = database.getFileDao().loadByUID(tempJournalMap.keySet().toArray(new UUID[0])).get();
+
+
+			//Combine the journalID with the file data and sort it by journalID
+			List<Pair<Long, LFileEntity>> journalFileList = files.stream().map(f -> {
+				long journalIDforFile = tempJournalMap.get(f.fileuid).journalid;
+				return new Pair<>(journalIDforFile, f);
+			}).sorted(Comparator.comparing(longLFileEntityPair -> longLFileEntityPair.first)).collect(Collectors.toList());
+
+
+			return journalFileList;
 		} catch (ExecutionException | InterruptedException e) {
 			throw new RuntimeException(e);
 		}
