@@ -6,6 +6,10 @@ import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -56,18 +60,21 @@ public class LJournalEntity {
 		this.changetime = -1;
 	}
 
+
+
+	public JsonObject toJson() {
+		Gson gson = new GsonBuilder()
+				//.addSerializationExclusionStrategy(strategy)
+				.create();
+
+		return gson.toJsonTree(this).getAsJsonObject();
+	}
+
 	@NonNull
 	@Override
 	public String toString() {
-		return "LJournal {" +
-				"journalid=" + journalid +
-				", fileuid=" + fileuid +
-				", accountuid=" + accountuid +
-				", fileblocks=" + fileblocks +
-				", filehash='" + filehash + '\'' +
-				", attrhash='" + attrhash + '\'' +
-				", changetime=" + changetime +
-				'}';
+		JsonObject json = toJson();
+		return json.toString();
 	}
 
 

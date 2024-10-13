@@ -14,6 +14,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 
@@ -55,10 +56,10 @@ public class LocalRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	public LFileEntity getFile(UUID fileUID) throws FileNotFoundException {
+	public LFileEntity getFile(UUID fileUID) throws FileNotFoundException, ExecutionException, InterruptedException {
 		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
 
-		LFileEntity file = database.getFileDao().loadByUID(fileUID);
+		LFileEntity file = database.getFileDao().loadByUID(fileUID).get();
 		if(file == null) throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");
 
 		return file;
@@ -79,29 +80,7 @@ public class LocalRepo {
 		//Now that we've confirmed all blocks exist, create/update the file metadata ------
 
 		//Hash the file attributes
-		try {
-			//Ordering is important, should match the hash the server does (mostly, this isn't too important)
-			StringBuilder sb = new StringBuilder();
-			sb.append(file.fileuid);
-			sb.append(file.accountuid);
-			sb.append(file.isdir);
-			sb.append(file.islink);
-			sb.append(file.isdeleted);
-			sb.append(file.userattr);
-			sb.append(file.fileblocks);
-			sb.append(file.filesize);
-			sb.append(file.filehash);
-			sb.append(file.changetime);
-			sb.append(file.modifytime);
-			sb.append(file.accesstime);
-			sb.append(file.createtime);
-
-			byte[] attrHashBytes = MessageDigest.getInstance("SHA-1").digest(sb.toString().getBytes());
-			file.attrhash = BlockConnector.bytesToHex(attrHashBytes);
-		} catch (NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
-
+		file.hashAttributes();
 
 		//Create/update the file
 		database.getFileDao().put(file);
