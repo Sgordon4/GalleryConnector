@@ -56,13 +56,16 @@ public class LocalRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	public LFileEntity getFile(UUID fileUID) throws FileNotFoundException, ExecutionException, InterruptedException {
+	public LFileEntity getFile(UUID fileUID) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
 
-		LFileEntity file = database.getFileDao().loadByUID(fileUID).get();
-		if(file == null) throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");
-
-		return file;
+		try {
+			LFileEntity file = database.getFileDao().loadByUID(fileUID).get();
+			if(file == null) throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");
+			return file;
+		} catch (ExecutionException | InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 
@@ -88,6 +91,7 @@ public class LocalRepo {
 
 		//TODO This won't work, we need the journalID. Need to set up a longpoll on local as well for listening goddamnit.
 		//Notify observers that there's been a change in file data
+		int journalID = 4;
 		observers.notifyObservers(journalID, file);
 	}
 	public List<String> getMissingBlocks(List<String> blockset) {
