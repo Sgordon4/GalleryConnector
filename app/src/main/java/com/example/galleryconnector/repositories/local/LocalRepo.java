@@ -14,6 +14,7 @@ import com.example.galleryconnector.repositories.server.connectors.BlockConnecto
 import java.io.FileNotFoundException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -74,17 +75,21 @@ public class LocalRepo {
 	}
 
 
+	//I haven't found a great way to do this with livedata or InvalidationTracker yet
 	public List<Pair<Long, LFileEntity>> longpoll(int journalID) {
 		//Try to get new data from the journal 6 times
 		int tries = 6;
 		do {
-			
+			List<Pair<Long, LFileEntity>> data = longpollHelper(journalID);
+			if(!data.isEmpty()) return data;
 
 		} while(tries-- > 0);
+
+		return new ArrayList<>();
 	}
 
 
-	public List<Pair<Long, LFileEntity>> longpollHelper(int journalID) {
+	private List<Pair<Long, LFileEntity>> longpollHelper(int journalID) {
 		try {
 			//Get all recent journals after the given journalID
 			List<LJournalEntity> recentJournals = database.getJournalDao().loadAllAfterID(journalID).get();
@@ -138,7 +143,6 @@ public class LocalRepo {
 
 		//TODO This won't work, we need the journalID. Need to set up a longpoll on local as well for listening goddamnit.
 		//Notify observers that there's been a change in file data
-		int journalID = 4;
 		observers.notifyObservers(journalID, file);
 	}
 	public List<String> getMissingBlocks(List<String> blockset) {

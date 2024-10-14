@@ -60,6 +60,7 @@ public abstract class LocalDatabase extends RoomDatabase {
 							//Note: No DELETE trigger, since to 'delete' a file we actually set the isdeleted bit.
 							// Actual row deletion would be the result of admin work like scheduled cleanup or a file domain move (local -> server, vice versa).
 
+
 						}
 					}).build();
 		}
