@@ -21,30 +21,30 @@ https://developer.android.com/training/data-storage/room/async-queries#guava-liv
 public interface LFileDAO {
 	//Mostly for testing
 	@Query("SELECT * FROM file LIMIT 500")
-	ListenableFuture<List<LFileEntity>> loadAll();
+	List<LFileEntity> loadAll();
 	@Query("SELECT * FROM file LIMIT 500  OFFSET :offset")
-	ListenableFuture<List<LFileEntity>> loadAll(int offset);
+	List<LFileEntity> loadAll(int offset);
 
 	@Query("SELECT * FROM file WHERE accountuid IN (:accountuids) LIMIT 500")
-	ListenableFuture<List<LFileEntity>> loadAllByAccount(UUID... accountuids);
+	List<LFileEntity> loadAllByAccount(UUID... accountuids);
 	@Query("SELECT * FROM file WHERE accountuid IN (:accountuids) LIMIT 500 OFFSET :offset")
-	ListenableFuture<List<LFileEntity>> loadAllByAccount(int offset, UUID... accountuids);
+	List<LFileEntity> loadAllByAccount(int offset, UUID... accountuids);
 
 
 	@Nullable
 	@Query("SELECT * FROM file WHERE fileuid = :fileUID")
-	ListenableFuture<LFileEntity> loadByUID(UUID fileUID);
+	LFileEntity loadByUID(UUID fileUID);
 	@Query("SELECT * FROM file WHERE fileuid IN (:fileUIDs)")
-	ListenableFuture<List<LFileEntity>> loadByUID(UUID... fileUIDs);
+	List<LFileEntity> loadByUID(UUID... fileUIDs);
 
 
 
 	@Upsert
-	ListenableFuture<List<Long>> put(LFileEntity... files);
+	List<Long> put(LFileEntity... files);
 
 
 	@Delete
-	ListenableFuture<Integer> delete(LFileEntity... files);
+	Integer delete(LFileEntity... files);
 	@Query("DELETE FROM file WHERE fileuid IN (:fileUIDs)")
-	ListenableFuture<Integer> delete(UUID... fileUIDs);
+	Integer delete(UUID... fileUIDs);
 }

@@ -4,6 +4,8 @@ import android.util.Log;
 import android.util.Pair;
 
 import androidx.annotation.NonNull;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
@@ -32,6 +34,7 @@ public class LocalRepo {
 	public final LBlockHandler blockHandler;
 
 	private final LocalFileObservers observers;
+	private LiveData<List<LJournalEntity>> latestJournals;
 
 	public LocalRepo() {
 		database = new LocalDatabase.DBBuilder().newInstance( MyApplication.getAppContext() );
@@ -57,6 +60,19 @@ public class LocalRepo {
 		observers.removeObserver(observer);
 	}
 
+
+	public void startListening(int journalID) {
+		database.getJournalDao().longpollAfterID(journalID).observeForever(lJournalEntities -> {
+			
+			newJournal();
+		});
+	}
+
+	private void newJournal(LJournalEntity journal) {
+
+	}
+
+
 	//---------------------------------------------------------------------------------------------
 	// File
 	//---------------------------------------------------------------------------------------------
@@ -65,13 +81,9 @@ public class LocalRepo {
 	public LFileEntity getFile(UUID fileUID) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
 
-		try {
-			LFileEntity file = database.getFileDao().loadByUID(fileUID).get();
-			if(file == null) throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");
-			return file;
-		} catch (ExecutionException | InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		LFileEntity file = database.getFileDao().loadByUID(fileUID);
+		if(file == null) throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");
+		return file;
 	}
 
 
@@ -90,32 +102,28 @@ public class LocalRepo {
 
 
 	private List<Pair<Long, LFileEntity>> longpollHelper(int journalID) {
-		try {
-			//Get all recent journals after the given journalID
-			List<LJournalEntity> recentJournals = database.getJournalDao().loadAllAfterID(journalID).get();
+		//Get all recent journals after the given journalID
+		List<LJournalEntity> recentJournals = database.getJournalDao().loadAllAfterID(journalID);
 
 
-			//We want all distinct fileUIDs with their greatest journalID. Journals come in sorted order.
-			Map<UUID, LJournalEntity> tempJournalMap = new HashMap<>();
-			for(LJournalEntity journal : recentJournals)
-				tempJournalMap.put(journal.fileuid, journal);
+		//We want all distinct fileUIDs with their greatest journalID. Journals come in sorted order.
+		Map<UUID, LJournalEntity> tempJournalMap = new HashMap<>();
+		for(LJournalEntity journal : recentJournals)
+			tempJournalMap.put(journal.fileuid, journal);
 
 
-			//Now grab each fileUID and get the file data
-			List<LFileEntity> files = database.getFileDao().loadByUID(tempJournalMap.keySet().toArray(new UUID[0])).get();
+		//Now grab each fileUID and get the file data
+		List<LFileEntity> files = database.getFileDao().loadByUID(tempJournalMap.keySet().toArray(new UUID[0]));
 
 
-			//Combine the journalID with the file data and sort it by journalID
-			List<Pair<Long, LFileEntity>> journalFileList = files.stream().map(f -> {
-				long journalIDforFile = tempJournalMap.get(f.fileuid).journalid;
-				return new Pair<>(journalIDforFile, f);
-			}).sorted(Comparator.comparing(longLFileEntityPair -> longLFileEntityPair.first)).collect(Collectors.toList());
+		//Combine the journalID with the file data and sort it by journalID
+		List<Pair<Long, LFileEntity>> journalFileList = files.stream().map(f -> {
+			long journalIDforFile = tempJournalMap.get(f.fileuid).journalid;
+			return new Pair<>(journalIDforFile, f);
+		}).sorted(Comparator.comparing(longLFileEntityPair -> longLFileEntityPair.first)).collect(Collectors.toList());
 
 
-			return journalFileList;
-		} catch (ExecutionException | InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		return journalFileList;
 	}
 
 

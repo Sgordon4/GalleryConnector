@@ -6,7 +6,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.example.roomlibtesting.MyApplication;
+import com.example.galleryconnector.MyApplication;
 
 import java.io.File;
 import java.io.FileInputStream;
