@@ -177,41 +177,39 @@ public class GalleryRepo {
 	// Domain Movements
 	//---------------------------------------------------------------------------------------------
 
-	//TODO We never actually run these
-	// We should queue what we need, then call a runOps method from that og function that queued these
 
-	public ListenableFuture<Boolean> copyFileToLocal(@NonNull UUID fileuid) {
-		return executor.submit(() -> {
-			return domainAPI.queueOperation(DomainAPI.Operation.COPY_TO_LOCAL, fileuid);
-		});
+	public void copyFileToLocal(@NonNull UUID fileuid) {
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+
+		OneTimeWorkRequest.Builder builder = domainAPI.buildWorker(fileuid, DomainAPI.Operation.COPY_TO_LOCAL);
+		workManager.enqueue(builder.build());
 	}
-	public ListenableFuture<Boolean> copyFileToServer(@NonNull UUID fileuid) {
-		return executor.submit(() -> {
-			return domainAPI.queueOperation(DomainAPI.Operation.COPY_TO_SERVER, fileuid);
-		});
+	public void copyFileToServer(@NonNull UUID fileuid) {
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+
+		OneTimeWorkRequest.Builder builder = domainAPI.buildWorker(fileuid, DomainAPI.Operation.COPY_TO_SERVER);
+		workManager.enqueue(builder.build());
 	}
 
 	protected ListenableFuture<Boolean> copyFileToLocalImmediate(@NonNull UUID fileuid) {
-		return executor.submit(() -> {
-			return domainAPI.copyFileToLocal(fileuid);
-		});
+		return executor.submit(() -> domainAPI.copyFileToLocal(fileuid));
 	}
 	protected ListenableFuture<Boolean> copyFileToServerImmediate(@NonNull UUID fileuid) {
-		return executor.submit(() -> {
-			return domainAPI.copyFileToServer(fileuid);
-		});
+		return executor.submit(() -> domainAPI.copyFileToServer(fileuid));
 	}
 
 
-	public ListenableFuture<Boolean> removeFileFromLocal(@NonNull UUID fileuid) {
-		return executor.submit(() -> {
-			return domainAPI.queueOperation(DomainAPI.Operation.REMOVE_FROM_LOCAL, fileuid);
-		});
+	public void removeFileFromLocal(@NonNull UUID fileuid) {
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+
+		OneTimeWorkRequest.Builder builder = domainAPI.buildWorker(fileuid, DomainAPI.Operation.REMOVE_FROM_LOCAL);
+		workManager.enqueue(builder.build());
 	}
-	public ListenableFuture<Boolean> removeFileFromServer(@NonNull UUID fileuid) {
-		return executor.submit(() -> {
-			return domainAPI.queueOperation(DomainAPI.Operation.REMOVE_FROM_SERVER, fileuid);
-		});
+	public void removeFileFromServer(@NonNull UUID fileuid) {
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+
+		OneTimeWorkRequest.Builder builder = domainAPI.buildWorker(fileuid, DomainAPI.Operation.REMOVE_FROM_SERVER);
+		workManager.enqueue(builder.build());
 	}
 }
 

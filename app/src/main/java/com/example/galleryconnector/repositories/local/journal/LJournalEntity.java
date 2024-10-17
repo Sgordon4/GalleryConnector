@@ -29,7 +29,7 @@ import java.util.UUID;
 		}*/)
 public class LJournalEntity {
 	@PrimaryKey(autoGenerate = true)
-	public long journalid;
+	public int journalid;
 
 	@NonNull
 	public UUID fileuid;

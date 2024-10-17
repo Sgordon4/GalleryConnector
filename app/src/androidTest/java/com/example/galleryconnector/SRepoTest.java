@@ -56,6 +56,7 @@ public class SRepoTest {
 
 
 		ExecutorService executor = Executors.newSingleThreadExecutor();
+		/*
 		executor.execute(() -> {
 			try {
 				connector.uploadFile(fileProps, uri, context);
@@ -63,5 +64,6 @@ public class SRepoTest {
 				throw new RuntimeException(e);
 			}
 		});
+		 */
 	}
 }

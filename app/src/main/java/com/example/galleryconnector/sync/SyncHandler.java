@@ -80,7 +80,7 @@ public class SyncHandler {
 	public boolean trySync(UUID fileUID) throws ExecutionException, InterruptedException, IOException {
 		Log.i(TAG, String.format("SYNC TO SERVER called with fileUID='%s'", fileUID));
 
-		List<LJournalEntity> localJournals = localRepo.database.getJournalDao().loadAllByFileUID(fileUID).get();
+		List<LJournalEntity> localJournals = localRepo.database.getJournalDao().loadAllByFileUID(fileUID);
 		List<JsonObject> serverJournals = serverRepo.getJournalEntriesForFile(fileUID);
 
 		//if(localJournals.isEmpty() && serverJournals.isEmpty())
@@ -172,8 +172,7 @@ public class SyncHandler {
 
 	public void trySyncAll() throws ExecutionException, InterruptedException, IOException {
 		//Get all new journal entries
-		List<LJournalEntity> localJournals = localRepo.database.getJournalDao()
-				.loadAllAfterID(lastSyncLocalID).get();
+		List<LJournalEntity> localJournals = localRepo.database.getJournalDao().loadAllAfterID(lastSyncLocalID);
 		List<JsonObject> serverJournals = serverRepo.getJournalEntriesAfter(lastSyncServerID);
 
 

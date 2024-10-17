@@ -5,24 +5,19 @@ import android.util.Pair;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
-import androidx.lifecycle.Observer;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
-import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 
 import java.io.FileNotFoundException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 
@@ -61,15 +56,22 @@ public class LocalRepo {
 	}
 
 
+	int nextIndex = 0;
 	public void startListening(int journalID) {
 		database.getJournalDao().longpollAfterID(journalID).observeForever(lJournalEntities -> {
-			
-			newJournal();
+			for(; nextIndex < lJournalEntities.size(); nextIndex++) {
+				LJournalEntity journal = lJournalEntities.get(nextIndex);
+
+				//Get the file that the journal is linked to
+				LFileEntity file = database.getFileDao().loadByUID(journal.fileuid);
+				if(file == null) throw new IllegalStateException("File not found! ID: '"+journal.fileuid+"'");
+
+				//Send it off to the observers
+				observers.notifyObservers(journal.journalid, file);
+
+				nextIndex++;
+			}
 		});
-	}
-
-	private void newJournal(LJournalEntity journal) {
-
 	}
 
 
@@ -147,11 +149,6 @@ public class LocalRepo {
 
 		//Create/update the file
 		database.getFileDao().put(file);
-
-
-		//TODO This won't work, we need the journalID. Need to set up a longpoll on local as well for listening goddamnit.
-		//Notify observers that there's been a change in file data
-		observers.notifyObservers(journalID, file);
 	}
 	public List<String> getMissingBlocks(List<String> blockset) {
 		//Check if the blocks repo is missing any blocks from the blockset
