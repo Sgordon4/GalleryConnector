@@ -39,7 +39,6 @@ public class TestEverything {
 		String hashString = BlockConnector.bytesToHex(hash);
 
 		LFileEntity file = new LFileEntity(UUID.randomUUID());
-		file.fileblocks
 
 
 	}

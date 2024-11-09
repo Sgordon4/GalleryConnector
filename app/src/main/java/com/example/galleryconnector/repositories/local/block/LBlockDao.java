@@ -14,6 +14,10 @@ public interface LBlockDao {
 	@Query("SELECT * FROM block LIMIT 500 OFFSET :offset")
 	List<LBlockEntity> loadAll(int offset);
 
+
+	@Query("SELECT * FROM block WHERE blockhash = :blockHash")
+	List<LBlockEntity> loadByHash(String blockHash);
+
 	@Query("SELECT * FROM block WHERE blockhash IN (:blockHashes)")
 	List<LBlockEntity> loadAllByHash(String... blockHashes);
 	@Query("SELECT * FROM block WHERE blockhash IN (:blockHashes)")

@@ -1,6 +1,7 @@
 package com.example.galleryconnector.repositories.local.block;
 
 import android.content.Context;
+import android.net.Uri;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -30,21 +31,31 @@ public class LBlockHandler {
 
 	//TODO Make sure this returns null if not exist, or maybe throw exception idk. Prob just null.
 	@Nullable
-	public LBlockEntity getBlock(@NonNull String blockHash) {
+	public LBlockEntity getBlockProps(@NonNull String blockHash) {
 		return blockDao.loadAllByHash(blockHash).get(0);
 	}
 
+
+
+	public Uri getBlockUri(@NonNull String blockHash) throws IOException {
+		Log.i(TAG, String.format("\nGET BLOCK URI called with blockHash='"+blockHash+"'"));
+
+		//TODO Does this work? Does it return null or something else
+		if(blockDao.loadByHash(blockHash) == null)
+			throw new FileNotFoundException("Block does not exist! Hash='"+blockHash+"'");
+
+		//Get the location of the block on disk
+		File blockFile = getBlockLocationOnDisk(blockHash);
+		return Uri.fromFile(blockFile);
+	}
 
 	@NonNull
 	public byte[] readBlock(@NonNull String blockHash)
 			throws IOException {
 		Log.i(TAG, String.format("\nREAD BLOCK called with blockHash='"+blockHash+"'"));
 
-		if(!blockDao.loadAllByHash(blockHash).isEmpty())
-			throw new FileNotFoundException("Block does not exist! Hash='"+blockHash+"'");
-
-		//Get the location of the block on disk
-		File blockFile = getBlockFile(blockHash);
+		Uri blockUri = getBlockUri(blockHash);
+		File blockFile = new File(blockUri.getPath());
 
 		//Read the block data from the file
 		try (FileInputStream fis = new FileInputStream(blockFile)) {
@@ -59,7 +70,7 @@ public class LBlockHandler {
 		Log.i(TAG, String.format("\nWRITE BLOCK called with blockHash='"+blockHash+"'"));
 
 		//Get the location of the block on disk
-		File blockFile = getBlockFile(blockHash);
+		File blockFile = getBlockLocationOnDisk(blockHash);
 
 
 		//Write the block data to the file
@@ -76,7 +87,7 @@ public class LBlockHandler {
 	}
 
 
-	private File getBlockFile(@NonNull String hash) throws IOException {
+	private File getBlockLocationOnDisk(@NonNull String hash) throws IOException {
 		Context context = MyApplication.getAppContext();
 
 		//Starting out of the app's data directory...

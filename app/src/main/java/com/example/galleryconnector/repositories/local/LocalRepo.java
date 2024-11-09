@@ -1,5 +1,6 @@
 package com.example.galleryconnector.repositories.local;
 
+import android.net.Uri;
 import android.util.Log;
 import android.util.Pair;
 
@@ -7,6 +8,8 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 
 import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.local.account.LAccountEntity;
+import com.example.galleryconnector.repositories.local.block.LBlockEntity;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
@@ -75,18 +78,164 @@ public class LocalRepo {
 	}
 
 
+	/*
+
+	File:
+	getFileProps
+	putFileProps
+	getFileContents
+	putFileContents
+	deleteFile
+
+	//Should anything outside of GalleryRepo know about blocks? No, right?
+	//May as well have the option. Things like DomainAPI need it
+	Block:
+	private getBlockProps
+	private putBlockProps
+	private getBlockUrl
+	private putBlockContents
+	private getBlockContents
+	private deleteBlock
+
+	Account:
+	getAccountProps
+	putAccountProps
+
+	Journal:
+	getJournalEntriesAfter
+	longpollJournalEntriesAfter
+	getJournalEntriesForFile
+	longpollJournalEntriesForFile
+
+	 */
+
+
+
+
+
 	//---------------------------------------------------------------------------------------------
 	// File
 	//---------------------------------------------------------------------------------------------
 
 
-	public LFileEntity getFile(UUID fileUID) throws FileNotFoundException {
+	public LFileEntity getFileProps(UUID fileUID) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
 
 		LFileEntity file = database.getFileDao().loadByUID(fileUID);
 		if(file == null) throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");
 		return file;
 	}
+
+	public Uri getFileContents(UUID fileUID) {
+		throw new RuntimeException("Stub!");
+	}
+
+
+
+	public void putFile(@NonNull LFileEntity file) {
+		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", file.fileuid));
+
+		//Check if the block repo is missing any blocks from the blockset
+		List<String> missingBlocks = file.fileblocks.stream()
+				.filter(s -> blockHandler.getBlockProps(s) == null)
+				.collect(Collectors.toList());
+
+		//If any are missing, we can't commit the file changes
+		if(!missingBlocks.isEmpty())
+			throw new IllegalStateException("Missing blocks: "+missingBlocks);
+
+
+		//Now that we've confirmed all blocks exist, create/update the file metadata ------
+
+		//Hash the file attributes
+		file.hashAttributes();
+
+		//Create/update the file
+		database.getFileDao().put(file);
+	}
+
+
+
+	public void putFileContents(@NonNull Uri source) {
+		throw new RuntimeException("Stub!");
+	}
+
+	public void putFileContents(@NonNull String contents) {
+		throw new RuntimeException("Stub!");
+	}
+
+
+
+	//---------------------------------------------------------------------------------------------
+	// Journal
+	//---------------------------------------------------------------------------------------------
+
+	public List<LJournalEntity> getJournalEntriesAfter(int journalID) {
+		throw new RuntimeException("Stub!");
+	}
+
+	public List<LJournalEntity> longpollJournalEntriesAfter(int journalID) {
+		throw new RuntimeException("Stub!");
+	}
+
+
+	public List<LJournalEntity> getJournalEntriesForFile(@NonNull UUID fileUID) {
+		throw new RuntimeException("Stub!");
+	}
+
+	public List<LJournalEntity> longpollJournalEntriesForFile(@NonNull UUID fileUID) {
+		throw new RuntimeException("Stub!");
+	}
+
+
+
+	//---------------------------------------------------------------------------------------------
+	// Account
+	//---------------------------------------------------------------------------------------------
+
+	public LAccountEntity getAccountProps(@NonNull UUID accountUID) {
+		throw new RuntimeException("Stub!");
+	}
+
+	public void putAccountProps(@NonNull LAccountEntity accountProps) {
+		throw new RuntimeException("Stub!");
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	// Block
+	//---------------------------------------------------------------------------------------------
+
+	public LBlockEntity getBlockProps(@NonNull String blockHash) {
+		throw new RuntimeException("Stub!");
+	}
+
+	public void putBlockProps(@NonNull LBlockEntity blockEntity){
+		throw new RuntimeException("Stub!");
+	}
+
+
+	public Uri getBlockUri(@NonNull String blockHash) {
+		throw new RuntimeException("Stub!");
+	}
+
+	public byte[] getBlockContents(@NonNull String blockHash) {
+		throw new RuntimeException("Stub!");
+	}
+
+	public void putBlockContents(@NonNull Uri source) {
+		throw new RuntimeException("Stub!");
+	}
+
+	public void putBlockContents(@NonNull String contents) {
+		throw new RuntimeException("Stub!");
+	}
+
+
+
+	//---------------------------------------------------------------------------------------------
+	// Revise these
+	//---------------------------------------------------------------------------------------------
 
 
 	//I haven't found a great way to do this with livedata or InvalidationTracker yet
@@ -126,34 +275,5 @@ public class LocalRepo {
 
 
 		return journalFileList;
-	}
-
-
-
-
-	public void putFile(@NonNull LFileEntity file) {
-		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", file.fileuid));
-
-		//Check if the block repo is missing any blocks from the blockset
-		List<String> missingBlocks = getMissingBlocks(file.fileblocks);
-
-		//If any are missing, we can't commit the file changes
-		if(!missingBlocks.isEmpty())
-			throw new IllegalStateException("Missing blocks: "+missingBlocks);
-
-
-		//Now that we've confirmed all blocks exist, create/update the file metadata ------
-
-		//Hash the file attributes
-		file.hashAttributes();
-
-		//Create/update the file
-		database.getFileDao().put(file);
-	}
-	public List<String> getMissingBlocks(List<String> blockset) {
-		//Check if the blocks repo is missing any blocks from the blockset
-		return blockset.stream()
-				.filter(s -> blockHandler.getBlock(s) == null)
-				.collect(Collectors.toList());
 	}
 }

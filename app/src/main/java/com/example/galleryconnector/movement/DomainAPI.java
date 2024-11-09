@@ -1,12 +1,8 @@
 package com.example.galleryconnector.movement;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.work.Data;
 import androidx.work.OneTimeWorkRequest;
-import androidx.work.Operation;
-import androidx.work.WorkInfo;
-import androidx.work.WorkQuery;
 
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
@@ -18,9 +14,7 @@ import com.google.gson.reflect.TypeToken;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -106,7 +100,9 @@ public class DomainAPI {
 		List<String> missingBlocks;
 		do {
 			//Find if local is missing any blocks from the server file's blockset
-			missingBlocks = localRepo.getMissingBlocks(blockset);
+			missingBlocks = blockset.stream()
+					.filter(s -> blockHandler.getBlock(s) == null)
+					.collect(Collectors.toList());
 
 			//For each block that local is missing...
 			for(String block : missingBlocks) {
@@ -130,7 +126,7 @@ public class DomainAPI {
 
 	public boolean copyFileToServer(@NonNull UUID fileuid) throws IOException {
 		//Get the file properties from the local database
-		LFileEntity file = localRepo.getFile(fileuid);
+		LFileEntity file = localRepo.getFileProps(fileuid);
 		if(file == null)
 			throw new FileNotFoundException("File not found locally! fileuid="+fileuid);
 

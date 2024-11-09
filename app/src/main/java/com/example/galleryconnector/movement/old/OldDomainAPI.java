@@ -302,7 +302,7 @@ public class OldDomainAPI {
 
 	public boolean copyFileToServer(@NonNull UUID fileuid) throws IOException {
 		//Get the file properties from the local database
-		LFileEntity file = localRepo.getFile(fileuid);
+		LFileEntity file = localRepo.getFileProps(fileuid);
 		if(file == null)
 			throw new FileNotFoundException("File not found locally! fileuid="+fileuid);
 

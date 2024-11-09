@@ -24,9 +24,7 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 public class ImportExportApi {
@@ -132,7 +130,7 @@ public class ImportExportApi {
 
 				//TODO Check that we actually get null if a block is missing, and not something else
 				//If the block is not already present in the system, we need to add it
-				if(localRepo.blockHandler.getBlock(hashString) == null)
+				if(localRepo.blockHandler.getBlockProps(hashString) == null)
 					localRepo.blockHandler.writeBlock(hashString, block);
 
 
