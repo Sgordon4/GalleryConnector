@@ -118,6 +118,33 @@ public class GalleryRepo {
 	}
 
 
+	public ListenableFuture<Boolean> putFileLocal(@NonNull LFileEntity file) {
+		return executor.submit(() -> {
+			localRepo.putFile(file);
+			return true;
+		});
+	}
+
+	public ListenableFuture<Boolean> putFileServer(@NonNull JsonObject file) {
+		return executor.submit(() -> {
+			serverRepo.putFileProps(file);
+			return true;
+		});
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	// Block
+	//---------------------------------------------------------------------------------------------
+
+	public ListenableFuture<Boolean> putBlockLocal(@NonNull LFileEntity file) {
+		return executor.submit(() -> {
+			localRepo.putBlock(file);
+			return true;
+		});
+	}
+
+
 
 	//---------------------------------------------------------------------------------------------
 	// Import/Export
