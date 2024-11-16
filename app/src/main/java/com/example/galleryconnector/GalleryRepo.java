@@ -133,13 +133,21 @@ public class GalleryRepo {
 	}
 
 
+	private enum location {	//May not want BOTH
+		LOCAL, SERVER, NONE, BOTH
+	}
+	private void findClosestRepo(@NonNull UUID fileUID) {
+
+	}
+
+
 	//---------------------------------------------------------------------------------------------
 	// Block
 	//---------------------------------------------------------------------------------------------
 
 	public ListenableFuture<Boolean> putBlockLocal(@NonNull LFileEntity file) {
 		return executor.submit(() -> {
-			localRepo.putBlock(file);
+			//localRepo.putBlock(file);
 			return true;
 		});
 	}
