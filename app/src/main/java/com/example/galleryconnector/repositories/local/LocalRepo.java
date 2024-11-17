@@ -178,132 +178,15 @@ public class LocalRepo {
 	}
 
 
-
-	public void putFileContents(@NonNull Uri source, @NonNull Context context) {
-		Log.i(TAG, String.format("PUT FILE CONTENTS called with uri='%s'", source));
-
-		//The destination system may already have some/all of the blocks in this uri.
-		//We need to know what blocks in the blocklist local is missing.
-		//To do that, we need the blocklist. Get the blocklist.
-		BlockSet blockSet = getBlocksFromUri(source, context);
-
-
-		//Write any blocks that are currently missing from the system
-		ContentResolver contentResolver = context.getContentResolver();
-		try (InputStream is = contentResolver.openInputStream(source)) {
-
-			//For each block...
-			for(int i = 0; i < blockSet.blockList.size(); i++) {
-				if(getBlockProps( blockSet.blockList.get(i) ) != null) {	//If the block already exists
-					is.skip(CHUNK_SIZE);                                	//Skip it
-					continue;
-				}
-
-				//Read the block
-				byte[] block = new byte[CHUNK_SIZE];
-				int read = is.read(block);
-				if(read == -1) continue;
-
-				//Trim block if needed (for tail of the file, when not enough bytes to fill a full block)
-				if (read != CHUNK_SIZE) {
-					byte[] smallerData = new byte[read];
-					System.arraycopy(block, 0, smallerData, 0, read);
-					block = smallerData;
-				}
-
-				//Write the block to the system
-				putBlockContents(block);
-			}
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-
-
-		//Assuming all blocks have been successfully written, update the file info with the new blocks
-		//TODO
-		throw new RuntimeException("Stub!");
-	}
-
-	public void putFileContents(@NonNull String contents) {
+	public void putFileContents(@NonNull UUID fileUID, @NonNull Uri source) {
 		throw new RuntimeException("Stub!");
 	}
 
 
-
-
-
-	private class BlockSet {
-		public List<String> blockList = new ArrayList<>();
-		public int fileSize = 0;
-		public String fileHash = "";
-	}
-	//Given a Uri, parse its contents into an evenly chunked set of blocks
-	//Find the filesize and SHA-256 filehash while we do so.
-	private BlockSet getBlocksFromUri(@NonNull Uri source, @NonNull Context context) {
-		BlockSet blockSet = new BlockSet();
-
-		try (InputStream is = context.getContentResolver().openInputStream(source);
-			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
-
-			//Read the next block
-			byte[] block = new byte[CHUNK_SIZE];
-			int read;
-			while((read = dis.read(block)) != -1) {
-
-				//Trim block if needed (for tail of the file, when not enough bytes to fill a full block)
-				if (read != CHUNK_SIZE) {
-					byte[] smallerData = new byte[read];
-					System.arraycopy(block, 0, smallerData, 0, read);
-					block = smallerData;
-				}
-
-				if(block.length == 0)   //Don't put empty blocks in the blocklist
-					continue;
-				blockSet.fileSize += block.length;
-
-				//Hash the block
-				byte[] hash = MessageDigest.getInstance("SHA-256").digest(block);
-				String hashString = BlockConnector.bytesToHex(hash);
-
-				//Add to the hash list
-				blockSet.blockList.add(hashString);
-			}
-
-			//Get the SHA-256 hash of the entire file
-			blockSet.fileHash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
-		} catch (IOException | NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
-
-		return blockSet;
+	public void putFileContents(@NonNull UUID fileUID, @NonNull String contents) {
+		throw new RuntimeException("Stub!");
 	}
 
-	//TODO Check that empty strings hash how we want them to
-	//Given a String, parse its contents into a single block (This is really just for small Strings)
-	//Find the filesize and SHA-256 filehash while we do so.
-	private BlockSet getBlocksFromString(@NonNull String string) {
-		BlockSet blockSet = new BlockSet();
-
-		try {
-			//Hash the block
-			byte[] hash = MessageDigest.getInstance("SHA-256").digest(string.getBytes());
-			String hashString = BlockConnector.bytesToHex(hash);
-
-
-			//There's only one hash in our HashList
-			blockSet.blockList.add(hashString);
-
-			//Get the size of the string
-			blockSet.fileSize += string.length();
-
-			//Get the SHA-256 hash of the entire file
-			blockSet.fileHash = hashString;
-		} catch (NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
-
-		return blockSet;
-	}
 
 
 
@@ -337,6 +220,103 @@ public class LocalRepo {
 
 	public void putBlockContents(@NonNull byte[] contents) {
 		throw new RuntimeException("Stub!");
+	}
+
+
+
+	private class BlockSet {
+		public List<String> blockList = new ArrayList<>();
+		public int fileSize = 0;
+		public String fileHash = "";
+	}
+
+	//Given a Uri, parse its contents into an evenly chunked set of blocks and write them to disk
+	//Find the fileSize and SHA-256 fileHash while we do so.
+	private BlockSet writeUriToBlocks(@NonNull Uri source, @NonNull Context context) {
+		BlockSet blockSet = new BlockSet();
+
+		try (InputStream is = context.getContentResolver().openInputStream(source);
+			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
+
+			//Read the next block
+			byte[] block = new byte[CHUNK_SIZE];
+			int read;
+			while((read = dis.read(block)) != -1) {
+
+				//Trim block if needed (for tail of the file, when not enough bytes to fill a full block)
+				if (read != CHUNK_SIZE) {
+					byte[] smallerData = new byte[read];
+					System.arraycopy(block, 0, smallerData, 0, read);
+					block = smallerData;
+
+					if(block.length == 0)   //Don't put empty blocks in the blocklist
+						continue;
+				}
+
+
+				//Hash the block
+				byte[] hash = MessageDigest.getInstance("SHA-256").digest(block);
+				String hashString = BlockConnector.bytesToHex(hash);
+
+				//If the block does not already exist, write the block to the system
+				if(getBlockProps(hashString) == null) {
+					putBlockContents(block);
+
+					LBlockEntity blockObj = new LBlockEntity(hashString, block.length);
+					putBlockProps(blockObj);
+				}
+
+
+				//Add to the hash list
+				blockSet.blockList.add(hashString);
+
+				blockSet.fileSize += block.length;
+			}
+
+			//Get the SHA-256 hash of the entire file
+			blockSet.fileHash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
+
+		} catch (IOException | NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
+
+		return blockSet;
+	}
+
+
+	//Given a String, parse its contents into a single block (mostly for testing use for small Strings)
+	//Find the fileSize and SHA-256 fileHash while we do so.
+	private BlockSet writeStringToBlocks(@NonNull String string) {
+		BlockSet blockSet = new BlockSet();
+
+		//Don't put empty blocks in the blocklist
+		if(string.isEmpty())
+			return new BlockSet();
+
+		try {
+			//Hash the block
+			byte[] hash = MessageDigest.getInstance("SHA-256").digest(string.getBytes());
+			String hashString = BlockConnector.bytesToHex(hash);
+
+			//If the block does not already exist, write the block to the system
+			if(getBlockProps(hashString) == null) {
+				putBlockContents(string.getBytes());
+
+				LBlockEntity blockObj = new LBlockEntity(hashString, string.length());
+				putBlockProps(blockObj);
+			}
+
+
+			//There's only one hash in our HashList
+			blockSet.blockList.add(hashString);
+
+			blockSet.fileSize = string.length();
+			blockSet.fileHash = hashString;
+		} catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
+
+		return blockSet;
 	}
 
 
