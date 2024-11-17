@@ -116,12 +116,18 @@ public class LocalRepo {
 	// Account
 	//---------------------------------------------------------------------------------------------
 
-	public LAccountEntity getAccountProps(@NonNull UUID accountUID) {
-		throw new RuntimeException("Stub!");
+	public LAccountEntity getAccountProps(@NonNull UUID accountUID) throws FileNotFoundException {
+		Log.i(TAG, String.format("GET ACCOUNT PROPS called with accountUID='%s'", accountUID));
+
+		LAccountEntity account = database.getAccountDao().loadByUID(accountUID);
+		if(account == null) throw new FileNotFoundException("Account not found! ID: '"+accountUID);
+		return account;
 	}
 
 	public void putAccountProps(@NonNull LAccountEntity accountProps) {
-		throw new RuntimeException("Stub!");
+		Log.i(TAG, String.format("PUT ACCOUNT PROPS called with accountUID='%s'", accountProps.accountuid));
+
+		database.getAccountDao().put(accountProps);
 	}
 
 
@@ -228,17 +234,21 @@ public class LocalRepo {
 	}
 
 
-	//Mostly used internally
-	@Nullable
+
+	@Nullable	//Mostly used internally
 	public byte[] getBlockContents(@NonNull String blockHash) {
 		Log.i(TAG, String.format("\nGET BLOCK CONTENTS called with blockHash='"+blockHash+"'"));
-
 		return blockHandler.readBlock(blockHash);
 	}
 
-	public void putBlockContents(@NonNull byte[] contents) {
-		Log.i(TAG, "\nPUT BLOCK CONTENTS called");
-		blockHandler.writeBytesToBlocks(contents);
+	public LBlockHandler.BlockSet putBlockContents(@NonNull byte[] contents) {
+		Log.i(TAG, "\nPUT BLOCK CONTENTS BYTE called");
+		return blockHandler.writeBytesToBlocks(contents);
+	}
+
+	public LBlockHandler.BlockSet putBlockContents(@NonNull Uri uri) {
+		Log.i(TAG, "\nPUT BLOCK CONTENTS URI called");
+		return blockHandler.writeUriToBlocks(uri);
 	}
 
 

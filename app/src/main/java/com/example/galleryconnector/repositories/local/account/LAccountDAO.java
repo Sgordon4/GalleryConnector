@@ -16,6 +16,9 @@ public interface LAccountDAO {
 	@Query("SELECT * FROM account LIMIT 500 OFFSET :offset")
 	List<LAccountEntity> loadAll(int offset);
 
+	@Query("SELECT * FROM account WHERE accountuid = :accountUID")
+	LAccountEntity loadByUID(UUID accountUID);
+
 	@Query("SELECT * FROM account WHERE accountuid IN (:accountUIDs)")
 	List<LAccountEntity> loadByUID(UUID... accountUIDs);
 
