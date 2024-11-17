@@ -8,12 +8,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class LBlockHandler {
 
@@ -29,42 +35,26 @@ public class LBlockHandler {
 	}
 
 
-	//TODO Make sure this returns null if not exist, or maybe throw exception idk. Prob just null.
 	@Nullable
 	public LBlockEntity getBlockProps(@NonNull String blockHash) {
-		return blockDao.loadAllByHash(blockHash).get(0);
+		LBlockEntity block = blockDao.loadByHash(blockHash);
+		//if(block == null) throw new FileNotFoundException("Block not found! Hash: '"+blockHash+"'");
+		return block;
 	}
 
-	public boolean getBlockExistsOnDisk(@NonNull String blockHash) {
-		Log.i(TAG, String.format("\nGET BLOCK EXISTS called with blockHash='"+blockHash+"'"));
-
-		try {
-			//Get the location of the block on disk
-			File blockFile = getBlockLocationOnDisk(blockHash);
-			return blockFile.exists();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-
-
-	public Uri getBlockUri(@NonNull String blockHash) throws IOException {
-		Log.i(TAG, String.format("\nGET BLOCK URI called with blockHash='"+blockHash+"'"));
-
-		//TODO Does this work? Does it return null or something else
-		if(blockDao.loadByHash(blockHash) == null)
-			throw new FileNotFoundException("Block does not exist! Hash='"+blockHash+"'");
-
-		//Get the location of the block on disk
+	@Nullable
+	public Uri getBlockUri(@NonNull String blockHash) {
 		File blockFile = getBlockLocationOnDisk(blockHash);
+		//if(blockFile == null) throw new FileNotFoundException("Block contents do not exist! Hash='"+blockHash+"'");
 		return Uri.fromFile(blockFile);
 	}
 
-	@NonNull
-	public byte[] readBlock(@NonNull String blockHash)
-			throws IOException {
-		Log.i(TAG, String.format("\nREAD BLOCK called with blockHash='"+blockHash+"'"));
+
+
+
+
+	@Nullable
+	public byte[] readBlock(@NonNull String blockHash) {
 
 		Uri blockUri = getBlockUri(blockHash);
 		File blockFile = new File(blockUri.getPath());
@@ -74,18 +64,36 @@ public class LBlockHandler {
 			byte[] bytes = new byte[(int) blockFile.length()];
 			fis.read(bytes);
 			return bytes;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
 
-	public void writeBlock(@NonNull String blockHash, @NonNull byte[] bytes) throws IOException {
+	//Returns hash of the written block
+	public String writeBlock(@NonNull byte[] bytes) throws IOException {
+		//Hash the block
+		String blockHash;
+		try {
+			byte[] hash = MessageDigest.getInstance("SHA-256").digest(bytes);
+			blockHash = BlockConnector.bytesToHex(hash);
+		} catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
+
+
 		Log.i(TAG, String.format("\nWRITE BLOCK called with blockHash='"+blockHash+"'"));
 
 		//Get the location of the block on disk
 		File blockFile = getBlockLocationOnDisk(blockHash);
 
+		//If the block already exists, do nothing
+		if(blockFile.exists() && blockFile.length() > 0)
+			return blockHash;
+
 
 		//Write the block data to the file
+		blockFile.createNewFile();
 		try (FileOutputStream fos = new FileOutputStream(blockFile)) {
 			fos.write(bytes);
 		}
@@ -96,10 +104,11 @@ public class LBlockHandler {
 		blockDao.put(blockEntity);
 
 		Log.i(TAG, "Uploading block complete");
+		return blockHash;
 	}
 
 
-	private File getBlockLocationOnDisk(@NonNull String hash) throws IOException {
+	public File getBlockLocationOnDisk(@NonNull String hash) {
 		Context context = MyApplication.getAppContext();
 
 		//Starting out of the app's data directory...
@@ -110,9 +119,87 @@ public class LBlockHandler {
 		if(!blockRoot.isDirectory())
 			blockRoot.mkdir();
 
-		//With each block named by its SHA256 hash
-		File blockFile = new File(blockRoot, hash);
-		blockFile.createNewFile();
-		return blockFile;
+		//With each block named by its SHA256 hash. Don't create the blockFile here, handle that elsewhere.
+		return new File(blockRoot, hash);
 	}
+
+
+
+	//---------------------------------------------------------------------------------------------
+
+
+	public static class BlockSet {
+		public List<String> blockList = new ArrayList<>();
+		public int fileSize = 0;
+		public String fileHash = "";
+	}
+
+	//Given a Uri, parse its contents into an evenly chunked set of blocks and write them to disk
+	//Find the fileSize and SHA-256 fileHash while we do so.
+	public BlockSet writeUriToBlocks(@NonNull Uri source) {
+		BlockSet blockSet = new BlockSet();
+
+		try (InputStream is = MyApplication.getAppContext().getContentResolver().openInputStream(source);
+			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
+
+			//Read the next block
+			byte[] block = new byte[CHUNK_SIZE];
+			int read;
+			while((read = dis.read(block)) != -1) {
+
+				//Trim block if needed (for tail of the file, when not enough bytes to fill a full block)
+				if (read != CHUNK_SIZE) {
+					byte[] smallerData = new byte[read];
+					System.arraycopy(block, 0, smallerData, 0, read);
+					block = smallerData;
+
+					if(block.length == 0)   //Don't put empty blocks in the blocklist
+						continue;
+				}
+
+
+				//Write the block to the system
+				String hashString = writeBlock(block);
+
+				//Add to the blockSet
+				blockSet.blockList.add(hashString);
+				blockSet.fileSize += block.length;
+			}
+
+			//Get the SHA-256 hash of the entire file
+			blockSet.fileHash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
+
+		} catch (IOException | NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
+
+		return blockSet;
+	}
+
+
+
+	//Given a single block, write to storage (mostly for testing use for small Strings)
+	//Find the fileSize and SHA-256 fileHash while we do so.
+	public BlockSet writeBytesToBlocks(@NonNull byte[] block) {
+		BlockSet blockSet = new BlockSet();
+
+		//Don't put empty blocks in the blocklist
+		if(block.length == 0)
+			return new BlockSet();
+
+		try {
+			//Write the block to the system
+			String hashString = writeBlock(block);
+
+			//Add to the blockSet
+			blockSet.blockList.add(hashString);
+			blockSet.fileSize = block.length;
+			blockSet.fileHash = hashString;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+		return blockSet;
+	}
+
 }

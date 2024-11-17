@@ -1,12 +1,11 @@
 package com.example.galleryconnector.repositories.local;
 
-import static com.example.galleryconnector.repositories.local.block.LBlockHandler.CHUNK_SIZE;
-
 import android.net.Uri;
 import android.util.Log;
 import android.util.Pair;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
 
 import com.example.galleryconnector.MyApplication;
@@ -15,14 +14,8 @@ import com.example.galleryconnector.repositories.local.block.LBlockEntity;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
-import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -153,7 +146,7 @@ public class LocalRepo {
 
 		//Check if the block repo is missing any blocks from the blockset
 		List<String> missingBlocks = file.fileblocks.stream()
-				.filter(s -> blockHandler.getBlockProps(s) == null)
+				.filter( b -> !getBlockPropsExist(b) )
 				.collect(Collectors.toList());
 
 		//If any are missing, we can't commit the file changes
@@ -183,7 +176,7 @@ public class LocalRepo {
 		LFileEntity file = getFileProps(fileUID);
 
 		//Write the Uri to the system as a set of blocks
-		BlockSet blockSet = writeUriToBlocks(source);
+		LBlockHandler.BlockSet blockSet = blockHandler.writeUriToBlocks(source);
 
 		//Update the file properties with the new block information
 		file.fileblocks = blockSet.blockList;
@@ -200,7 +193,7 @@ public class LocalRepo {
 		LFileEntity file = getFileProps(fileUID);
 
 		//Write the String to the system as a set of blocks
-		BlockSet blockSet = writeStringToBlocks(contents);
+		LBlockHandler.BlockSet blockSet = blockHandler.writeBytesToBlocks(contents.getBytes());
 
 		//Update the file properties with the new block information
 		file.fileblocks = blockSet.blockList;
@@ -218,144 +211,34 @@ public class LocalRepo {
 	// Block
 	//---------------------------------------------------------------------------------------------
 
-	public LBlockEntity getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
+	@Nullable
+	public LBlockEntity getBlockProps(@NonNull String blockHash) {
 		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
-
-		LBlockEntity block = blockHandler.getBlockProps(blockHash);
-		if(block == null) throw new FileNotFoundException("Block not found! Hash: '"+blockHash+"'");
-		return block;
+		return blockHandler.getBlockProps(blockHash);
 	}
-
-	//TODO I don't think we want a putProps, since writeBlockContents takes care of that.
-	// That's the only time a props object would be created.
-	public void putBlockProps(@NonNull LBlockEntity blockEntity){
-		Log.i(TAG, String.format("PUT BLOCK PROPS called with blockHash='%s'", blockEntity.blockhash));
-
-		//If the underlying data doesn't exist, don't allow a properties write
-		if(!blockHandler.getBlockExistsOnDisk(blockEntity.blockhash))
-			throw new IllegalStateException("Block not found on disk! Hash: '"+blockEntity.blockhash+"'");
-
-		//Now that we've confirmed things are good to go, create/update the block properties
-		database.getBlockDao().put(blockEntity);
+	public boolean getBlockPropsExist(@NonNull String blockHash) {
+		return getBlockProps(blockHash) != null;
 	}
 
 
-
+	@Nullable
 	public Uri getBlockUri(@NonNull String blockHash) {
-		throw new RuntimeException("Stub!");
+		Log.i(TAG, String.format("\nGET BLOCK URI called with blockHash='"+blockHash+"'"));
+		return blockHandler.getBlockUri(blockHash);
 	}
 
-	/*	Don't use?
+
+	//Mostly used internally
+	@Nullable
 	public byte[] getBlockContents(@NonNull String blockHash) {
-		throw new RuntimeException("Stub!");
-	}
-	 */
+		Log.i(TAG, String.format("\nGET BLOCK CONTENTS called with blockHash='"+blockHash+"'"));
 
-
-	//TODO Also don't think we are going to use this one, rather than the below writeUriToBlocks
-	public void putBlockContents(@NonNull Uri source) {
-		throw new RuntimeException("Stub!");
+		return blockHandler.readBlock(blockHash);
 	}
 
 	public void putBlockContents(@NonNull byte[] contents) {
-		throw new RuntimeException("Stub!");
-	}
-
-
-
-	private class BlockSet {
-		public List<String> blockList = new ArrayList<>();
-		public int fileSize = 0;
-		public String fileHash = "";
-	}
-
-	//Given a Uri, parse its contents into an evenly chunked set of blocks and write them to disk
-	//Find the fileSize and SHA-256 fileHash while we do so.
-	private BlockSet writeUriToBlocks(@NonNull Uri source) {
-		BlockSet blockSet = new BlockSet();
-
-		try (InputStream is = MyApplication.getAppContext().getContentResolver().openInputStream(source);
-			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
-
-			//Read the next block
-			byte[] block = new byte[CHUNK_SIZE];
-			int read;
-			while((read = dis.read(block)) != -1) {
-
-				//Trim block if needed (for tail of the file, when not enough bytes to fill a full block)
-				if (read != CHUNK_SIZE) {
-					byte[] smallerData = new byte[read];
-					System.arraycopy(block, 0, smallerData, 0, read);
-					block = smallerData;
-
-					if(block.length == 0)   //Don't put empty blocks in the blocklist
-						continue;
-				}
-
-
-				//Hash the block
-				byte[] hash = MessageDigest.getInstance("SHA-256").digest(block);
-				String hashString = BlockConnector.bytesToHex(hash);
-
-				//If the block does not already exist, write the block to the system
-				if(getBlockProps(hashString) == null) {
-					putBlockContents(block);
-
-					LBlockEntity blockObj = new LBlockEntity(hashString, block.length);
-					putBlockProps(blockObj);
-				}
-
-
-				//Add to the hash list
-				blockSet.blockList.add(hashString);
-
-				blockSet.fileSize += block.length;
-			}
-
-			//Get the SHA-256 hash of the entire file
-			blockSet.fileHash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
-
-		} catch (IOException | NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
-
-		return blockSet;
-	}
-
-
-	//Given a String, parse its contents into a single block (mostly for testing use for small Strings)
-	//Find the fileSize and SHA-256 fileHash while we do so.
-	private BlockSet writeStringToBlocks(@NonNull String string) {
-		BlockSet blockSet = new BlockSet();
-
-		//Don't put empty blocks in the blocklist
-		if(string.isEmpty())
-			return new BlockSet();
-
-		try {
-			//Hash the block
-			byte[] hash = MessageDigest.getInstance("SHA-256").digest(string.getBytes());
-			String hashString = BlockConnector.bytesToHex(hash);
-
-			//If the block does not already exist, write the block to the system
-			if(getBlockProps(hashString) == null) {
-				putBlockContents(string.getBytes());
-
-				LBlockEntity blockObj = new LBlockEntity(hashString, string.length());
-				putBlockProps(blockObj);
-			}
-
-
-			//There's only one hash in our HashList
-			blockSet.blockList.add(hashString);
-
-			blockSet.fileSize = string.length();
-			blockSet.fileHash = hashString;
-		} catch (NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
-
-		return blockSet;
+		Log.i(TAG, "\nPUT BLOCK CONTENTS called");
+		blockHandler.writeBytesToBlocks(contents);
 	}
 
 
