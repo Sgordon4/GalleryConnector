@@ -101,7 +101,7 @@ public class DomainAPI {
 		do {
 			//Find if local is missing any blocks from the server file's blockset
 			missingBlocks = blockset.stream()
-					.filter(s -> blockHandler.getBlock(s) == null)
+					.filter( b -> !localRepo.getBlockPropsExist(b) )
 					.collect(Collectors.toList());
 
 			//For each block that local is missing...
@@ -110,7 +110,7 @@ public class DomainAPI {
 				byte[] blockData = serverRepo.getBlockData(block);
 
 				//And write the data to local
-				localRepo.blockHandler.writeBlock(block, blockData);
+				localRepo.putBlockContents(blockData);
 			}
 		} while(!missingBlocks.isEmpty());
 

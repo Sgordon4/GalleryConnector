@@ -74,10 +74,9 @@ public class GalleryRepo {
 	public ListenableFuture<JsonObject> getAccountProps(@NonNull UUID accountuid) {
 		return executor.submit(() -> {
 			//Try to get the account data from local. If it exists, return that.
-			List<LAccountEntity> localAccountProps =
-					localRepo.database.getAccountDao().loadByUID(accountuid);
-			if(!localAccountProps.isEmpty())
-				return new Gson().toJsonTree( localAccountProps.get(0) ).getAsJsonObject();
+			LAccountEntity localAccountProps = localRepo.getAccountProps(accountuid);
+			if(localAccountProps != null)
+				return new Gson().toJsonTree( localAccountProps ).getAsJsonObject();
 
 
 			//If the account doesn't exist locally, try to get it from the server.
