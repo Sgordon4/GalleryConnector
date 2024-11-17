@@ -35,6 +35,18 @@ public class LBlockHandler {
 		return blockDao.loadAllByHash(blockHash).get(0);
 	}
 
+	public boolean getBlockExistsOnDisk(@NonNull String blockHash) {
+		Log.i(TAG, String.format("\nGET BLOCK EXISTS called with blockHash='"+blockHash+"'"));
+
+		try {
+			//Get the location of the block on disk
+			File blockFile = getBlockLocationOnDisk(blockHash);
+			return blockFile.exists();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 
 
 	public Uri getBlockUri(@NonNull String blockHash) throws IOException {

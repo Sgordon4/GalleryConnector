@@ -1,6 +1,5 @@
 package com.example.galleryconnector;
 
-import android.content.Context;
 import android.net.Uri;
 
 import androidx.annotation.NonNull;
@@ -16,7 +15,6 @@ import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.account.LAccountEntity;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.movement.DomainAPI;
-import com.example.galleryconnector.movement.ImportExportApi;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -25,9 +23,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.net.SocketTimeoutException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
@@ -120,7 +116,7 @@ public class GalleryRepo {
 
 	public ListenableFuture<Boolean> putFileLocal(@NonNull LFileEntity file) {
 		return executor.submit(() -> {
-			localRepo.putFile(file);
+			localRepo.putFileProps(file);
 			return true;
 		});
 	}

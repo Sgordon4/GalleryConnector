@@ -2,8 +2,6 @@ package com.example.galleryconnector.repositories.local;
 
 import static com.example.galleryconnector.repositories.local.block.LBlockHandler.CHUNK_SIZE;
 
-import android.content.ContentResolver;
-import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
 import android.util.Pair;
@@ -142,21 +140,16 @@ public class LocalRepo {
 
 
 	public LFileEntity getFileProps(UUID fileUID) throws FileNotFoundException {
-		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
+		Log.i(TAG, String.format("GET FILE PROPS called with fileUID='%s'", fileUID));
 
 		LFileEntity file = database.getFileDao().loadByUID(fileUID);
 		if(file == null) throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");
 		return file;
 	}
 
-	public Uri getFileContents(UUID fileUID) {
-		throw new RuntimeException("Stub!");
-	}
 
-
-
-	public void putFile(@NonNull LFileEntity file) {
-		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", file.fileuid));
+	public void putFileProps(@NonNull LFileEntity file) {
+		Log.i(TAG, String.format("PUT FILE PROPS called with fileUID='%s'", file.fileuid));
 
 		//Check if the block repo is missing any blocks from the blockset
 		List<String> missingBlocks = file.fileblocks.stream()
@@ -168,7 +161,7 @@ public class LocalRepo {
 			throw new IllegalStateException("Missing blocks: "+missingBlocks);
 
 
-		//Now that we've confirmed all blocks exist, create/update the file metadata ------
+		//Now that we've confirmed all blocks exist, create/update the file metadata:
 
 		//Hash the file attributes
 		file.hashAttributes();
@@ -178,13 +171,44 @@ public class LocalRepo {
 	}
 
 
-	public void putFileContents(@NonNull UUID fileUID, @NonNull Uri source) {
+
+	public Uri getFileContents(UUID fileUID) {
+		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
 		throw new RuntimeException("Stub!");
 	}
 
 
-	public void putFileContents(@NonNull UUID fileUID, @NonNull String contents) {
-		throw new RuntimeException("Stub!");
+	public void putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws FileNotFoundException {
+		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
+		LFileEntity file = getFileProps(fileUID);
+
+		//Write the Uri to the system as a set of blocks
+		BlockSet blockSet = writeUriToBlocks(source);
+
+		//Update the file properties with the new block information
+		file.fileblocks = blockSet.blockList;
+		file.filesize = blockSet.fileSize;
+		file.filehash = blockSet.fileHash;
+
+		//And update the file information
+		putFileProps(file);
+	}
+
+
+	public void putFileContents(@NonNull UUID fileUID, @NonNull String contents) throws FileNotFoundException {
+		Log.i(TAG, String.format("PUT FILE CONTENTS (String) called with fileUID='%s'", fileUID));
+		LFileEntity file = getFileProps(fileUID);
+
+		//Write the String to the system as a set of blocks
+		BlockSet blockSet = writeStringToBlocks(contents);
+
+		//Update the file properties with the new block information
+		file.fileblocks = blockSet.blockList;
+		file.filesize = blockSet.fileSize;
+		file.filehash = blockSet.fileHash;
+
+		//And update the file information
+		putFileProps(file);
 	}
 
 
@@ -194,12 +218,25 @@ public class LocalRepo {
 	// Block
 	//---------------------------------------------------------------------------------------------
 
-	public LBlockEntity getBlockProps(@NonNull String blockHash) {
-		throw new RuntimeException("Stub!");
+	public LBlockEntity getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
+		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
+
+		LBlockEntity block = blockHandler.getBlockProps(blockHash);
+		if(block == null) throw new FileNotFoundException("Block not found! Hash: '"+blockHash+"'");
+		return block;
 	}
 
+	//TODO I don't think we want a putProps, since writeBlockContents takes care of that.
+	// That's the only time a props object would be created.
 	public void putBlockProps(@NonNull LBlockEntity blockEntity){
-		throw new RuntimeException("Stub!");
+		Log.i(TAG, String.format("PUT BLOCK PROPS called with blockHash='%s'", blockEntity.blockhash));
+
+		//If the underlying data doesn't exist, don't allow a properties write
+		if(!blockHandler.getBlockExistsOnDisk(blockEntity.blockhash))
+			throw new IllegalStateException("Block not found on disk! Hash: '"+blockEntity.blockhash+"'");
+
+		//Now that we've confirmed things are good to go, create/update the block properties
+		database.getBlockDao().put(blockEntity);
 	}
 
 
@@ -208,12 +245,14 @@ public class LocalRepo {
 		throw new RuntimeException("Stub!");
 	}
 
+	/*	Don't use?
 	public byte[] getBlockContents(@NonNull String blockHash) {
 		throw new RuntimeException("Stub!");
 	}
+	 */
 
 
-
+	//TODO Also don't think we are going to use this one, rather than the below writeUriToBlocks
 	public void putBlockContents(@NonNull Uri source) {
 		throw new RuntimeException("Stub!");
 	}
@@ -232,10 +271,10 @@ public class LocalRepo {
 
 	//Given a Uri, parse its contents into an evenly chunked set of blocks and write them to disk
 	//Find the fileSize and SHA-256 fileHash while we do so.
-	private BlockSet writeUriToBlocks(@NonNull Uri source, @NonNull Context context) {
+	private BlockSet writeUriToBlocks(@NonNull Uri source) {
 		BlockSet blockSet = new BlockSet();
 
-		try (InputStream is = context.getContentResolver().openInputStream(source);
+		try (InputStream is = MyApplication.getAppContext().getContentResolver().openInputStream(source);
 			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
 
 			//Read the next block

@@ -117,7 +117,7 @@ public class DomainAPI {
 
 		//Now that the blockset is uploaded, put the file metadata into the local database
 		LFileEntity file = new Gson().fromJson(serverFileProps, LFileEntity.class);
-		localRepo.putFile(file);
+		localRepo.putFileProps(file);
 
 		return true;
 	}
