@@ -1,5 +1,6 @@
 package com.example.galleryconnector;
 
+import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.google.gson.JsonObject;
 
 import org.junit.After;

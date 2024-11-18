@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
 
 
 		TestEverything testEverything = new TestEverything();
-		testEverything.makeTestFile();
+		//testEverything.makeTestFile();
 
 
 

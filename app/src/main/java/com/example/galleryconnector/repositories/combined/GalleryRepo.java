@@ -1,4 +1,4 @@
-package com.example.galleryconnector;
+package com.example.galleryconnector.repositories.combined;
 
 import android.net.Uri;
 
@@ -10,11 +10,12 @@ import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkContinuation;
 import androidx.work.WorkManager;
 
-import com.example.galleryconnector.movement.ImportExportWorker;
+import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.combined.movement.ImportExportWorker;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.account.LAccountEntity;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
-import com.example.galleryconnector.movement.DomainAPI;
+import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -23,7 +24,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.net.SocketTimeoutException;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 

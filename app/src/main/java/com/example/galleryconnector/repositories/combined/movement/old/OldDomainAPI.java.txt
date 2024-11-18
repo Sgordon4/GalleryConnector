@@ -1,4 +1,4 @@
-package com.example.galleryconnector.movement.old;
+package com.example.galleryconnector.repositories.combined.movement.old;
 
 import android.content.Context;
 
@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 
 public class OldDomainAPI {
@@ -278,7 +279,9 @@ public class OldDomainAPI {
 		List<String> missingBlocks;
 		do {
 			//Find if local is missing any blocks from the server file's blockset
-			missingBlocks = localRepo.getMissingBlocks(blockset);
+			missingBlocks = blockset.stream()
+					.filter( b -> !localRepo.getBlockPropsExist(b) )
+					.collect(Collectors.toList());
 
 			//For each block that local is missing...
 			for(String block : missingBlocks) {
@@ -286,7 +289,7 @@ public class OldDomainAPI {
 				byte[] blockData = serverRepo.getBlockData(block);
 
 				//And write the data to local
-				localRepo.blockHandler.writeBlock(block, blockData);
+				localRepo.putBlockContents(blockData);
 			}
 		} while(!missingBlocks.isEmpty());
 
@@ -319,7 +322,7 @@ public class OldDomainAPI {
 				//For each block the server is missing...
 				for(String block : missingBlocks) {
 					//Read the block data from local block storage
-					byte[] blockData = localRepo.blockHandler.readBlock(block);
+					byte[] blockData = localRepo.getBlockContents(block);
 
 					//And upload the data to the server
 					serverRepo.blockConn.uploadData(block, blockData);

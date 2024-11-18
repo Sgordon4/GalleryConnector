@@ -5,10 +5,10 @@ import static com.google.common.reflect.Reflection.getPackageName;
 import android.content.Context;
 import android.net.Uri;
 
+import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.local.LocalRepo;
-import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.server.ServerRepo;
-import com.example.galleryconnector.sync.SyncHandler;
+import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 
 import org.junit.Before;
 import org.junit.Test;

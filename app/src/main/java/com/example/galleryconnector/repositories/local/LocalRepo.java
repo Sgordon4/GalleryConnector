@@ -25,7 +25,6 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 
-//TODO Eventually change most/all of the localRepo.blockHandler or whatever to just the LRepo method
 
 public class LocalRepo {
 	private static final String TAG = "Gal.LRepo";
@@ -253,13 +252,26 @@ public class LocalRepo {
 
 
 
+	public void deleteBlock(@NonNull String blockHash) {
+		Log.i(TAG, String.format("\nDELETE BLOCK called with blockHash='"+blockHash+"'"));
+
+		//Remove the database entry first to avoid race conditions
+		database.getBlockDao().delete(blockHash);
+
+		//Now remove the block itself from disk
+		blockHandler.deleteBlock(blockHash);
+	}
+
 
 	//---------------------------------------------------------------------------------------------
 	// Journal
 	//---------------------------------------------------------------------------------------------
 
 	public List<LJournalEntity> getJournalEntriesAfter(int journalID) {
-		throw new RuntimeException("Stub!");
+		Log.i(TAG, String.format("GET JOURNALS AFTER ID called with journalID='%s'", journalID));
+
+		List<LJournalEntity> journals = database.getJournalDao().loadAllAfterID(journalID);
+		return journals != null ? journals : new ArrayList<>();
 	}
 
 	public List<LJournalEntity> longpollJournalEntriesAfter(int journalID) {
@@ -268,7 +280,10 @@ public class LocalRepo {
 
 
 	public List<LJournalEntity> getJournalEntriesForFile(@NonNull UUID fileUID) {
-		throw new RuntimeException("Stub!");
+		Log.i(TAG, String.format("GET JOURNALS FOR FILE called with fileUID='%s'", fileUID));
+
+		List<LJournalEntity> journals = database.getJournalDao().loadAllByFileUID(fileUID);
+		return journals != null ? journals : new ArrayList<>();
 	}
 
 	public List<LJournalEntity> longpollJournalEntriesForFile(@NonNull UUID fileUID) {

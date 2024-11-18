@@ -1,11 +1,9 @@
-package com.example.galleryconnector.movement;
+package com.example.galleryconnector.repositories.combined.movement;
 
-import android.content.Context;
 import android.net.Uri;
 
 import androidx.annotation.NonNull;
 
-import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;

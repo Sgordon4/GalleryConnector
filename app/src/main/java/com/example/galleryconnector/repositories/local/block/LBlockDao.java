@@ -37,4 +37,6 @@ public interface LBlockDao {
 
 	@Delete
 	Integer delete(LBlockEntity... blocks);
+	@Query("DELETE FROM block WHERE blockhash = :blockHash")
+	Integer delete(String blockHash);
 }

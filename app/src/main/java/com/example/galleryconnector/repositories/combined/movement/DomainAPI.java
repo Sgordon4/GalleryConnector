@@ -1,4 +1,4 @@
-package com.example.galleryconnector.movement;
+package com.example.galleryconnector.repositories.combined.movement;
 
 import androidx.annotation.NonNull;
 import androidx.work.Data;
@@ -143,7 +143,7 @@ public class DomainAPI {
 				//For each block the server is missing...
 				for(String block : missingBlocks) {
 					//Read the block data from local block storage
-					byte[] blockData = localRepo.blockHandler.readBlock(block);
+					byte[] blockData = localRepo.getBlockContents(block);
 
 					//And upload the data to the server
 					serverRepo.blockConn.uploadData(block, blockData);

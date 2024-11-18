@@ -1,4 +1,4 @@
-package com.example.galleryconnector.movement;
+package com.example.galleryconnector.repositories.combined.movement;
 
 import android.content.Context;
 import android.util.Log;

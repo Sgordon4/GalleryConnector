@@ -1,4 +1,4 @@
-package com.example.galleryconnector.movement;
+package com.example.galleryconnector.repositories.combined.movement;
 
 import android.content.Context;
 import android.net.Uri;
@@ -8,10 +8,6 @@ import androidx.annotation.NonNull;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
-import com.example.galleryconnector.repositories.local.LocalRepo;
-import com.example.galleryconnector.repositories.local.file.LFileEntity;
-
-import java.io.IOException;
 import java.util.Objects;
 import java.util.UUID;
 

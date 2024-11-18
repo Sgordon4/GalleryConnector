@@ -1,4 +1,4 @@
-package com.example.galleryconnector;
+package com.example.galleryconnector.repositories.combined;
 
 import androidx.annotation.NonNull;
 
@@ -6,7 +6,7 @@ import com.example.galleryconnector.repositories.local.LocalFileObservers;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.server.ServerFileObservers;
 import com.example.galleryconnector.repositories.server.ServerRepo;
-import com.example.galleryconnector.sync.SyncHandler;
+import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 

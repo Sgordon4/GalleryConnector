@@ -2,7 +2,7 @@ package com.example.galleryconnector;
 
 import android.content.Context;
 
-import com.example.galleryconnector.movement.ImportExportApi;
+import com.example.galleryconnector.repositories.combined.movement.ImportExportApi;
 
 import org.junit.Test;
 

@@ -1,23 +1,18 @@
-package com.example.galleryconnector.sync;
+package com.example.galleryconnector.repositories.combined.sync;
 
 import android.util.Log;
 
 import com.example.galleryconnector.repositories.local.LocalRepo;
-import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
-import com.example.galleryconnector.movement.DomainAPI;
+import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 

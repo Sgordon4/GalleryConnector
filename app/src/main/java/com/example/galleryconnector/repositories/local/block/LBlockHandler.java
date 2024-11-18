@@ -80,9 +80,8 @@ public class LBlockHandler {
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
 		}
+		Log.i(TAG, String.format("Writing with blockHash='"+blockHash+"'"));
 
-
-		Log.i(TAG, String.format("\nWRITE BLOCK called with blockHash='"+blockHash+"'"));
 
 		//Get the location of the block on disk
 		File blockFile = getBlockLocationOnDisk(blockHash);
@@ -105,6 +104,12 @@ public class LBlockHandler {
 
 		Log.i(TAG, "Uploading block complete");
 		return blockHash;
+	}
+
+	public boolean deleteBlock(@NonNull String blockHash) {
+		//Remove the block on disk
+		File blockFile = getBlockLocationOnDisk(blockHash);
+		return blockFile.delete();
 	}
 
 
