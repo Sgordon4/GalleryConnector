@@ -27,8 +27,9 @@ public class LBlockHandler {
 	private final String blockDir = "blocks";
 	public final LBlockDao blockDao;
 
-	public static final int CHUNK_SIZE = 1024 * 1024 * 4;  //4MB
-	
+	//public static final int CHUNK_SIZE = 1024 * 1024 * 4;  //4MB
+	public static final int CHUNK_SIZE = 4;  //4B (For testing)
+
 
 	public LBlockHandler(LBlockDao blockDao) {
 		this.blockDao = blockDao;
@@ -92,7 +93,8 @@ public class LBlockHandler {
 
 
 		//Write the block data to the file
-		blockFile.createNewFile();
+		if(!blockFile.exists())
+			blockFile.createNewFile();
 		try (FileOutputStream fos = new FileOutputStream(blockFile)) {
 			fos.write(bytes);
 		}

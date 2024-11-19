@@ -1,5 +1,6 @@
 package com.example.galleryconnector.repositories.local;
 
+import android.content.ContentResolver;
 import android.net.Uri;
 import android.util.Log;
 import android.util.Pair;
@@ -9,6 +10,7 @@ import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
 
 import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
 import com.example.galleryconnector.repositories.local.account.LAccountEntity;
 import com.example.galleryconnector.repositories.local.block.LBlockEntity;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
@@ -16,6 +18,8 @@ import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -158,7 +162,6 @@ public class LocalRepo {
 		if(!missingBlocks.isEmpty())
 			throw new IllegalStateException("Missing blocks: "+missingBlocks);
 
-
 		//Now that we've confirmed all blocks exist, create/update the file metadata:
 
 		//Hash the file attributes
@@ -170,13 +173,24 @@ public class LocalRepo {
 
 
 
-	public Uri getFileContents(UUID fileUID) {
+	public ConcatenatedInputStream getFileContents(UUID fileUID) throws IOException {
 		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
-		throw new RuntimeException("Stub!");
+
+		LFileEntity file = getFileProps(fileUID);
+		List<String> blockList = file.fileblocks;
+
+		ContentResolver contentResolver = MyApplication.getAppContext().getContentResolver();
+		List<InputStream> blockStreams = new ArrayList<>();
+		for(String block : blockList) {
+			Uri blockUri = getBlockUri(block);
+			blockStreams.add(contentResolver.openInputStream(blockUri));	//TODO Might be null if block doesn't exist
+		}
+
+		return new ConcatenatedInputStream(blockStreams);
 	}
 
 
-	public void putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws FileNotFoundException {
+	public LFileEntity putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws FileNotFoundException {
 		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
 		LFileEntity file = getFileProps(fileUID);
 
@@ -190,10 +204,11 @@ public class LocalRepo {
 
 		//And update the file information
 		putFileProps(file);
+		return file;
 	}
 
 
-	public void putFileContents(@NonNull UUID fileUID, @NonNull String contents) throws FileNotFoundException {
+	public LFileEntity putFileContents(@NonNull UUID fileUID, @NonNull String contents) throws FileNotFoundException {
 		Log.i(TAG, String.format("PUT FILE CONTENTS (String) called with fileUID='%s'", fileUID));
 		LFileEntity file = getFileProps(fileUID);
 
@@ -207,6 +222,7 @@ public class LocalRepo {
 
 		//And update the file information
 		putFileProps(file);
+		return file;
 	}
 
 

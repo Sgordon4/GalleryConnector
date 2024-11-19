@@ -47,18 +47,19 @@ public abstract class LocalDatabase extends RoomDatabase {
 							//The journal inserts themselves are identical, there are just two triggers for insert and update respectively
 							db.execSQL("CREATE TRIGGER IF NOT EXISTS file_insert_to_journal AFTER INSERT ON file FOR EACH ROW "+
 									"BEGIN "+
-										"INSERT INTO journal (accountuid, fileuid, isdir, islink, fileblocks, filesize, filehash, isdeleted) " +
-										"VALUES (NEW.accountuid, NEW.fileuid, NEW.isdir, NEW.islink, NEW.fileblocks, NEW.filesize, NEW.filehash, NEW.isdeleted); "+
+										"INSERT INTO journal (accountuid, fileuid, fileblocks, filehash, attrhash) " +
+										"VALUES (NEW.accountuid, NEW.fileuid, NEW.fileblocks, NEW.filehash, NEW.attrhash); "+
 									"END;");
-							db.execSQL("CREATE TRIGGER IF NOT EXISTS file_update_to_journal AFTER UPDATE OF accountuid, isdir, islink, fileblocks, filesize, filehash, isdeleted " +
+							db.execSQL("CREATE TRIGGER IF NOT EXISTS file_update_to_journal AFTER UPDATE OF attrhash " +
 									"ON file FOR EACH ROW "+
 									"BEGIN "+
-										"INSERT INTO journal (fileuid, accountuid, isdir, islink, fileblocks, filesize, filehash, isdeleted) " +
-										"VALUES (NEW.fileuid, NEW.accountuid, NEW.isdir, NEW.islink, NEW.fileblocks, NEW.filesize, NEW.filehash, NEW.isdeleted); "+
+										"INSERT INTO journal (accountuid, fileuid, fileblocks, filehash, attrhash) " +
+										"VALUES (NEW.accountuid, NEW.fileuid, NEW.fileblocks, NEW.filehash, NEW.attrhash); "+
 									"END;");
 
 							//Note: No DELETE trigger, since to 'delete' a file we actually set the isdeleted bit.
-							// Actual row deletion would be the result of admin work like scheduled cleanup or a file domain move (local -> server, vice versa).
+							// Actual row deletion would be the result of admin work like scheduled cleanup or a file domain move
+							// (local -> server, vice versa).
 
 
 						}

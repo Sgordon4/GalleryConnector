@@ -10,6 +10,8 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
@@ -32,12 +34,19 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-		TestEverything testEverything = new TestEverything();
-		//testEverything.makeTestFile();
+		Thread thread = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					TestLocalRepo testLocalRepo = new TestLocalRepo();
+					//testLocalRepo.uploadToLocal();
+					testLocalRepo.testExistingFile();
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			}
+		});
 
-
-
-
-
+		thread.start();
 	}
 }
