@@ -173,7 +173,7 @@ public class LocalRepo {
 
 
 
-	public ConcatenatedInputStream getFileContents(UUID fileUID) throws IOException {
+	public InputStream getFileContents(UUID fileUID) throws IOException {
 		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
 
 		LFileEntity file = getFileProps(fileUID);
