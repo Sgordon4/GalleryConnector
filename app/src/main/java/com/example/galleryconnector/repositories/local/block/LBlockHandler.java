@@ -28,7 +28,8 @@ public class LBlockHandler {
 	public final LBlockDao blockDao;
 
 	//public static final int CHUNK_SIZE = 1024 * 1024 * 4;  //4MB
-	public static final int CHUNK_SIZE = 4;  //4B (For testing)
+	//public static final int CHUNK_SIZE = 4;  //4B (For testing)
+	public static final int CHUNK_SIZE = 1024 * 1024;  //1MB (For testing)
 
 
 	public LBlockHandler(LBlockDao blockDao) {

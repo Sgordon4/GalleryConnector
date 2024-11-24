@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import java.io.InputStream;
 import java.net.SocketTimeoutException;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -111,6 +112,14 @@ public class GalleryRepo {
 			}
 		});
 	}
+
+
+	public ListenableFuture<InputStream> getFileContents(@NonNull UUID fileUID) {
+		return executor.submit(() -> {
+			return localRepo.getFileContents(fileUID);
+		});
+	}
+
 
 
 	public ListenableFuture<Boolean> putFileLocal(@NonNull LFileEntity file) {

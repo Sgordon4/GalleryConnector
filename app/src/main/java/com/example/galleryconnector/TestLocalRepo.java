@@ -7,10 +7,12 @@ import com.example.galleryconnector.repositories.combined.ConcatenatedInputStrea
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 
-import java.io.ByteArrayInputStream;
+import org.apache.commons.io.FileUtils;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,10 +24,14 @@ import java.util.UUID;
 public class TestLocalRepo {
 
 	LocalRepo localRepo = LocalRepo.getInstance();
-	UUID accountUID = UUID.randomUUID();
+	UUID accountUID = UUID.fromString("b16fe0ba-df94-4bb6-ad03-aab7e47ca8c3");
+	UUID fileUID = UUID.fromString("d79bee5d-1666-4d18-ae29-1bfba6bf0564");
+
+	String externalFile = "https://sample-videos.com/img/Sample-jpg-image-2mb.jpg";
+
 	Path tempFile = Paths.get(MyApplication.getAppContext().getDataDir().toString(), "temp", "testfile.txt");
 
-	private void makeTestFile() {
+	public void makeTestFile() {
 		try {
 			if(!tempFile.getParent().toFile().isDirectory())
 				Files.createDirectory(tempFile.getParent());
@@ -41,20 +47,40 @@ public class TestLocalRepo {
 		}
 	}
 
+	public void downloadFile() {
 
-	public void uploadToLocal() throws FileNotFoundException {
-		makeTestFile();
+		try {
+			URL url = new URL(externalFile);
+			FileUtils.copyURLToFile(url, tempFile.toFile());
 
-		//Create a new empty file
-		LFileEntity newFile = new LFileEntity(accountUID);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public Path getTestFile() {
+		return tempFile;
+	}
+
+
+	public void testFileToLocal() throws FileNotFoundException {
+		//Create base file props
+		LFileEntity newFile = new LFileEntity(fileUID, accountUID);
 		localRepo.putFileProps(newFile);
 
 		//Upload the test file's contents to the new file
 		localRepo.putFileContents(newFile.fileuid, Uri.fromFile(tempFile.toFile()));
 
 
+
 		//Print the new file's properties
 		System.out.println(localRepo.getFileProps(newFile.fileuid));
+	}
+
+	public void importExternalFile() throws FileNotFoundException {
+		LFileEntity file = new LFileEntity(fileUID, accountUID);
+
+		localRepo.putFileContents(file.fileuid, Uri.decode(externalFile));
 	}
 
 
@@ -82,7 +108,8 @@ public class TestLocalRepo {
 		ConcatenatedInputStream concatStream = new ConcatenatedInputStream(blockStreams);
 		int byteRead;
 		while((byteRead = concatStream.read()) != -1) {
-			System.out.print((char) byteRead);
+			//Now that we're testing multi megabyte images, don't print those...
+			//System.out.print((char) byteRead);
 		}
 		concatStream.close();
 
