@@ -291,6 +291,9 @@ public class LocalRepo {
 	}
 
 	public List<LJournalEntity> longpollJournalEntriesAfter(int journalID) {
+
+
+
 		throw new RuntimeException("Stub!");
 	}
 

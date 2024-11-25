@@ -13,6 +13,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -80,6 +81,26 @@ public class ServerRepo {
 	public void stopListening() {
 		observers.stopListening();
 	}
+
+
+	//---------------------------------------------------------------------------------------------
+	// Account
+	//---------------------------------------------------------------------------------------------
+
+	public JsonObject getAccountProps(@NonNull UUID accountUID) throws IOException {
+		Log.i(TAG, String.format("GET ACCOUNT PROPS called with accountUID='%s'", accountUID));
+
+		JsonObject accountProps = accountConn.getProps(accountUID);
+		if(accountProps == null) throw new FileNotFoundException("Account not found! ID: '"+accountUID);
+		return accountProps;
+	}
+
+	public void putAccountProps(@NonNull JsonObject accountProps) throws IOException {
+		Log.i(TAG, String.format("PUT ACCOUNT PROPS called with accountUID='%s'", accountProps.get("accountuid")));
+
+		accountConn.updateEntry(accountProps);
+	}
+
 
 
 	//---------------------------------------------------------------------------------------------
