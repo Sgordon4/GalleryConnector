@@ -7,14 +7,11 @@ import androidx.work.OneTimeWorkRequest;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.server.ServerRepo;
-import com.example.galleryconnector.repositories.server.types.SFile;
+import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;

@@ -2,9 +2,8 @@ package com.example.galleryconnector.repositories.server.connectors;
 
 import android.util.Log;
 
-import com.example.galleryconnector.repositories.server.types.SJournal;
+import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;

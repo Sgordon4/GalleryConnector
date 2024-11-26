@@ -1,11 +1,7 @@
-package com.example.galleryconnector.repositories.local.file;
+package com.example.galleryconnector.repositories.combined.combinedtypes;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.room.ColumnInfo;
-import androidx.room.Entity;
-import androidx.room.Ignore;
-import androidx.room.PrimaryKey;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -20,51 +16,38 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-@Entity(tableName = "file")
-public class LFileEntity {
-	@PrimaryKey
+public class GFile {
 	@NonNull
 	public UUID fileuid;
 	@NonNull
 	public UUID accountuid;
 
-
-	@ColumnInfo(defaultValue = "false")
 	public boolean isdir;
-	@ColumnInfo(defaultValue = "false")
 	public boolean islink;
-	@ColumnInfo(defaultValue = "false")
 	public boolean isdeleted;
 
 	@NonNull
-	@ColumnInfo(defaultValue = "{}")
 	public String userattr;
 
 	@NonNull
-	@ColumnInfo(defaultValue = "{}")
 	public List<String> fileblocks;
-	@ColumnInfo(defaultValue = "0")
 	public int filesize;
 	@NonNull
-	@ColumnInfo(defaultValue = "")
 	public String filehash;
 
-	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
 	public long changetime;	//Last time the file properties (database row) were changed
 	public long modifytime;	//Last time the file contents were modified
 	public long accesstime;	//Last time the file contents were accessed
-	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
 	public long createtime;
 
 	@Nullable
 	public String attrhash;
 
 
-	@Ignore
-	public LFileEntity(@NonNull UUID accountuid) {
+	public GFile(@NonNull UUID accountuid) {
 		this(accountuid, UUID.randomUUID());
 	}
-	public LFileEntity(@NonNull UUID fileuid, @NonNull UUID accountuid) {
+	public GFile(@NonNull UUID fileuid, @NonNull UUID accountuid) {
 		this.fileuid = fileuid;
 		this.accountuid = accountuid;
 
@@ -77,73 +60,14 @@ public class LFileEntity {
 		this.filehash = "";
 		this.changetime = new Date().getTime();
 		this.createtime = new Date().getTime();
-
 	}
 
 
 
-	public String hashAttributes() {
-		StringBuilder sb = new StringBuilder();
-		sb.append(this.fileuid);
-		sb.append(this.accountuid);
-		sb.append(this.isdir);
-		sb.append(this.islink);
-		sb.append(this.isdeleted);
-		sb.append(this.userattr);
-		sb.append(this.fileblocks);
-		sb.append(this.filesize);
-		sb.append(this.filehash);
-		sb.append(this.changetime);
-		sb.append(this.modifytime);
-		sb.append(this.accesstime);
-		sb.append(this.createtime);
-
-		try {
-			byte[] hash = MessageDigest.getInstance("SHA-1").digest(sb.toString().getBytes());
-			this.attrhash = bytesToHex(hash);
-		} catch (NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
-
-		return this.attrhash;
-	}
-	//https://stackoverflow.com/a/9855338
-	private static final byte[] HEX_ARRAY = "0123456789ABCDEF".getBytes(StandardCharsets.US_ASCII);
-	private static String bytesToHex(@NonNull byte[] bytes) {
-		byte[] hexChars = new byte[bytes.length * 2];
-		for (int j = 0; j < bytes.length; j++) {
-			int v = bytes[j] & 0xFF;
-			hexChars[j * 2] = HEX_ARRAY[v >>> 4];
-			hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
-		}
-		return new String(hexChars, StandardCharsets.UTF_8);
-	}
-
-
-	/*
-	//We want to exclude some fields with default values from the JSON output
-	@Ignore
-	public ExclusionStrategy strategy = new ExclusionStrategy() {
-		@Override
-		public boolean shouldSkipField(FieldAttributes f) {
-			switch (f.getName()) {
-				case "modifytime": return modifytime == null;
-				case "accesstime": return accesstime == null;
-				default:
-					return false;
-			}
-		}
-
-		@Override
-		public boolean shouldSkipClass(Class<?> clazz) {
-			return false;
-		}
-	};
-	 */
 
 
 	public JsonObject toJson() {
-		Gson gson = new GsonBuilder().create();	//.addSerializationExclusionStrategy(strategy)
+		Gson gson = new GsonBuilder().create();
 		return gson.toJsonTree(this).getAsJsonObject();
 	}
 
@@ -159,7 +83,7 @@ public class LFileEntity {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		LFileEntity that = (LFileEntity) o;
+		GFile that = (GFile) o;
 		return isdir == that.isdir && islink == that.islink && isdeleted == that.isdeleted &&
 				filesize == that.filesize && Objects.equals(fileuid, that.fileuid) &&
 				Objects.equals(accountuid, that.accountuid) && Objects.equals(userattr, that.userattr) &&

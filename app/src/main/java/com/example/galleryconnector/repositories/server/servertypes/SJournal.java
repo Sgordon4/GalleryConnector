@@ -1,10 +1,8 @@
-package com.example.galleryconnector.repositories.server.types;
+package com.example.galleryconnector.repositories.server.servertypes;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.room.ColumnInfo;
 
-import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -51,10 +49,7 @@ public class SJournal {
 
 
 	public JsonObject toJson() {
-		Gson gson = new GsonBuilder()
-				//.addSerializationExclusionStrategy(strategy)
-				.create();
-
+		Gson gson = new GsonBuilder().create();
 		return gson.toJsonTree(this).getAsJsonObject();
 	}
 

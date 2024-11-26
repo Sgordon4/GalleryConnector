@@ -11,13 +11,15 @@ import androidx.work.WorkContinuation;
 import androidx.work.WorkManager;
 
 import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.combined.combinedtypes.GAccount;
 import com.example.galleryconnector.repositories.combined.movement.ImportExportWorker;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.account.LAccountEntity;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.server.ServerRepo;
-import com.example.galleryconnector.repositories.server.types.SFile;
+import com.example.galleryconnector.repositories.server.servertypes.SAccount;
+import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -76,20 +78,29 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 
 	@Nullable
-	public ListenableFuture<JsonObject> getAccountProps(@NonNull UUID accountuid) {
+	public ListenableFuture<GAccount> getAccountProps(@NonNull UUID accountuid) {
 		return executor.submit(() -> {
 			//Try to get the account data from local. If it exists, return that.
 			LAccountEntity localAccountProps = localRepo.getAccountProps(accountuid);
 			if(localAccountProps != null)
-				return new Gson().toJsonTree( localAccountProps ).getAsJsonObject();
+				return new Gson().fromJson(localAccountProps.toJson(), GAccount.class);
 
 
 			//If the account doesn't exist locally, try to get it from the server.
 			try {
-				return serverRepo.accountConn.getProps(accountuid);
+				SAccount serverAccountProps = serverRepo.getAccountProps(accountuid);
+				return new Gson().fromJson(serverAccountProps.toJson(), GAccount.class);
 			} catch (SocketTimeoutException e) {
 				return null;
 			}
+		});
+	}
+
+
+	public ListenableFuture<Boolean> putAccount(@NonNull GAccount account) {
+		return executor.submit(() -> {
+
+			return true;
 		});
 	}
 

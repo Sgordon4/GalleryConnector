@@ -4,7 +4,7 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import com.example.galleryconnector.repositories.server.types.SBlock;
+import com.example.galleryconnector.repositories.server.servertypes.SBlock;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 

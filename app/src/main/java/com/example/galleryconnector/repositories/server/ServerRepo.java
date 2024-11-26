@@ -13,9 +13,11 @@ import com.example.galleryconnector.repositories.server.connectors.AccountConnec
 import com.example.galleryconnector.repositories.server.connectors.FileConnector;
 import com.example.galleryconnector.repositories.server.connectors.JournalConnector;
 import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
-import com.example.galleryconnector.repositories.server.types.SBlock;
-import com.example.galleryconnector.repositories.server.types.SFile;
-import com.example.galleryconnector.repositories.server.types.SJournal;
+import com.example.galleryconnector.repositories.server.servertypes.SAccount;
+import com.example.galleryconnector.repositories.server.servertypes.SBlock;
+import com.example.galleryconnector.repositories.server.servertypes.SFile;
+import com.example.galleryconnector.repositories.server.servertypes.SJournal;
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.io.FileNotFoundException;
@@ -96,18 +98,18 @@ public class ServerRepo {
 	// Account
 	//---------------------------------------------------------------------------------------------
 
-	public JsonObject getAccountProps(@NonNull UUID accountUID) throws IOException {
+	public SAccount getAccountProps(@NonNull UUID accountUID) throws IOException {
 		Log.i(TAG, String.format("GET ACCOUNT PROPS called with accountUID='%s'", accountUID));
 
 		JsonObject accountProps = accountConn.getProps(accountUID);
 		if(accountProps == null) throw new FileNotFoundException("Account not found! ID: '"+accountUID);
-		return accountProps;
+		return new Gson().fromJson(accountProps, SAccount.class);
 	}
 
-	public void putAccountProps(@NonNull JsonObject accountProps) throws IOException {
-		Log.i(TAG, String.format("PUT ACCOUNT PROPS called with accountUID='%s'", accountProps.get("accountuid")));
+	public void putAccountProps(@NonNull SAccount accountProps) throws IOException {
+		Log.i(TAG, String.format("PUT ACCOUNT PROPS called with accountUID='%s'", accountProps.accountuid));
 
-		accountConn.updateEntry(accountProps);
+		accountConn.updateEntry(accountProps.toJson());
 	}
 
 

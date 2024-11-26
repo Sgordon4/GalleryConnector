@@ -1,10 +1,11 @@
-package com.example.galleryconnector.repositories.server.types;
+package com.example.galleryconnector.repositories.server.servertypes;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.room.ColumnInfo;
 
-import com.example.galleryconnector.repositories.local.account.LAccountEntity;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 
 import java.util.Date;
 import java.util.Objects;
@@ -46,6 +47,19 @@ public class SAccount {
 		this.logintime = -1;
 		this.changetime = -1;
 		this.createtime = new Date().getTime();
+	}
+
+
+	public JsonObject toJson() {
+		Gson gson = new GsonBuilder().create();
+		return gson.toJsonTree(this).getAsJsonObject();
+	}
+
+	@NonNull
+	@Override
+	public String toString() {
+		JsonObject json = toJson();
+		return json.toString();
 	}
 
 

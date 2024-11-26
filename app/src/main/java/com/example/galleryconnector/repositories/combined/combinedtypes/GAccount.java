@@ -1,10 +1,7 @@
-package com.example.galleryconnector.repositories.local.account;
+package com.example.galleryconnector.repositories.combined.combinedtypes;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.room.ColumnInfo;
-import androidx.room.Entity;
-import androidx.room.PrimaryKey;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -14,9 +11,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
 
-@Entity(tableName = "account")
-public class LAccountEntity {
-	@PrimaryKey
+public class GAccount {
 	@NonNull
 	public UUID accountuid;
 	@NonNull
@@ -29,22 +24,17 @@ public class LAccountEntity {
 	@Nullable
 	public String password;
 
-	@ColumnInfo(defaultValue = "false")
 	public boolean isdeleted;
 
-	@ColumnInfo(defaultValue = "-1")
 	public long logintime;
-	@ColumnInfo(defaultValue = "-1")
 	public long changetime;
-	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
 	public long createtime;
 
 
-
-	public LAccountEntity(){
+	public GAccount(){
 		this(UUID.randomUUID(), UUID.randomUUID());
 	}
-	public LAccountEntity(@NonNull UUID accountuid, @NonNull UUID rootfileuid) {
+	public GAccount(@NonNull UUID accountuid, @NonNull UUID rootfileuid) {
 		this.accountuid = accountuid;
 		this.rootfileuid = rootfileuid;
 
@@ -77,8 +67,8 @@ public class LAccountEntity {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		LAccountEntity lAccount = (LAccountEntity) o;
-		return isdeleted == lAccount.isdeleted && logintime == lAccount.logintime && changetime == lAccount.changetime && createtime == lAccount.createtime && Objects.equals(accountuid, lAccount.accountuid) && Objects.equals(rootfileuid, lAccount.rootfileuid) && Objects.equals(email, lAccount.email) && Objects.equals(displayname, lAccount.displayname) && Objects.equals(password, lAccount.password);
+		GAccount sAccount = (GAccount) o;
+		return isdeleted == sAccount.isdeleted && logintime == sAccount.logintime && changetime == sAccount.changetime && createtime == sAccount.createtime && Objects.equals(accountuid, sAccount.accountuid) && Objects.equals(rootfileuid, sAccount.rootfileuid) && Objects.equals(email, sAccount.email) && Objects.equals(displayname, sAccount.displayname) && Objects.equals(password, sAccount.password);
 	}
 
 	@Override

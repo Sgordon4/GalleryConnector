@@ -4,16 +4,13 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import com.example.galleryconnector.repositories.server.types.SFile;
+import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.Objects;
 import java.util.UUID;
 
 import okhttp3.FormBody;
