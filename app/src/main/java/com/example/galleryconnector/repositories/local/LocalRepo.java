@@ -183,7 +183,7 @@ public class LocalRepo {
 		List<InputStream> blockStreams = new ArrayList<>();
 		for(String block : blockList) {
 			Uri blockUri = getBlockUri(block);
-			blockStreams.add(contentResolver.openInputStream(blockUri));	//TODO Might be null if block doesn't exist
+			blockStreams.add(contentResolver.openInputStream(blockUri)); //TODO Might be null if block doesn't exist
 		}
 
 		return new ConcatenatedInputStream(blockStreams);

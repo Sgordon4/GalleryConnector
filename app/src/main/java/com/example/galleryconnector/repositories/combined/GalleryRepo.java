@@ -17,6 +17,7 @@ import com.example.galleryconnector.repositories.local.account.LAccountEntity;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.server.ServerRepo;
+import com.example.galleryconnector.repositories.server.types.SFile;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -39,6 +40,9 @@ public class GalleryRepo {
 	private final DomainAPI domainAPI;
 
 	private final GFileUpdateObservers observers;
+
+
+	//TODO Replace all JsonObjects with Gallery POJOs
 
 
 	public static GalleryRepo getInstance() {
@@ -106,7 +110,7 @@ public class GalleryRepo {
 
 			//If the file doesn't exist locally, try to get it from the server.
 			try {
-				return serverRepo.fileConn.getProps(fileuid);
+				return serverRepo.fileConn.getProps(fileuid).toJson();
 			} catch (SocketTimeoutException e) {
 				return null;
 			}
@@ -129,7 +133,7 @@ public class GalleryRepo {
 		});
 	}
 
-	public ListenableFuture<Boolean> putFileServer(@NonNull JsonObject file) {
+	public ListenableFuture<Boolean> putFileServer(@NonNull SFile file) {
 		return executor.submit(() -> {
 			serverRepo.putFileProps(file);
 			return true;

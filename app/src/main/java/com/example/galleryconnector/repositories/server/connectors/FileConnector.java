@@ -4,6 +4,7 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import com.example.galleryconnector.repositories.server.types.SFile;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -65,7 +66,7 @@ public class FileConnector {
 		throw new RuntimeException("Stub");
 	}
 
-	public JsonObject getProps(@NonNull UUID fileUID) throws IOException {
+	public SFile getProps(@NonNull UUID fileUID) throws IOException {
 		Log.i(TAG, String.format("\nGET FILE called with fileUID='"+fileUID+"'"));
 		String url = Paths.get(baseServerUrl, "files", fileUID.toString()).toString();
 
@@ -80,7 +81,7 @@ public class FileConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, JsonObject.class);
+			return new Gson().fromJson(responseData, SFile.class);
 		}
 	}
 
@@ -91,18 +92,16 @@ public class FileConnector {
 
 
 	//Create or update a file entry in the database
-	public JsonObject upsert(@NonNull JsonObject props) throws IOException {
+	public SFile upsert(@NonNull SFile file) throws IOException {
 		Log.i(TAG, "\nUPSERT FILE called");
 		String url = Paths.get(baseServerUrl, "files", "upsert").toString();
 
-		String[] reqInsert = {"fileuid", "accountuid"};
-		if(!props.has(reqInsert[0]) || !props.has(reqInsert[1]))
-			throw new IllegalArgumentException("File upsert request must contain fileuid & accountuid!");
-
+		//Note: We would check that file properties contain fileuid & accountuid, but both are NonNull in obj def
+		JsonObject props = new Gson().toJsonTree(file).getAsJsonObject();
+		Log.v(TAG, "Keyset: "+props.keySet());
 
 		//Compile all passed properties into a form body. Doesn't matter what they are, send them all.
 		FormBody.Builder builder = new FormBody.Builder();
-		System.out.println("Keyset: "+props.keySet());
 		for(String key : props.keySet()) {
 			System.out.println("Key: "+key+" Value: "+props.get(key));
 			System.out.println("ToString: "+props.get(key).toString());
@@ -119,7 +118,7 @@ public class FileConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, JsonObject.class);
+			return new Gson().fromJson(responseData, SFile.class);
 		}
 	}
 	
@@ -128,7 +127,7 @@ public class FileConnector {
 	// Delete
 	//---------------------------------------------------------------------------------------------
 
-	public JsonObject delete(@NonNull UUID fileUID) throws IOException {
+	public SFile delete(@NonNull UUID fileUID) throws IOException {
 		Log.i(TAG, String.format("\nDELETE FILE called with fileUID='"+fileUID+"'"));
 		String url = Paths.get(baseServerUrl, "files", fileUID.toString()).toString();
 
@@ -143,7 +142,7 @@ public class FileConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, JsonObject.class);
+			return new Gson().fromJson(responseData, SFile.class);
 		}
 	}
 }

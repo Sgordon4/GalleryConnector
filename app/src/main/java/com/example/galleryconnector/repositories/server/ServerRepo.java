@@ -1,21 +1,30 @@
 package com.example.galleryconnector.repositories.server;
 
+import android.content.ContentResolver;
 import android.net.Uri;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
+import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
 import com.example.galleryconnector.repositories.server.connectors.AccountConnector;
 import com.example.galleryconnector.repositories.server.connectors.FileConnector;
 import com.example.galleryconnector.repositories.server.connectors.JournalConnector;
 import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
-import com.google.gson.Gson;
+import com.example.galleryconnector.repositories.server.types.SBlock;
+import com.example.galleryconnector.repositories.server.types.SFile;
+import com.example.galleryconnector.repositories.server.types.SJournal;
 import com.google.gson.JsonObject;
-import com.google.gson.reflect.TypeToken;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.reflect.Type;
+import java.io.InputStream;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -108,22 +117,24 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	public JsonObject getFileProps(@NonNull UUID fileUID) throws IOException {
+	public SFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
 
-		return fileConn.getProps(fileUID);
+		try {
+			return fileConn.getProps(fileUID);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 
-	public void putFileProps(@NonNull JsonObject fileProps) throws IOException {
-		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", fileProps.get("fileuid")));
+	public void putFileProps(@NonNull SFile fileProps) throws IOException {
+		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", fileProps.fileuid));
 
-		//Grab the blockset from the file properties
-		Type listType = new TypeToken<List<String>>() {}.getType();
-		List<String> blockset = new Gson().fromJson(fileProps.get("fileblocks"), listType);
-
-		//Check if the blocks repo is missing any blocks from the blockset
-		List<String> missingBlocks = getMissingBlocks(blockset);
+		//Check if the block repo is missing any blocks from the blockset
+		List<String> missingBlocks = fileProps.fileblocks.stream()
+				.filter( b -> !getBlockPropsExist(b) )
+				.collect(Collectors.toList());
 
 
 		//If any are missing, we can't commit the file changes
@@ -136,16 +147,76 @@ public class ServerRepo {
 
 		//TODO Maybe cache the file?
 	}
-	public List<String> getMissingBlocks(List<String> blockset) {
-		//Check if the blocks repo is missing any blocks from the blockset
-		return blockset.stream()
-				.filter(block -> {
-					try {
-						return blockConn.getProps(block) != null;
-					} catch (IOException e) {
-						throw new RuntimeException(e);
-					}
-				}).collect(Collectors.toList());
+
+
+
+	public InputStream getFileContents(UUID fileUID) throws IOException {
+		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
+
+		SFile file = getFileProps(fileUID);
+		List<String> blockList = file.fileblocks;
+
+		ContentResolver contentResolver = MyApplication.getAppContext().getContentResolver();
+		List<InputStream> blockStreams = new ArrayList<>();
+		for(String block : blockList) {
+			Uri blockUri = getBlockUri(block);
+			blockStreams.add(contentResolver.openInputStream(blockUri)); //TODO Might be null if block doesn't exist
+		}
+
+		return new ConcatenatedInputStream(blockStreams);
+	}
+
+
+
+	//More of a helper method
+	//Given a Uri, parse its contents into an evenly chunked set of blocks and write them to disk
+	//Find the fileSize and SHA-256 fileHash while we do so.
+	public SFile putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws FileNotFoundException {
+		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
+		SFile file = getFileProps(fileUID);
+
+		try (InputStream is = MyApplication.getAppContext().getContentResolver().openInputStream(source);
+			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
+
+			//Read the next block
+			byte[] block = new byte[BlockConnector.CHUNK_SIZE];
+			int read;
+			while((read = dis.read(block)) != -1) {
+
+				//Trim block if needed (for tail of the file, when not enough bytes to fill a full block)
+				if (read != BlockConnector.CHUNK_SIZE) {
+					byte[] smallerData = new byte[read];
+					System.arraycopy(block, 0, smallerData, 0, read);
+					block = smallerData;
+
+					if(block.length == 0)   //Don't put empty blocks in the blocklist
+						continue;
+				}
+
+
+				//Write the block to the system
+				String hashString = putBlockContents(block);
+
+				//Add to the blockSet
+				file.fileblocks.add(hashString);
+				file.filesize += block.length;
+			}
+
+
+			//Get the SHA-256 hash of the entire file
+			file.filehash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
+
+		} catch (IOException | NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
+
+		//Update the file information in the system
+		try {
+			putFileProps(file);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		return file;
 	}
 
 
@@ -159,16 +230,36 @@ public class ServerRepo {
 	// Block
 	//---------------------------------------------------------------------------------------------
 
-	public JsonObject getBlockProps(@NonNull String blockHash) throws IOException {
+	public SBlock getBlockProps(@NonNull String blockHash) {
 		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
 
-		return blockConn.getProps(blockHash);
+		try {
+			return blockConn.getProps(blockHash);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+	public boolean getBlockPropsExist(@NonNull String blockHash) {
+		return getBlockProps(blockHash) != null;
 	}
 
-	public byte[] getBlockData(@NonNull String blockHash) throws IOException {
-		Log.i(TAG, String.format("GET BLOCK DATA called with blockHash='%s'", blockHash));
 
-		return blockConn.getData(blockHash);
+	@Nullable
+	public Uri getBlockUri(@NonNull String blockHash) throws IOException {
+		Log.i(TAG, String.format("\nGET BLOCK URI called with blockHash='"+blockHash+"'"));
+		return Uri.parse(blockConn.getUrl(blockHash));
+	}
+
+
+	@Nullable
+	public byte[] getBlockContents(@NonNull String blockHash) throws IOException {
+		Log.i(TAG, String.format("GET BLOCK DATA called with blockHash='%s'", blockHash));
+		return blockConn.readBlock(blockHash);
+	}
+
+	public String putBlockContents(@NonNull byte[] blockData) throws IOException {
+		Log.i(TAG, "\nPUT BLOCK CONTENTS BYTE called");
+		return blockConn.uploadData(blockData);
 	}
 
 
@@ -177,19 +268,19 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	public List<JsonObject> getJournalEntriesAfter(int journalID) throws IOException {
+	public List<SJournal> getJournalEntriesAfter(int journalID) throws IOException {
 		Log.i(TAG, String.format("GET JOURNAL ENTRIES called with journalID='%s'", journalID));
 
 		return journalConn.getJournalEntriesAfter(journalID);
 	}
 
-	public List<JsonObject> getJournalEntriesForFile(UUID fileUID) throws IOException {
+	public List<SJournal> getJournalEntriesForFile(UUID fileUID) throws IOException {
 		Log.i(TAG, String.format("GET JOURNAL ENTRIES FOR FILE called with fileUID='%s'", fileUID));
 
 		return journalConn.getJournalEntriesForFile(fileUID);
 	}
 
-	public List<JsonObject> longpollJournalEntriesAfter(int journalID) throws IOException {
+	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws IOException {
 		Log.i(TAG, String.format("LONGPOLL JOURNAL ENTRIES called with journalID='%s'", journalID));
 
 		return journalConn.longpollJournalEntriesAfter(journalID);

@@ -1,30 +1,21 @@
 package com.example.galleryconnector.repositories.server.connectors;
 
-import android.content.ContentResolver;
-import android.content.Context;
-import android.net.Uri;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import com.example.galleryconnector.repositories.server.types.SBlock;
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import okhttp3.FormBody;
 import okhttp3.HttpUrl;
@@ -53,48 +44,15 @@ public class BlockConnector {
 	// Get
 	//---------------------------------------------------------------------------------------------
 
-	//Get a presigned URL for reading a block
-	public String getUrl(@NonNull String blockHash) throws IOException {
-		Log.i(TAG, String.format("\nGET BLOCK GET URL called with blockHash='"+blockHash+"'"));
-		String url = Paths.get(baseServerUrl, "blocks", "link", blockHash).toString();
 
-		Request request = new Request.Builder().url(url).build();
-		try (Response response = client.newCall(request).execute()) {
-			if (!response.isSuccessful())
-				throw new IOException("Unexpected code " + response.code());
-			if(response.body() == null)
-				throw new IOException("Response body is null");
-
-			return response.body().string();
-		}
-	}
-
-
-	//Get actual block data
-	public byte[] getData(@NonNull String blockHash) throws IOException {
-		Log.i(TAG, String.format("\nGET BLOCK called with blockHash='"+blockHash+"'"));
-		String url = Paths.get(baseServerUrl, "blocks", blockHash).toString();
-
-		Request request = new Request.Builder().url(url).build();
-		try (Response response = client.newCall(request).execute()) {
-			if (!response.isSuccessful())
-				throw new IOException("Unexpected code " + response.code());
-			if(response.body() == null)
-				throw new IOException("Response body is null");
-
-			return response.body().bytes();
-		}
-	}
-
-
-	public JsonObject getProps(@NonNull String block) throws IOException {
-		JsonArray arr = getProps(Collections.singletonList(block));
+	public SBlock getProps(@NonNull String block) throws IOException {
+		List<SBlock> arr = getProps(Collections.singletonList(block));
 
 		if(arr.isEmpty()) return null;
-		return arr.get(0).getAsJsonObject();
+		return arr.get(0);
 	}
 
-	public JsonArray getProps(@NonNull List<String> blocks) throws IOException {
+	public List<SBlock> getProps(@NonNull List<String> blocks) throws IOException {
 		Log.i(TAG, String.format("\nGET BLOCK PROPS called with blocks='%s'", blocks));
 
 		//Alongside the usual url, compile all passed blocks into query parameters
@@ -114,7 +72,39 @@ public class BlockConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, JsonArray.class);
+			return new Gson().fromJson(responseData, new TypeToken< List<SBlock> >(){}.getType());
+		}
+	}
+
+
+	//Get a presigned URL for reading block data
+	public String getUrl(@NonNull String blockHash) throws IOException {
+		Log.i(TAG, String.format("\nGET BLOCK GET URL called with blockHash='"+blockHash+"'"));
+		String url = Paths.get(baseServerUrl, "blocks", "link", blockHash).toString();
+
+		Request request = new Request.Builder().url(url).build();
+		try (Response response = client.newCall(request).execute()) {
+			if (!response.isSuccessful())
+				throw new IOException("Unexpected code " + response.code());
+			if(response.body() == null)
+				throw new IOException("Response body is null");
+
+			return response.body().string();
+		}
+	}
+
+	public byte[] readBlock(@NonNull String blockHash) throws IOException {
+		Log.i(TAG, String.format("\nGET BLOCK called with blockHash='"+blockHash+"'"));
+		String url = Paths.get(baseServerUrl, "blocks", blockHash).toString();
+
+		Request request = new Request.Builder().url(url).build();
+		try (Response response = client.newCall(request).execute()) {
+			if (!response.isSuccessful())
+				throw new IOException("Unexpected code " + response.code());
+			if(response.body() == null)
+				throw new IOException("Response body is null");
+
+			return response.body().bytes();
 		}
 	}
 
@@ -122,22 +112,6 @@ public class BlockConnector {
 	//---------------------------------------------------------------------------------------------
 	// Put
 	//---------------------------------------------------------------------------------------------
-
-	//Upload a block to the server
-	public void uploadData(@NonNull String blockHash, @NonNull byte[] bytes) throws IOException {
-		Log.i(TAG, String.format("\nUPLOAD BLOCK called with blockHash='"+blockHash+"'"));
-
-		//Get the url we need to upload the block to
-		String url = getUploadUrl(blockHash);
-
-		//Upload the block
-		uploadToUrl(bytes, url);
-
-		//Create a new entry in the block table
-		createEntry(blockHash, bytes.length);
-
-		Log.i(TAG, "Uploading block complete");
-	}
 
 
 	//Blocks are uploaded to a presigned url generated by the server
@@ -155,6 +129,34 @@ public class BlockConnector {
 			return response.body().string();
 		}
 	}
+
+	//Upload a block to the server
+	public String uploadData(@NonNull byte[] bytes) throws IOException {
+		//Hash the block
+		String blockHash;
+		try {
+			byte[] hash = MessageDigest.getInstance("SHA-256").digest(bytes);
+			blockHash = BlockConnector.bytesToHex(hash);
+		} catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
+		Log.i(TAG, String.format("\nUPLOAD BLOCK called with blockHash='"+blockHash+"'"));
+
+
+		//Get the url we need to upload the block to
+		String url = getUploadUrl(blockHash);
+
+		//Upload the block
+		uploadToUrl(bytes, url);
+
+		//Create a new entry in the block table
+		createEntry(blockHash, bytes.length);
+
+		Log.i(TAG, "Uploading block complete");
+		return blockHash;
+	}
+
+
 
 	//Upload the block itself to the presigned url
 	private void uploadToUrl(@NonNull byte[] bytes, @NonNull String url) throws IOException {

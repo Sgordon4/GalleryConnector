@@ -2,6 +2,7 @@ package com.example.galleryconnector.repositories.server.connectors;
 
 import android.util.Log;
 
+import com.example.galleryconnector.repositories.server.types.SJournal;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
@@ -32,7 +33,7 @@ public class JournalConnector {
 	//---------------------------------------------------------------------------------------------
 
 	//Get all journal entries after a given journalID
-	public List<JsonObject> getJournalEntriesAfter(int journalID) throws IOException {
+	public List<SJournal> getJournalEntriesAfter(int journalID) throws IOException {
 		Log.i(TAG, String.format("\nGET JOURNAL called with journalID='%s'", journalID));
 		String url = Paths.get(baseServerUrl, "journal", ""+journalID).toString();
 
@@ -44,13 +45,13 @@ public class JournalConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, new TypeToken< List<JsonObject> >(){}.getType());
+			return new Gson().fromJson(responseData, new TypeToken< List<SJournal> >(){}.getType());
 		}
 	}
 
 
 	//Get all journal entries for a given fileUID
-	public List<JsonObject> getJournalEntriesForFile(UUID fileUID) throws IOException {
+	public List<SJournal> getJournalEntriesForFile(UUID fileUID) throws IOException {
 		Log.i(TAG, String.format("\nGET JOURNAL BY ID called with fileUID='%s'", fileUID));
 		String url = Paths.get(baseServerUrl, "journal", "file", fileUID.toString()).toString();
 
@@ -62,13 +63,13 @@ public class JournalConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, new TypeToken< List<JsonObject> >(){}.getType());
+			return new Gson().fromJson(responseData, new TypeToken< List<SJournal> >(){}.getType());
 		}
 	}
 
 
 	//LONGPOLL all journal entries after a given journalID
-	public List<JsonObject> longpollJournalEntriesAfter(int journalID) throws IOException {
+	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws IOException {
 		Log.i(TAG, String.format("\nLONGPOLL JOURNAL called with journalID='%s'", journalID));
 		String url = Paths.get(baseServerUrl, "journal", "longpoll", ""+journalID).toString();
 
@@ -80,7 +81,7 @@ public class JournalConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, new TypeToken< List<JsonObject> >(){}.getType());
+			return new Gson().fromJson(responseData, new TypeToken< List<SJournal> >(){}.getType());
 		}
 	}
 }

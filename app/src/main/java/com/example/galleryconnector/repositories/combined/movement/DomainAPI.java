@@ -7,6 +7,7 @@ import androidx.work.OneTimeWorkRequest;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.server.ServerRepo;
+import com.example.galleryconnector.repositories.server.types.SFile;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
@@ -88,14 +89,16 @@ public class DomainAPI {
 
 	public boolean copyFileToLocal(@NonNull UUID fileuid) throws IOException {
 		//Get the file properties from the server database
-		JsonObject serverFileProps = serverRepo.getFileProps(fileuid);
-		if(serverFileProps.isEmpty())
+		SFile serverFileProps;
+		try {
+			serverFileProps = serverRepo.getFileProps(fileuid);
+		} catch (FileNotFoundException e) {
 			throw new FileNotFoundException("File not found in server! fileuid="+fileuid);
+		}
 
 
 		//Get the blockset of the file
-		Type listType = new TypeToken<List<String>>() {}.getType();
-		List<String> blockset = new Gson().fromJson(serverFileProps.get("fileblocks"), listType);
+		List<String> blockset = serverFileProps.fileblocks;
 
 		List<String> missingBlocks;
 		do {
@@ -107,7 +110,7 @@ public class DomainAPI {
 			//For each block that local is missing...
 			for(String block : missingBlocks) {
 				//Read the block data from server block storage
-				byte[] blockData = serverRepo.getBlockData(block);
+				byte[] blockData = serverRepo.getBlockContents(block);
 
 				//And write the data to local
 				localRepo.putBlockContents(blockData);
@@ -116,7 +119,7 @@ public class DomainAPI {
 
 
 		//Now that the blockset is uploaded, put the file metadata into the local database
-		LFileEntity file = new Gson().fromJson(serverFileProps, LFileEntity.class);
+		LFileEntity file = new Gson().fromJson(serverFileProps.toJson(), LFileEntity.class);
 		localRepo.putFileProps(file);
 
 		return true;
@@ -138,7 +141,9 @@ public class DomainAPI {
 		try {
 			do {
 				//Find if the server is missing any blocks from the local file's blockset
-				missingBlocks = serverRepo.getMissingBlocks(blockset);
+				missingBlocks = blockset.stream()
+						.filter( b -> !serverRepo.getBlockPropsExist(b) )
+						.collect(Collectors.toList());
 
 				//For each block the server is missing...
 				for(String block : missingBlocks) {
@@ -146,7 +151,7 @@ public class DomainAPI {
 					byte[] blockData = localRepo.getBlockContents(block);
 
 					//And upload the data to the server
-					serverRepo.blockConn.uploadData(block, blockData);
+					serverRepo.putBlockContents(blockData);
 				}
 			} while(!missingBlocks.isEmpty());
 		} catch (IOException e) {
@@ -155,7 +160,7 @@ public class DomainAPI {
 
 
 		//Now that the blockset is uploaded, create/update the file metadata
-		JsonObject fileProps = new Gson().toJsonTree(file).getAsJsonObject();
+		SFile fileProps = new Gson().fromJson(file.toJson(), SFile.class);
 		serverRepo.putFileProps(fileProps);
 
 		return true;
