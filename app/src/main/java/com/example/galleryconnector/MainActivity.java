@@ -1,7 +1,6 @@
 package com.example.galleryconnector;
 
 import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.os.Bundle;
 import android.widget.ImageView;
 
@@ -11,19 +10,10 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.bumptech.glide.Glide;
 import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
-import com.example.galleryconnector.repositories.combined.GalleryRepo;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -46,55 +36,45 @@ public class MainActivity extends AppCompatActivity {
 
 
 		Thread thread = new Thread(() -> {
-			try {
-				TestLocalRepo testLocalRepo = new TestLocalRepo();
-				//testLocalRepo.makeTestFile();
-				//testLocalRepo.downloadFile();
-				//testLocalRepo.testFileToLocal();
-				//testLocalRepo.importExternalFile();
-				//testLocalRepo.testExistingFile();
+			TestEverything everything = new TestEverything();
+
+			//Delete both local and server files for a clean slate
+			everything.removeFromLocal();
+			everything.removeFromServer();
 
 
-				testLocalRepo.importExternalFile();
+			// ----------- TESTING START -----------
+
+			everything.importToLocal();
 
 
+			runOnUiThread(() -> {
+				//Get an inputStream of the file contents, from the closest repo
+				try (ConcatenatedInputStream inputStream = (ConcatenatedInputStream) everything.getFileContents()){
 
-				UUID fileUID = UUID.fromString("d79bee5d-1666-4d18-ae29-1bfba6bf0564");
-				URL url = new URL("https://sample-videos.com/img/Sample-jpg-image-2mb.jpg");
-				Uri uri = Uri.parse("https://sample-videos.com/img/Sample-jpg-image-2mb.jpg");
+					System.out.println("EEEEEEEE");
 
-				ImageView view = findViewById(R.id.image);
-				//try (InputStream inputStream = url.openStream()){
-				Path testPath = testLocalRepo.getTestFile();
-				runOnUiThread(() -> {
-					try (ConcatenatedInputStream inputStream = (ConcatenatedInputStream) GalleryRepo.getInstance().getFileContents(fileUID).get()){
-					//try (InputStream inputStream = Files.newInputStream(testPath)){
+					//And put the contents into our testing ImageView
+					ImageView view = findViewById(R.id.image);
+					view.setImageBitmap(BitmapFactory.decodeStream(inputStream));
 
-						view.setImageBitmap(BitmapFactory.decodeStream(inputStream));
+					System.out.println("HERE");
 
 
-						//This shit still don't work with the ModelLoaders
-						/*
-						Glide.with(view)
-								.load(inputStream)
-								.into(view);
+					//This shit still don't work with the ModelLoaders
+					/*
+					Glide.with(view)
+							.load(inputStream)
+							.into(view);
 
-						 */
+					 */
 
 
-					} catch (IOException e) {
-						throw new RuntimeException(e);
-					} catch (ExecutionException e) {
-						throw new RuntimeException(e);
-					} catch (InterruptedException e) {
-						throw new RuntimeException(e);
-					}
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			});
 
-				});
-
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
 		});
 
 		thread.start();

@@ -1,6 +1,7 @@
 package com.example.galleryconnector.repositories.combined;
 
 import android.net.Uri;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -31,6 +32,7 @@ import com.google.gson.Gson;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.net.SocketTimeoutException;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
@@ -168,6 +170,7 @@ public class GalleryRepo {
 				return localRepo.getFileContents(fileUID);
 			}
 			catch (FileNotFoundException e) {
+				Log.i(TAG, "File not found locally, trying server");
 				//Do nothing
 			}
 
@@ -209,10 +212,27 @@ public class GalleryRepo {
 			return true;
 		});
 	}
-
 	public ListenableFuture<Boolean> putFileContentsServer(@NonNull UUID fileUID, @NonNull Uri source) {
 		return executor.submit(() -> {
 			serverRepo.putFileContents(fileUID, source);
+			return true;
+		});
+	}
+
+
+	public ListenableFuture<Boolean> deleteFilePropsLocal(@NonNull UUID fileUID) {
+		return executor.submit(() -> {
+			localRepo.deleteFileProps(fileUID);
+			return true;
+		});
+	}
+	public ListenableFuture<Boolean> deleteFilePropsServer(@NonNull UUID fileUID) {
+		return executor.submit(() -> {
+			try {
+				serverRepo.deleteFileProps(fileUID);
+			} catch (SocketTimeoutException e) {
+				//Do nothing
+			}
 			return true;
 		});
 	}

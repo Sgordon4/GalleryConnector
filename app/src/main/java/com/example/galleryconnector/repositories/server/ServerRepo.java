@@ -177,7 +177,7 @@ public class ServerRepo {
 	//More of a helper method
 	//Given a Uri, parse its contents into an evenly chunked set of blocks and write them to disk
 	//Find the fileSize and SHA-256 fileHash while we do so.
-	public SFile putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws FileNotFoundException {
+	public SFile putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws IOException {
 		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
 		SFile file = getFileProps(fileUID);
 
@@ -212,17 +212,20 @@ public class ServerRepo {
 			//Get the SHA-256 hash of the entire file
 			file.filehash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
 
-		} catch (IOException | NoSuchAlgorithmException e) {
+		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
 		}
 
 		//Update the file information in the system
-		try {
-			putFileProps(file);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+		putFileProps(file);
 		return file;
+	}
+
+
+
+	public void deleteFileProps(@NonNull UUID fileUID) throws IOException {
+		Log.i(TAG, String.format("DELETE FILE called with fileUID='%s'", fileUID));
+		fileConn.delete(fileUID);
 	}
 
 

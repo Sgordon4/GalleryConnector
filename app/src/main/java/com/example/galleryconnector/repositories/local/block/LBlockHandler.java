@@ -181,7 +181,9 @@ public class LBlockHandler {
 			//Get the SHA-256 hash of the entire file
 			blockSet.fileHash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
 
-		} catch (IOException | NoSuchAlgorithmException e) {
+		} catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 

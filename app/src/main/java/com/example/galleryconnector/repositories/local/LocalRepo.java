@@ -150,7 +150,7 @@ public class LocalRepo {
 	}
 
 
-	public void putFileProps(@NonNull LFileEntity file) {
+	public LFileEntity putFileProps(@NonNull LFileEntity file) {
 		Log.i(TAG, String.format("PUT FILE PROPS called with fileUID='%s'", file.fileuid));
 
 		//Check if the block repo is missing any blocks from the blockset
@@ -169,6 +169,7 @@ public class LocalRepo {
 
 		//Create/update the file
 		database.getFileDao().put(file);
+		return file;
 	}
 
 
@@ -203,7 +204,7 @@ public class LocalRepo {
 		file.filehash = blockSet.fileHash;
 
 		//And update the file information
-		putFileProps(file);
+		file = putFileProps(file);
 		return file;
 	}
 
@@ -223,6 +224,12 @@ public class LocalRepo {
 		//And update the file information
 		putFileProps(file);
 		return file;
+	}
+
+
+	public void deleteFileProps(@NonNull UUID fileUID) {
+		Log.i(TAG, String.format("DELETE FILE called with fileUID='%s'", fileUID));
+		database.getFileDao().delete(fileUID);
 	}
 
 

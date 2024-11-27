@@ -2,10 +2,12 @@ package com.example.galleryconnector.repositories.combined.sync;
 
 import android.util.Log;
 
+import com.example.galleryconnector.repositories.combined.combinedtypes.GJournal;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.server.ServerRepo;
+import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
@@ -76,7 +78,7 @@ public class SyncHandler {
 		Log.i(TAG, String.format("SYNC TO SERVER called with fileUID='%s'", fileUID));
 
 		List<LJournalEntity> localJournals = localRepo.database.getJournalDao().loadAllByFileUID(fileUID);
-		List<JsonObject> serverJournals = serverRepo.getJournalEntriesForFile(fileUID);
+		List<SJournal> serverJournals = serverRepo.getJournalEntriesForFile(fileUID);
 
 		//if(localJournals.isEmpty() && serverJournals.isEmpty())
 		//	throw new FileNotFoundException("File not found in local or server! FileUID='"+fileUID+"'");
@@ -95,7 +97,7 @@ public class SyncHandler {
 			LJournalEntity lJournal = localJournals.get(i);
 
 			for(int j = serverJournals.size()-1; j >= 0; j--) {
-				JsonObject sJournal = serverJournals.get(j);
+				SJournal sJournal = serverJournals.get(j);
 
 				if(entriesMatch(lJournal, sJournal)) {
 					localIndex = i;
@@ -132,7 +134,7 @@ public class SyncHandler {
 		//Otherwise, both have updates and we need to merge
 		else {
 			LJournalEntity local = localJournals.get(localIndex);
-			JsonObject server = serverJournals.get(serverIndex);
+			SJournal server = serverJournals.get(serverIndex);
 
 			merge(local, server);
 		}
@@ -145,21 +147,22 @@ public class SyncHandler {
 
 	//Merging is going to take a significant amount of effort, so for now we're doing last writer wins.
 	//Maybe we should just always copy from Server. Idk.
-	public void merge(LJournalEntity local, JsonObject server) throws IOException {
+	public void merge(LJournalEntity local, SJournal server) throws IOException {
 		//TODO Don't know if these date conversions work from the different sql
 		// Might need to convert to epoch during sql gets
 		Date localDate = new Date(local.changetime);
-		Date serverDate = new Date(server.get("changetime").getAsLong());
+		Date serverDate = new Date(server.changetime);
 		if(localDate.after(serverDate))
 			domainAPI.copyFileToServer(local.fileuid);
 		else
-			domainAPI.copyFileToLocal(UUID.fromString(server.get("fileuid").getAsString()));
+			domainAPI.copyFileToLocal(server.fileuid);
 	}
 
 
-	private boolean entriesMatch(LJournalEntity local, JsonObject server) {
-		LJournalEntity serverFile = new Gson().fromJson(server, LJournalEntity.class);
-		return local.equals(serverFile);
+	private boolean entriesMatch(LJournalEntity local, SJournal server) {
+		GJournal localJournal = new Gson().fromJson(local.toJson(), GJournal.class);
+		GJournal serverJournal = new Gson().fromJson(server.toJson(), GJournal.class);
+		return localJournal.equals(serverJournal);
 	}
 
 
@@ -168,7 +171,7 @@ public class SyncHandler {
 	public void trySyncAll() throws ExecutionException, InterruptedException, IOException {
 		//Get all new journal entries
 		List<LJournalEntity> localJournals = localRepo.database.getJournalDao().loadAllAfterID(lastSyncLocalID);
-		List<JsonObject> serverJournals = serverRepo.getJournalEntriesAfter(lastSyncServerID);
+		List<SJournal> serverJournals = serverRepo.getJournalEntriesAfter(lastSyncServerID);
 
 
 		//We just want the fileUIDs of the new journal entries
@@ -178,9 +181,9 @@ public class SyncHandler {
 			if(journal == null) continue;
 			fileUIDs.add(journal.fileuid);
 		}
-		for(JsonObject journal : serverJournals) {
+		for(SJournal journal : serverJournals) {
 			if(journal == null) continue;
-			UUID uuid = UUID.fromString(journal.get("fileuid").getAsString());
+			UUID uuid = journal.fileuid;
 			fileUIDs.add(uuid);
 		}
 

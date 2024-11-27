@@ -2,6 +2,8 @@ package com.example.galleryconnector.repositories.combined;
 
 import androidx.annotation.NonNull;
 
+import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
+import com.example.galleryconnector.repositories.combined.combinedtypes.GJournal;
 import com.example.galleryconnector.repositories.local.LocalFileObservers;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.server.ServerFileObservers;
@@ -41,11 +43,11 @@ public class GFileUpdateObservers {
 
 	//TODO Once we add in hash checking, we could skip all the sync checking mumbo jumbo and just have these call
 	// a new trySyncToServer() or trySyncToLocal() instead.
-	private void onLocalFileUpdate(int journalID, @NonNull JsonObject file) {
+	private void onLocalFileUpdate(int journalID, @NonNull GFile file) {
 		//Now that we know there's been an update, start a sync. OK to have multiple consecutive syncs for same file
 		try {
 			//Try to sync this file's data local <-> server
-			boolean dataWritten = syncHandler.trySync(UUID.fromString(file.get("fileUID").getAsString()));
+			boolean dataWritten = syncHandler.trySync(file.fileuid);
 
 			if(dataWritten) {
 				//Notify the observers of the update
@@ -58,11 +60,11 @@ public class GFileUpdateObservers {
 
 	//Perhaps on getting an update from server, compare to local (cheap) to prevent unnecessary update notifications
 	//Will probably be obsoleted once we add prevHash checking noted in the comment above
-	private void onServerFileUpdate(int journalID, @NonNull JsonObject file) {
+	private void onServerFileUpdate(int journalID, @NonNull GFile file) {
 		//Now that we know there's been an update, start a sync. OK to have multiple consecutive syncs for same file
 		try {
 			//Try to sync this file's data local <-> server
-			boolean dataWritten = syncHandler.trySync(UUID.fromString(file.get("fileUID").getAsString()));
+			boolean dataWritten = syncHandler.trySync(file.fileuid);
 
 			if(dataWritten) {
 				//Notify the observers of the update
@@ -76,10 +78,10 @@ public class GFileUpdateObservers {
 
 
 	public void attachToLocal(@NonNull LocalRepo localRepo) {
-		LocalFileObservers.LFileObservable lFileChangedObs = (journalID, file) -> {
+		LocalFileObservers.LFileObservable lFileChangedObs = (journalID, localFile) -> {
 			//Notify listeners
-			JsonObject fileJson = new Gson().toJsonTree(file).getAsJsonObject();
-			onLocalFileUpdate(journalID, fileJson);
+			GFile file = new Gson().fromJson(localFile.toJson(), GFile.class);
+			onLocalFileUpdate(journalID, file);
 
 			//Update the latest synced journalID
 			syncHandler.updateLastSyncLocal(journalID);
@@ -88,8 +90,9 @@ public class GFileUpdateObservers {
 		localRepo.addObserver(lFileChangedObs);
 	}
 	public void attachToServer(@NonNull ServerRepo serverRepo) {
-		ServerFileObservers.SFileObservable sFileChangedObs = (journalID, file) -> {
+		ServerFileObservers.SFileObservable sFileChangedObs = (journalID, serverFile) -> {
 			//Notify listeners
+			GFile file = new Gson().fromJson(serverFile.toJson(), GFile.class);
 			onServerFileUpdate(journalID, file);
 
 			//Update the latest synced journalID
@@ -101,7 +104,7 @@ public class GFileUpdateObservers {
 
 
 
-	public void notifyObservers(int journalID, JsonObject file) {
+	public void notifyObservers(int journalID, GFile file) {
 		for (GFileObservable listener : listeners) {
 			listener.onFileUpdate(journalID, file);
 		}
@@ -109,6 +112,6 @@ public class GFileUpdateObservers {
 
 
 	public interface GFileObservable {
-		void onFileUpdate(int journalID, JsonObject file);
+		void onFileUpdate(int journalID, GFile file);
 	}
 }

@@ -2,6 +2,7 @@ package com.example.galleryconnector.repositories.server;
 
 import android.util.Log;
 
+import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
@@ -34,7 +35,7 @@ public class ServerFileObservers {
 	}
 
 
-	public void notifyObservers(int journalID, JsonObject file) {
+	public void notifyObservers(int journalID, SJournal file) {
 		for (SFileObservable listener : listeners) {
 			listener.onFileUpdate(journalID, file);
 		}
@@ -73,18 +74,18 @@ public class ServerFileObservers {
 	//Check the server for new journal entries. Returns the largest journal ID found.
 	public int longpoll(int journalID) throws IOException {
 		//Try to get any new journal entries. The request is designed to hang until new data is made
-		List<JsonObject> entries = ServerRepo.getInstance().longpollJournalEntriesAfter(journalID);
+		List<SJournal> entries = ServerRepo.getInstance().longpollJournalEntriesAfter(journalID);
 
 		//If we get any entries back, notify the observers
-		for(JsonObject entry : entries) {
-			int objJournalID = entry.remove("journalID").getAsInt();
+		for(SJournal entry : entries) {
+			int objJournalID = entry.journalid;
 			notifyObservers(objJournalID, entry);
 		}
 
 
 		//If we have any new data, return the largest journalID from the bunch (will always be last)
 		if(!entries.isEmpty()) {
-			return entries.get(entries.size() - 1).get("journalid").getAsInt();
+			return entries.get(entries.size() - 1).journalid;
 		}
 
 		//If no new data was found, don't update the latest journalID
@@ -94,6 +95,6 @@ public class ServerFileObservers {
 
 
 	public interface SFileObservable {
-		void onFileUpdate(int journalID, JsonObject file);
+		void onFileUpdate(int journalID, SJournal file);
 	}
 }
