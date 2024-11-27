@@ -152,7 +152,7 @@ public class ServerRepo {
 
 
 
-	public InputStream getFileContents(UUID fileUID) throws IOException {
+	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
 
 		SFile file = getFileProps(fileUID);
@@ -161,8 +161,12 @@ public class ServerRepo {
 		ContentResolver contentResolver = MyApplication.getAppContext().getContentResolver();
 		List<InputStream> blockStreams = new ArrayList<>();
 		for(String block : blockList) {
-			Uri blockUri = getBlockUri(block);
-			blockStreams.add(contentResolver.openInputStream(blockUri)); //TODO Might be null if block doesn't exist
+			try {
+				Uri blockUri = getBlockContentsUri(block); //TODO Might be null if block doesn't exist
+				blockStreams.add(contentResolver.openInputStream(blockUri));
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
 		}
 
 		return new ConcatenatedInputStream(blockStreams);
@@ -222,42 +226,45 @@ public class ServerRepo {
 	}
 
 
-	//TODO This should go in galleryconn, not here. Need to cache the file
-	public void downloadFullFile(@NonNull UUID fileUID, @NonNull Uri dest) {
-
-	}
-
 
 	//---------------------------------------------------------------------------------------------
 	// Block
 	//---------------------------------------------------------------------------------------------
 
-	public SBlock getBlockProps(@NonNull String blockHash) {
+	public SBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException{
 		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
 
+		SBlock block;
 		try {
-			return blockConn.getProps(blockHash);
+			block = blockConn.getProps(blockHash);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+
+		if(block == null) throw new FileNotFoundException("Block not found! Hash: '"+blockHash);
+		return block;
 	}
 	public boolean getBlockPropsExist(@NonNull String blockHash) {
-		return getBlockProps(blockHash) != null;
+		try {
+			getBlockProps(blockHash);
+			return true;
+		} catch (FileNotFoundException e) {
+			return false;
+		}
 	}
 
 
 	@Nullable
-	public Uri getBlockUri(@NonNull String blockHash) throws IOException {
+	public Uri getBlockContentsUri(@NonNull String blockHash) throws IOException {
 		Log.i(TAG, String.format("\nGET BLOCK URI called with blockHash='"+blockHash+"'"));
 		return Uri.parse(blockConn.getUrl(blockHash));
 	}
-
-
 	@Nullable
 	public byte[] getBlockContents(@NonNull String blockHash) throws IOException {
 		Log.i(TAG, String.format("GET BLOCK DATA called with blockHash='%s'", blockHash));
 		return blockConn.readBlock(blockHash);
 	}
+
 
 	public String putBlockContents(@NonNull byte[] blockData) throws IOException {
 		Log.i(TAG, "\nPUT BLOCK CONTENTS BYTE called");

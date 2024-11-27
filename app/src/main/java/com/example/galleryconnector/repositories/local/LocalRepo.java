@@ -182,7 +182,7 @@ public class LocalRepo {
 		ContentResolver contentResolver = MyApplication.getAppContext().getContentResolver();
 		List<InputStream> blockStreams = new ArrayList<>();
 		for(String block : blockList) {
-			Uri blockUri = getBlockUri(block);
+			Uri blockUri = getBlockContentsUri(block);
 			blockStreams.add(contentResolver.openInputStream(blockUri)); //TODO Might be null if block doesn't exist
 		}
 
@@ -233,17 +233,22 @@ public class LocalRepo {
 	//---------------------------------------------------------------------------------------------
 
 	@Nullable
-	public LBlockEntity getBlockProps(@NonNull String blockHash) {
+	public LBlockEntity getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
 		return blockHandler.getBlockProps(blockHash);
 	}
 	public boolean getBlockPropsExist(@NonNull String blockHash) {
-		return getBlockProps(blockHash) != null;
+		try {
+			getBlockProps(blockHash);
+			return true;
+		} catch (FileNotFoundException e) {
+			return false;
+		}
 	}
 
 
 	@Nullable
-	public Uri getBlockUri(@NonNull String blockHash) {
+	public Uri getBlockContentsUri(@NonNull String blockHash) {
 		Log.i(TAG, String.format("\nGET BLOCK URI called with blockHash='"+blockHash+"'"));
 		return blockHandler.getBlockUri(blockHash);
 	}
@@ -251,7 +256,7 @@ public class LocalRepo {
 
 
 	@Nullable	//Mostly used internally
-	public byte[] getBlockContents(@NonNull String blockHash) {
+	public byte[] getBlockContents(@NonNull String blockHash) throws FileNotFoundException {
 		Log.i(TAG, String.format("\nGET BLOCK CONTENTS called with blockHash='"+blockHash+"'"));
 		return blockHandler.readBlock(blockHash);
 	}

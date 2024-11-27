@@ -100,7 +100,7 @@ public class TestLocalRepo {
 
 		List<InputStream> blockStreams = new ArrayList<>();
 		for(String block : blockList) {
-			Uri blockUri = localRepo.getBlockUri(block);
+			Uri blockUri = localRepo.getBlockContentsUri(block);
 			blockStreams.add(contentResolver.openInputStream(blockUri));
 		}
 

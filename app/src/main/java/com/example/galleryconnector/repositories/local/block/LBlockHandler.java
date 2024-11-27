@@ -12,6 +12,7 @@ import com.example.galleryconnector.repositories.server.connectors.BlockConnecto
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,9 +39,9 @@ public class LBlockHandler {
 
 
 	@Nullable
-	public LBlockEntity getBlockProps(@NonNull String blockHash) {
+	public LBlockEntity getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
 		LBlockEntity block = blockDao.loadByHash(blockHash);
-		//if(block == null) throw new FileNotFoundException("Block not found! Hash: '"+blockHash+"'");
+		if(block == null) throw new FileNotFoundException("Block not found! Hash: '"+blockHash+"'");
 		return block;
 	}
 
@@ -56,10 +57,13 @@ public class LBlockHandler {
 
 
 	@Nullable
-	public byte[] readBlock(@NonNull String blockHash) {
+	public byte[] readBlock(@NonNull String blockHash) throws FileNotFoundException {
 
 		Uri blockUri = getBlockUri(blockHash);
 		File blockFile = new File(blockUri.getPath());
+
+		if(!blockFile.exists())
+			throw new FileNotFoundException("Block contents do not exist! Hash='"+blockHash+"'");
 
 		//Read the block data from the file
 		try (FileInputStream fis = new FileInputStream(blockFile)) {
