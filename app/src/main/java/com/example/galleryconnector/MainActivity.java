@@ -45,8 +45,8 @@ public class MainActivity extends AppCompatActivity {
 
 			// ----------- TESTING START -----------
 
-			everything.importToLocal();
-
+			//everything.importToLocal();
+			everything.importToServer();
 
 			runOnUiThread(() -> {
 				//Get an inputStream of the file contents, from the closest repo

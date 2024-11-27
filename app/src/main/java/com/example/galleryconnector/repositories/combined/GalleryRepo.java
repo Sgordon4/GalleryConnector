@@ -230,10 +230,10 @@ public class GalleryRepo {
 		return executor.submit(() -> {
 			try {
 				serverRepo.deleteFileProps(fileUID);
-			} catch (SocketTimeoutException e) {
-				//Do nothing
+				return true;
+			} catch (FileNotFoundException e) {
+				return false;
 			}
-			return true;
 		});
 	}
 

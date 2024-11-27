@@ -223,9 +223,15 @@ public class ServerRepo {
 
 
 
-	public void deleteFileProps(@NonNull UUID fileUID) throws IOException {
+	public void deleteFileProps(@NonNull UUID fileUID) throws FileNotFoundException {
 		Log.i(TAG, String.format("DELETE FILE called with fileUID='%s'", fileUID));
-		fileConn.delete(fileUID);
+		try {
+			fileConn.delete(fileUID);
+		} catch (FileNotFoundException e) {
+			throw e;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 
