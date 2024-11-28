@@ -11,9 +11,11 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
+import com.example.galleryconnector.repositories.local.LocalRepo;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -45,8 +47,13 @@ public class MainActivity extends AppCompatActivity {
 
 			// ----------- TESTING START -----------
 
-			//everything.importToLocal();
+			System.out.println("Instant");
+			System.out.println(Instant.now());
+
+
+			everything.importToLocal();
 			everything.importToServer();
+
 
 			runOnUiThread(() -> {
 				//Get an inputStream of the file contents, from the closest repo

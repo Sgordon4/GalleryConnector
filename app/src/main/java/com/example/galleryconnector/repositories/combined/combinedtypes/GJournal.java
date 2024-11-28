@@ -7,6 +7,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -28,14 +29,14 @@ public class GJournal {
 	@Nullable
 	public String attrhash;
 
-	public long changetime;
+	public Instant changetime;
 
 
 	public GJournal(@NonNull UUID fileuid, @NonNull UUID accountuid) {
 		this.fileuid = fileuid;
 		this.accountuid = accountuid;
 		this.fileblocks = new ArrayList<>();
-		this.changetime = -1;
+		this.changetime = null;
 	}
 	public GJournal(@NonNull GFile file) {
 		this.fileuid = file.fileuid;

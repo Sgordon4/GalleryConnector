@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.repositories.server.servertypes.SBlock;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
@@ -72,6 +73,10 @@ public class BlockConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
+			Gson gson = new GsonBuilder()
+					.setDateFormat("yyyy-MM-dd'T'HH:mm:ss.zzzZ")
+					.create();
+			//return gson.fromJson(responseData, new TypeToken< List<SBlock> >(){}.getType());
 			return new Gson().fromJson(responseData, new TypeToken< List<SBlock> >(){}.getType());
 		}
 	}

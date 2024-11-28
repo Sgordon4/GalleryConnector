@@ -82,6 +82,11 @@ public class TestEverything {
 			throw new RuntimeException(e);
 		}
 
+		try {
+			System.out.println(LocalRepo.getInstance().getFileProps(fileUID));
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException(e);
+		}
 
 	}
 	public void importToServer() {

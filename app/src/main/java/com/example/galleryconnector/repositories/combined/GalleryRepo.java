@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -198,6 +199,8 @@ public class GalleryRepo {
 
 	public ListenableFuture<Boolean> putFilePropsServer(@NonNull GFile gFile) {
 		return executor.submit(() -> {
+			//TODO The Gson mishmashing is fucking up the timestamps
+			// Make a to/from server and local file in GFile
 			SFile file = new Gson().fromJson(gFile.toJson(), SFile.class);
 			serverRepo.putFileProps(file);
 			return true;

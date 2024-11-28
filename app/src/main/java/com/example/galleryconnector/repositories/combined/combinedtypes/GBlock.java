@@ -6,19 +6,20 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
+import java.time.Instant;
 import java.util.Date;
 
 public class GBlock {
 	@NonNull
 	public String blockhash;
 	public int blocksize;
-	public long createtime;
+	public Instant createtime;
 
 
 	public GBlock(@NonNull String blockhash, int blocksize) {
 		this.blockhash = blockhash;
 		this.blocksize = blocksize;
-		this.createtime = new Date().getTime();
+		this.createtime =Instant.now();
 	}
 
 

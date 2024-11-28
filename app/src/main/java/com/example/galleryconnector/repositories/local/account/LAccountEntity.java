@@ -10,6 +10,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
@@ -33,11 +34,11 @@ public class LAccountEntity {
 	public boolean isdeleted;
 
 	@ColumnInfo(defaultValue = "-1")
-	public long logintime;
+	public Instant logintime;
 	@ColumnInfo(defaultValue = "-1")
-	public long changetime;
+	public Instant changetime;
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
-	public long createtime;
+	public Instant createtime;
 
 
 
@@ -54,9 +55,9 @@ public class LAccountEntity {
 
 		this.isdeleted = false;
 
-		this.logintime = -1;
-		this.changetime = -1;
-		this.createtime = new Date().getTime();
+		this.logintime = null;
+		this.changetime = null;
+		this.createtime = Instant.now();
 	}
 
 

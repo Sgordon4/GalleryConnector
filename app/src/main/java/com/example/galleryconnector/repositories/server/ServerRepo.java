@@ -143,6 +143,9 @@ public class ServerRepo {
 		if(!missingBlocks.isEmpty())
 			throw new IllegalStateException("Missing blocks: "+missingBlocks);
 
+		System.out.println("Upsering file props");
+		System.out.println(fileProps);
+
 
 		//Now that we've confirmed all blocks exist, create/update the file metadata
 		fileConn.upsert(fileProps);

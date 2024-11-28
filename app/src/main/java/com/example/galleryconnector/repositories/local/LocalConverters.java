@@ -3,10 +3,12 @@ package com.example.galleryconnector.repositories.local;
 import androidx.room.TypeConverter;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +45,18 @@ public class LocalConverters {
 	//---------------------------------------------------------------------------------------------
 
 	@TypeConverter
+	public static JsonObject toJsonObject(String value) {
+		return new Gson().fromJson(value, JsonObject.class);
+	}
+
+	@TypeConverter
+	public static String fromJsonObject(JsonObject object) {
+		return object.toString();
+	}
+
+	//---------------------------------------------------------------------------------------------
+
+	@TypeConverter
 	public static Map<String, Object> toMap(String value) {
 		Type mapType = new TypeToken<Map<String, Object>>() {}.getType();
 
@@ -54,6 +68,18 @@ public class LocalConverters {
 	@TypeConverter
 	public static String fromMap(Map<String, Object> list) {
 		return new Gson().toJson(list);
+	}
+
+	//---------------------------------------------------------------------------------------------
+
+	@TypeConverter
+	public static Instant toInstant(String value) {
+		return (value == null) ? null : Instant.parse(value);
+	}
+
+	@TypeConverter
+	public static String fromInstant(Instant instant) {
+		return (instant == null) ? null : instant.toString();
 	}
 
 	//---------------------------------------------------------------------------------------------

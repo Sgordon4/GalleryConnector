@@ -7,6 +7,8 @@ import androidx.room.Entity;
 import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -14,6 +16,7 @@ import com.google.gson.JsonObject;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -38,7 +41,7 @@ public class LFileEntity {
 
 	@NonNull
 	@ColumnInfo(defaultValue = "{}")
-	public String userattr;
+	public JsonObject userattr;
 
 	@NonNull
 	@ColumnInfo(defaultValue = "{}")
@@ -50,11 +53,11 @@ public class LFileEntity {
 	public String filehash;
 
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
-	public long changetime;	//Last time the file properties (database row) were changed
-	public long modifytime;	//Last time the file contents were modified
-	public long accesstime;	//Last time the file contents were accessed
+	public Instant changetime;	//Last time the file properties (database row) were changed
+	public Instant modifytime;	//Last time the file contents were modified
+	public Instant accesstime;	//Last time the file contents were accessed
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
-	public long createtime;
+	public Instant createtime;
 
 	@Nullable
 	public String attrhash;
@@ -71,12 +74,14 @@ public class LFileEntity {
 		this.isdir = false;
 		this.islink = false;
 		this.isdeleted = false;
-		this.userattr = "{}";
+		this.userattr = new JsonObject();
 		this.fileblocks = new ArrayList<>();
 		this.filesize = 0;
 		this.filehash = "";
-		this.changetime = new Date().getTime();
-		this.createtime = new Date().getTime();
+		this.changetime = Instant.now();
+		this.modifytime = null;
+		this.accesstime = null;
+		this.createtime = Instant.now();
 
 	}
 
@@ -120,7 +125,7 @@ public class LFileEntity {
 	}
 
 
-	/*
+
 	//We want to exclude some fields with default values from the JSON output
 	@Ignore
 	public ExclusionStrategy strategy = new ExclusionStrategy() {
@@ -139,11 +144,12 @@ public class LFileEntity {
 			return false;
 		}
 	};
-	 */
+
 
 
 	public JsonObject toJson() {
-		Gson gson = new GsonBuilder().create();	//.addSerializationExclusionStrategy(strategy)
+		//Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
+		Gson gson = new GsonBuilder().create();
 		return gson.toJsonTree(this).getAsJsonObject();
 	}
 

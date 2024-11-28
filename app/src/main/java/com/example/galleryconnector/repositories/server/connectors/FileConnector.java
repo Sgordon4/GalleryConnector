@@ -6,11 +6,18 @@ import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.text.DateFormat;
+import java.time.Instant;
+import java.util.Date;
+import java.util.Objects;
 import java.util.UUID;
 
 import okhttp3.FormBody;
@@ -78,7 +85,19 @@ public class FileConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, SFile.class);
+
+			System.out.println(responseData);
+			JsonObject responseJson = JsonParser.parseString(responseData).getAsJsonObject();
+			System.out.println("RESPONSE");
+			System.out.println(responseJson);
+			//Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").create();
+
+			JsonDeserializer<Date> dateJsonDeserializer =
+					(json, typeOfT, context) -> json == null ? null : new Date(json.getAsLong());
+			Gson gson = new GsonBuilder().registerTypeAdapter(Date.class,dateJsonDeserializer).create();
+
+			//return gson.fromJson(responseData.trim(), SFile.class);
+			return new Gson().fromJson(responseData.trim(), SFile.class);
 		}
 	}
 
@@ -89,20 +108,41 @@ public class FileConnector {
 
 
 	//Create or update a file entry in the database
-	public SFile upsert(@NonNull SFile file) throws IOException {
+	public boolean upsert(@NonNull SFile file) throws IOException {
 		Log.i(TAG, "\nUPSERT FILE called");
 		String url = Paths.get(baseServerUrl, "files", "upsert").toString();
 
+		file.userattr.addProperty("potato", "potato");
+
+		System.out.println("FILE PROPS");
+		System.out.println(file.toJson());
+
 		//Note: We would check that file properties contain fileuid & accountuid, but both are NonNull in obj def
-		JsonObject props = new Gson().toJsonTree(file).getAsJsonObject();
+		JsonObject props = file.toJson();
 		Log.v(TAG, "Keyset: "+props.keySet());
 
 		//Compile all passed properties into a form body. Doesn't matter what they are, send them all.
 		FormBody.Builder builder = new FormBody.Builder();
 		for(String key : props.keySet()) {
 			System.out.println("Key: "+key+" Value: "+props.get(key));
-			System.out.println("ToString: "+props.get(key).toString());
-			builder.add(key, props.get(key).toString());
+
+			//Postgres (& SQL standard) requires single quotes around strings. What an absolute pain in the ass.
+			switch (key) {
+				case "userattr":
+					builder.add(key, "'"+props.get(key)+"'");
+					break;
+				case "changetime":
+				case "modifytime":
+				case "accesstime":
+				case "createtime":
+					System.out.println("Date Val: "+props.get(key));
+					builder.add(key, "'"+ Instant.parse(props.get(key).toString())+"'");
+					break;
+				default:
+					builder.add(key, String.valueOf(props.get(key)).replace("\"", "'"));
+					break;
+			}
+
 		}
 		RequestBody body = builder.build();
 
@@ -115,7 +155,8 @@ public class FileConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, SFile.class);
+			return true;
+			//return new Gson().fromJson(responseData, SFile.class);
 		}
 	}
 	
@@ -124,7 +165,7 @@ public class FileConnector {
 	// Delete
 	//---------------------------------------------------------------------------------------------
 
-	public SFile delete(@NonNull UUID fileUID) throws IOException {
+	public boolean delete(@NonNull UUID fileUID) throws IOException {
 		Log.i(TAG, String.format("\nDELETE FILE called with fileUID='"+fileUID+"'"));
 		String url = Paths.get(baseServerUrl, "files", fileUID.toString()).toString();
 
@@ -139,7 +180,8 @@ public class FileConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return new Gson().fromJson(responseData, SFile.class);
+			return true;
+			//return new Gson().fromJson(responseData, SFile.class);
 		}
 	}
 }

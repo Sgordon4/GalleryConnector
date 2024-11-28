@@ -7,6 +7,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
@@ -26,9 +27,9 @@ public class GAccount {
 
 	public boolean isdeleted;
 
-	public long logintime;
-	public long changetime;
-	public long createtime;
+	public Instant logintime;
+	public Instant changetime;
+	public Instant createtime;
 
 
 	public GAccount(){
@@ -44,9 +45,9 @@ public class GAccount {
 
 		this.isdeleted = false;
 
-		this.logintime = -1;
-		this.changetime = -1;
-		this.createtime = new Date().getTime();
+		this.logintime = null;
+		this.changetime = null;
+		this.createtime = Instant.now();
 	}
 
 

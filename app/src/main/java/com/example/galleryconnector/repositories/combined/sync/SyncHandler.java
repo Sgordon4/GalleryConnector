@@ -12,6 +12,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -150,9 +151,10 @@ public class SyncHandler {
 	public void merge(LJournalEntity local, SJournal server) throws IOException {
 		//TODO Don't know if these date conversions work from the different sql
 		// Might need to convert to epoch during sql gets
-		Date localDate = new Date(local.changetime);
-		Date serverDate = new Date(server.changetime);
-		if(localDate.after(serverDate))
+		Instant localInstant = local.changetime;
+		Instant serverInstant = server.changetime;
+
+		if(localInstant.isAfter(serverInstant))
 			domainAPI.copyFileToServer(local.fileuid);
 		else
 			domainAPI.copyFileToLocal(server.fileuid);
