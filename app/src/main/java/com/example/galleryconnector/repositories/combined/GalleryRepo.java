@@ -51,9 +51,6 @@ public class GalleryRepo {
 
 
 
-	//TODO Add Delete methods
-
-
 	public static GalleryRepo getInstance() {
 		return SingletonHelper.INSTANCE;
 	}
@@ -142,7 +139,7 @@ public class GalleryRepo {
 			//Try to get the file data from local. If it exists, return that.
 			try {
 				LFileEntity local = localRepo.getFileProps(fileUID);
-				return new Gson().fromJson(local.toJson(), GFile.class);
+				return GFile.fromLocalFile(local);
 			}
 			catch (FileNotFoundException e) {
 				//Do nothing
@@ -151,7 +148,7 @@ public class GalleryRepo {
 			//If the file doesn't exist locally, try to get it from the server.
 			try {
 				SFile server = serverRepo.getFileProps(fileUID);
-				return new Gson().fromJson(server.toJson(), GFile.class);
+				return GFile.fromServerFile(server);
 			} catch (FileNotFoundException e) {
 				//Do nothing
 			}
@@ -191,7 +188,7 @@ public class GalleryRepo {
 
 	public ListenableFuture<Boolean> putFilePropsLocal(@NonNull GFile gFile) {
 		return executor.submit(() -> {
-			LFileEntity file = new Gson().fromJson(gFile.toJson(), LFileEntity.class);
+			LFileEntity file = gFile.toLocalFile();
 			localRepo.putFileProps(file);
 			return true;
 		});
@@ -199,9 +196,7 @@ public class GalleryRepo {
 
 	public ListenableFuture<Boolean> putFilePropsServer(@NonNull GFile gFile) {
 		return executor.submit(() -> {
-			//TODO The Gson mishmashing is fucking up the timestamps
-			// Make a to/from server and local file in GFile
-			SFile file = new Gson().fromJson(gFile.toJson(), SFile.class);
+			SFile file = gFile.toServerFile();
 			serverRepo.putFileProps(file);
 			return true;
 		});

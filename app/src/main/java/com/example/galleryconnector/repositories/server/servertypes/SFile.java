@@ -8,9 +8,12 @@ import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
 
 import org.json.JSONObject;
 
@@ -121,13 +124,20 @@ public class SFile {
 
 
 	public JsonObject toJson() {
-		JsonObject obj = new Gson().toJsonTree(this).getAsJsonObject();
-		obj.addProperty("changetime", changetime.getEpochSecond());
-		System.out.println("AAAAAAAAAAAAAAAAAAAAA");
-		System.out.println("AAAAAAAAAAAAAAAAAAAAA");
-		System.out.println("AAAAAAAAAAAAAAAAAAAAA");
-		System.out.println(obj);
-		return obj;
+		System.out.println("This is the thing");
+
+		JsonObject old = new Gson().toJsonTree(this).getAsJsonObject();
+
+		//Get the dates parsed correctly. Otherwise Gson outputs them as "{}".
+		Gson gson = new GsonBuilder()
+				.registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) ->
+						Instant.parse(json.getAsString()))
+				.registerTypeAdapter(Instant.class, (JsonSerializer<Instant>) (instant, type, jsonSerializationContext) ->
+						new JsonPrimitive(instant.toString()
+				))
+				.create();
+
+		return gson.toJsonTree(this).getAsJsonObject();
 	}
 
 

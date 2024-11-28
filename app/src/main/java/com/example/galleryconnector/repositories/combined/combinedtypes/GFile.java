@@ -4,6 +4,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.room.Ignore;
 
+import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
@@ -71,7 +73,6 @@ public class GFile {
 
 
 
-
 	//We want to exclude some fields with default values from the JSON output
 	@Ignore
 	public ExclusionStrategy strategy = new ExclusionStrategy() {
@@ -126,4 +127,83 @@ public class GFile {
 		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, userattr,
 				fileblocks, filesize, filehash, changetime, modifytime, accesstime, createtime, attrhash);
 	}
+
+
+	//---------------------------------------------------------------------------------------------
+
+
+	//Using Gson has had some undesirable effects concerning timestamps, so I'm adding these instead
+	public static GFile fromLocalFile(@NonNull LFileEntity local) {
+		GFile gFile = new GFile(local.fileuid, local.accountuid);
+		gFile.isdir = local.isdir;
+		gFile.islink = local.islink;
+		gFile.isdeleted = local.isdeleted;
+		gFile.userattr = local.userattr;
+		gFile.fileblocks = local.fileblocks;
+		gFile.filesize = local.filesize;
+		gFile.filehash = local.filehash;
+		gFile.changetime = local.changetime;
+		gFile.modifytime = local.modifytime;
+		gFile.accesstime = local.accesstime;
+		gFile.createtime = local.createtime;
+		gFile.attrhash = local.attrhash;
+
+		return gFile;
+	}
+
+	public static GFile fromServerFile(@NonNull SFile server) {
+		GFile gFile = new GFile(server.fileuid, server.accountuid);
+		gFile.isdir = server.isdir;
+		gFile.islink = server.islink;
+		gFile.isdeleted = server.isdeleted;
+		gFile.userattr = server.userattr;
+		gFile.fileblocks = server.fileblocks;
+		gFile.filesize = server.filesize;
+		gFile.filehash = server.filehash;
+		gFile.changetime = server.changetime;
+		gFile.modifytime = server.modifytime;
+		gFile.accesstime = server.accesstime;
+		gFile.createtime = server.createtime;
+		gFile.attrhash = server.attrhash;
+
+		return gFile;
+	}
+
+
+	public LFileEntity toLocalFile() {
+		LFileEntity local = new LFileEntity(fileuid, accountuid);
+		local.isdir = isdir;
+		local.islink = islink;
+		local.isdeleted = isdeleted;
+		local.userattr = userattr;
+		local.fileblocks = fileblocks;
+		local.filesize = filesize;
+		local.filehash = filehash;
+		local.changetime = changetime;
+		local.modifytime = modifytime;
+		local.accesstime = accesstime;
+		local.createtime = createtime;
+		local.attrhash = attrhash;
+
+		return local;
+	}
+
+	public SFile toServerFile() {
+		SFile server = new SFile(fileuid, accountuid);
+		server.isdir = isdir;
+		server.islink = islink;
+		server.isdeleted = isdeleted;
+		server.userattr = userattr;
+		server.fileblocks = fileblocks;
+		server.filesize = filesize;
+		server.filehash = filehash;
+		server.changetime = changetime;
+		server.modifytime = modifytime;
+		server.accesstime = accesstime;
+		server.createtime = createtime;
+		server.attrhash = attrhash;
+
+		return server;
+	}
+
 }

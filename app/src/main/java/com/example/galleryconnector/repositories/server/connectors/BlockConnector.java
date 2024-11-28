@@ -7,6 +7,9 @@ import androidx.annotation.NonNull;
 import com.example.galleryconnector.repositories.server.servertypes.SBlock;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
@@ -15,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 
@@ -73,11 +77,17 @@ public class BlockConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
+
 			Gson gson = new GsonBuilder()
-					.setDateFormat("yyyy-MM-dd'T'HH:mm:ss.zzzZ")
+					.registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) ->
+							Instant.parse(json.getAsString()))
+					.registerTypeAdapter(Instant.class, (JsonSerializer<Instant>) (instant, type, jsonSerializationContext) ->
+							new JsonPrimitive(instant.toString()
+							))
 					.create();
-			//return gson.fromJson(responseData, new TypeToken< List<SBlock> >(){}.getType());
-			return new Gson().fromJson(responseData, new TypeToken< List<SBlock> >(){}.getType());
+
+			return gson.fromJson(responseData, new TypeToken< List<SBlock> >(){}.getType());
+			//return new Gson().fromJson(responseData, new TypeToken< List<SBlock> >(){}.getType());
 		}
 	}
 

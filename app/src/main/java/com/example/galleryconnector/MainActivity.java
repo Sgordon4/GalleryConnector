@@ -51,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
 			System.out.println(Instant.now());
 
 
-			everything.importToLocal();
+			//everything.importToLocal();
 			everything.importToServer();
 
 

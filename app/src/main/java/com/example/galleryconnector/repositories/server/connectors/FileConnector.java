@@ -10,6 +10,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -92,12 +94,16 @@ public class FileConnector {
 			System.out.println(responseJson);
 			//Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").create();
 
-			JsonDeserializer<Date> dateJsonDeserializer =
-					(json, typeOfT, context) -> json == null ? null : new Date(json.getAsLong());
-			Gson gson = new GsonBuilder().registerTypeAdapter(Date.class,dateJsonDeserializer).create();
+			Gson gson = new GsonBuilder()
+					.registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) ->
+							Instant.parse(json.getAsString()))
+					.registerTypeAdapter(Instant.class, (JsonSerializer<Instant>) (instant, type, jsonSerializationContext) ->
+							new JsonPrimitive(instant.toString()
+							))
+					.create();
 
-			//return gson.fromJson(responseData.trim(), SFile.class);
-			return new Gson().fromJson(responseData.trim(), SFile.class);
+			return gson.fromJson(responseData.trim(), SFile.class);
+			//return new Gson().fromJson(responseData.trim(), SFile.class);
 		}
 	}
 
@@ -136,8 +142,8 @@ public class FileConnector {
 				case "accesstime":
 				case "createtime":
 					System.out.println("Date Val: "+props.get(key));
-					builder.add(key, "'"+ Instant.parse(props.get(key).toString())+"'");
-					break;
+					//builder.add(key, "'"+ Instant.parse(props.get(key).toString())+"'");
+					//break;
 				default:
 					builder.add(key, String.valueOf(props.get(key)).replace("\"", "'"));
 					break;
