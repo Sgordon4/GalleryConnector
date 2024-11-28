@@ -23,6 +23,7 @@ import com.google.gson.JsonObject;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -165,8 +166,11 @@ public class ServerRepo {
 		List<InputStream> blockStreams = new ArrayList<>();
 		for(String block : blockList) {
 			try {
+				//TODO Having troubles with contentResolver here
+
 				Uri blockUri = getBlockContentsUri(block); //TODO Might be null if block doesn't exist
-				blockStreams.add(contentResolver.openInputStream(blockUri));
+				blockStreams.add(new URL(blockUri.toString()).openStream());
+				//blockStreams.add(contentResolver.openInputStream(blockUri));
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}

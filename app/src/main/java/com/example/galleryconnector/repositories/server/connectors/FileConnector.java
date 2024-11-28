@@ -92,7 +92,6 @@ public class FileConnector {
 			JsonObject responseJson = JsonParser.parseString(responseData).getAsJsonObject();
 			System.out.println("RESPONSE");
 			System.out.println(responseJson);
-			//Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").create();
 
 			Gson gson = new GsonBuilder()
 					.registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) ->
@@ -133,22 +132,10 @@ public class FileConnector {
 			System.out.println("Key: "+key+" Value: "+props.get(key));
 
 			//Postgres (& SQL standard) requires single quotes around strings. What an absolute pain in the ass.
-			switch (key) {
-				case "userattr":
-					builder.add(key, "'"+props.get(key)+"'");
-					break;
-				case "changetime":
-				case "modifytime":
-				case "accesstime":
-				case "createtime":
-					System.out.println("Date Val: "+props.get(key));
-					//builder.add(key, "'"+ Instant.parse(props.get(key).toString())+"'");
-					//break;
-				default:
-					builder.add(key, String.valueOf(props.get(key)).replace("\"", "'"));
-					break;
-			}
-
+			if (key.equals("userattr"))
+				builder.add(key, "'" + props.get(key) + "'");
+			else
+				builder.add(key, String.valueOf(props.get(key)).replace("\"", "'"));
 		}
 		RequestBody body = builder.build();
 

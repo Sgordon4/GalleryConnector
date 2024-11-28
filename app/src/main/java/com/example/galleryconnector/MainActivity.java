@@ -68,6 +68,9 @@ public class MainActivity extends AppCompatActivity {
 					System.out.println("HERE");
 
 
+					//TODO Currently getting a networkOnMainThreadException when using the concatStreams
+
+
 					//This shit still don't work with the ModelLoaders
 					/*
 					Glide.with(view)
