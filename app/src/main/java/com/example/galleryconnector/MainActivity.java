@@ -10,6 +10,9 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.bitmap_recycle.ArrayPool;
+import com.bumptech.glide.load.resource.bitmap.RecyclableBufferedInputStream;
 import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 
@@ -55,35 +58,41 @@ public class MainActivity extends AppCompatActivity {
 			everything.importToServer();
 
 
+
+
+			//TODO Currently getting a networkOnMainThreadException when using the concatStreams
+			//This shit still don't work with the ModelLoaders
+			try (ConcatenatedInputStream inputStream = (ConcatenatedInputStream) everything.getFileContents()) {
+
+				ArrayPool arrayPool = Glide.get(getApplicationContext()).getArrayPool();
+				RecyclableBufferedInputStream is = new RecyclableBufferedInputStream(inputStream, arrayPool);
+				ImageView view = findViewById(R.id.image);
+				runOnUiThread(() -> {
+					Glide.with(view)
+							.load(is)
+							.into(view);
+				});
+
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+
+
+
+			/*
 			runOnUiThread(() -> {
 				//Get an inputStream of the file contents, from the closest repo
 				try (ConcatenatedInputStream inputStream = (ConcatenatedInputStream) everything.getFileContents()){
-
-					System.out.println("EEEEEEEE");
 
 					//And put the contents into our testing ImageView
 					ImageView view = findViewById(R.id.image);
 					view.setImageBitmap(BitmapFactory.decodeStream(inputStream));
 
-					System.out.println("HERE");
-
-
-					//TODO Currently getting a networkOnMainThreadException when using the concatStreams
-
-
-					//This shit still don't work with the ModelLoaders
-					/*
-					Glide.with(view)
-							.load(inputStream)
-							.into(view);
-
-					 */
-
-
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
 			});
+			 */
 
 		});
 
