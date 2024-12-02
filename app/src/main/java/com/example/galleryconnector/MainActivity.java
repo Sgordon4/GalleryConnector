@@ -64,11 +64,16 @@ public class MainActivity extends AppCompatActivity {
 			//This shit still don't work with the ModelLoaders
 			try (ConcatenatedInputStream inputStream = (ConcatenatedInputStream) everything.getFileContents()) {
 
+
+				//Yeah glide can go fuck itself I guess, we're using something else
+				//Don't know what that something else is though...
+
+
 				ArrayPool arrayPool = Glide.get(getApplicationContext()).getArrayPool();
 				RecyclableBufferedInputStream is = new RecyclableBufferedInputStream(inputStream, arrayPool);
 				ImageView view = findViewById(R.id.image);
 				runOnUiThread(() -> {
-					Glide.with(view)
+					Glide.with(view.getContext())
 							.load(is)
 							.into(view);
 				});
