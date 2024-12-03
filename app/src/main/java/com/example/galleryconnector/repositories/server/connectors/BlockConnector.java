@@ -35,7 +35,8 @@ public class BlockConnector {
 	private final OkHttpClient client;
 	private static final String TAG = "Gal.SRepo.Block";
 
-	public static final int CHUNK_SIZE = 1024 * 1024 * 4;  //4MB
+	//public static final int CHUNK_SIZE = 1024 * 1024 * 4;  //4MB
+	public static final int CHUNK_SIZE = 1024 * 1024 * 1;  //1MB FOR TESTING
 
 
 

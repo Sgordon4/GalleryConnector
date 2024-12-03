@@ -54,6 +54,7 @@ public class TestEverything {
 
 		try {
 			FileUtils.copyURLToFile(new URL(externalUri.toString()), tempFile.toFile());
+			System.out.println("Copied to file");
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

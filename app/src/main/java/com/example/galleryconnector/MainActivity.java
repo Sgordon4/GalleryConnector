@@ -1,5 +1,6 @@
 package com.example.galleryconnector;
 
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.widget.ImageView;
@@ -10,9 +11,6 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.engine.bitmap_recycle.ArrayPool;
-import com.bumptech.glide.load.resource.bitmap.RecyclableBufferedInputStream;
 import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 
@@ -69,13 +67,23 @@ public class MainActivity extends AppCompatActivity {
 				//Don't know what that something else is though...
 
 
-				ArrayPool arrayPool = Glide.get(getApplicationContext()).getArrayPool();
-				RecyclableBufferedInputStream is = new RecyclableBufferedInputStream(inputStream, arrayPool);
+				//ArrayPool arrayPool = Glide.get(getApplicationContext()).getArrayPool();
+				//RecyclableBufferedInputStream is = new RecyclableBufferedInputStream(inputStream, arrayPool);
 				ImageView view = findViewById(R.id.image);
 				runOnUiThread(() -> {
+					System.out.println("Setting bitmap");
+					Bitmap bitmap = BitmapFactory.decodeStream(inputStream, null,
+							new BitmapFactory.Options());
+
+					view.setImageBitmap(bitmap);
+					//view.setImageBitmap(BitmapFactory.decodeStream(inputStream));
+					System.out.println("Bitmap was set");
+
+					/*
 					Glide.with(view.getContext())
 							.load(is)
 							.into(view);
+					 */
 				});
 
 			} catch (IOException e) {

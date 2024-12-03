@@ -33,7 +33,7 @@ public class ConcatenatedInputStream extends InputStream{
 
 	@Override
 	public int read() throws IOException {
-		while (currentStream != null) {
+		while (currentStream != null && currentStream.available() > 0) {
 			int byteRead = currentStream.read();
 			if (byteRead != -1) {
 				return byteRead;
@@ -52,7 +52,7 @@ public class ConcatenatedInputStream extends InputStream{
 
 	@Override
 	public int read(byte[] b, int off, int len) throws IOException {
-		while (currentStream != null) {
+		while (currentStream != null && currentStream.available() > 0) {
 			int bytesRead = currentStream.read(b, off, len);
 			if (bytesRead > 0) {
 				return bytesRead;
