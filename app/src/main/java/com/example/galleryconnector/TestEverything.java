@@ -10,6 +10,7 @@ import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 
+
 import org.apache.commons.io.FileUtils;
 
 import java.io.FileNotFoundException;
@@ -37,6 +38,43 @@ public class TestEverything {
 
 
 
+	//Example show image in View from MainActivity testing
+	/*
+	Thread thread = new Thread(() -> {
+			TestEverything everything = new TestEverything();
+
+			//Delete both local and server files for a clean slate
+			everything.removeFromLocal();
+			everything.removeFromServer();
+
+
+			// ----------- TESTING START -----------
+
+			//everything.importToLocal();
+			everything.importToServer();
+
+
+			System.out.println("Getting InputStream ---------------------------------------------");
+			//Get an inputStream of the file contents, from the closest repo that has it
+			InputStream inputStream = everything.getFileContents();
+
+			Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+
+			//And put the contents into our testing ImageView
+			ImageView view = findViewById(R.id.image);
+			view.post(() -> {
+				System.out.println("Setting Bitmap --------------------------------------------------");
+				view.setImageBitmap(bitmap);
+			});
+
+		});
+
+		thread.start();
+	 */
+
+
+
 
 	public void externalUriToTestFile() {
 		try {
@@ -53,6 +91,7 @@ public class TestEverything {
 		}
 
 		try {
+
 			FileUtils.copyURLToFile(new URL(externalUri.toString()), tempFile.toFile());
 			System.out.println("Copied to file");
 		} catch (IOException e) {
@@ -69,8 +108,8 @@ public class TestEverything {
 			GFile newFile = new GFile(fileUID, accountUID);
 			grepo.putFilePropsLocal(newFile).get();
 
-			grepo.putFileContentsLocal(fileUID, Uri.fromFile(tempFile.toFile())).get();
-			//grepo.putFileContentsLocal(fileUID, externalUri).get();
+			//grepo.putFileContentsLocal(fileUID, Uri.fromFile(tempFile.toFile())).get();
+			grepo.putFileContentsLocal(fileUID, externalUri).get();
 
 			try {
 				LFileEntity file = LocalRepo.getInstance().getFileProps(fileUID);
@@ -97,8 +136,8 @@ public class TestEverything {
 			GFile newFile = new GFile(fileUID, accountUID);
 			grepo.putFilePropsServer(newFile).get();
 
-			grepo.putFileContentsServer(fileUID, Uri.fromFile(tempFile.toFile())).get();
-			//grepo.putFileContentsServer(fileUID, externalUri).get();
+			//grepo.putFileContentsServer(fileUID, Uri.fromFile(tempFile.toFile())).get();
+			grepo.putFileContentsServer(fileUID, externalUri).get();
 
 		} catch (ExecutionException | InterruptedException e) {
 			throw new RuntimeException(e);
@@ -127,34 +166,4 @@ public class TestEverything {
 			throw new RuntimeException(e);
 		}
 	}
-
-
-
-	private void makeTestFile() {
-		try {
-			Files.createDirectory(tempFile.getParent());
-			Files.createFile(tempFile);
-
-			String testData = "This is a test text file.";
-
-			Files.write(tempFile, testData.getBytes(StandardCharsets.UTF_8));
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	public void uploadFiletoLocal() throws IOException, NoSuchAlgorithmException {
-		makeTestFile();
-
-		byte[] bytes = Files.readAllBytes(tempFile);
-
-		//Hash the block
-		byte[] hash = MessageDigest.getInstance("SHA-256").digest(bytes);
-		String hashString = BlockConnector.bytesToHex(hash);
-
-		LFileEntity file = new LFileEntity(UUID.randomUUID());
-
-
-	}
-
 }

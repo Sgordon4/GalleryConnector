@@ -51,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
 
 
 			System.out.println("Getting InputStream ---------------------------------------------");
-			//Get an inputStream of the file contents, from the closest repo
+			//Get an inputStream of the file contents, from the closest repo that has it
 			InputStream inputStream = everything.getFileContents();
 
 			Bitmap bitmap = BitmapFactory.decodeStream(inputStream);

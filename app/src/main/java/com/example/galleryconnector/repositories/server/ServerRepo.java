@@ -121,18 +121,20 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	public SFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException {
+	public SFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
 		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
 
 		try {
 			return fileConn.getProps(fileUID);
+		} catch (FileNotFoundException | ConnectException e) {
+			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
 
 
-	public void putFileProps(@NonNull SFile fileProps) throws IOException {
+	public void putFileProps(@NonNull SFile fileProps) throws ConnectException {
 		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", fileProps.fileuid));
 
 		//Check if the block repo is missing any blocks from the blockset
@@ -150,14 +152,20 @@ public class ServerRepo {
 
 
 		//Now that we've confirmed all blocks exist, create/update the file metadata
-		fileConn.upsert(fileProps);
+		try {
+			fileConn.upsert(fileProps);
+		} catch (ConnectException e) {
+			throw e;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 
 		//TODO Maybe cache the file?
 	}
 
 
 
-	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException {
+	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException, ConnectException {
 		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
 
 		SFile file = getFileProps(fileUID);
