@@ -122,8 +122,7 @@ public class TestEverything {
 
 	public InputStream getFileContents() {
 		try {
-			InputStream stream = grepo.getFileContents(fileUID).get();
-			return stream;
+			return grepo.getFileContents(fileUID).get();
 		} catch (ExecutionException | InterruptedException e) {
 			throw new RuntimeException(e);
 		}

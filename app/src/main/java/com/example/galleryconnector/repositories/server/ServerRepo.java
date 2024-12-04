@@ -23,6 +23,7 @@ import com.google.gson.JsonObject;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ConnectException;
 import java.net.URL;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -162,15 +163,12 @@ public class ServerRepo {
 		SFile file = getFileProps(fileUID);
 		List<String> blockList = file.fileblocks;
 
-		ContentResolver contentResolver = MyApplication.getAppContext().getContentResolver();
+		//Turn each block into an InputStream
 		List<InputStream> blockStreams = new ArrayList<>();
 		for(String block : blockList) {
 			try {
-				//TODO Having troubles with contentResolver here
-
 				Uri blockUri = getBlockContentsUri(block); //TODO Might be null if block doesn't exist
 				blockStreams.add(new URL(blockUri.toString()).openStream());
-				//blockStreams.add(contentResolver.openInputStream(blockUri));
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -230,11 +228,11 @@ public class ServerRepo {
 
 
 
-	public void deleteFileProps(@NonNull UUID fileUID) throws FileNotFoundException {
+	public void deleteFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
 		Log.i(TAG, String.format("DELETE FILE called with fileUID='%s'", fileUID));
 		try {
 			fileConn.delete(fileUID);
-		} catch (FileNotFoundException e) {
+		} catch (FileNotFoundException | ConnectException e) {
 			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);

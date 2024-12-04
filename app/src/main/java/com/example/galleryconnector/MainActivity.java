@@ -12,11 +12,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
-import com.example.galleryconnector.repositories.local.LocalRepo;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Instant;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -48,64 +46,23 @@ public class MainActivity extends AppCompatActivity {
 
 			// ----------- TESTING START -----------
 
-			System.out.println("Instant");
-			System.out.println(Instant.now());
-
-
 			//everything.importToLocal();
 			everything.importToServer();
 
 
+			System.out.println("Getting InputStream ---------------------------------------------");
+			//Get an inputStream of the file contents, from the closest repo
+			InputStream inputStream = everything.getFileContents();
+
+			Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
 
 
-			//TODO Currently getting a networkOnMainThreadException when using the concatStreams
-			//This shit still don't work with the ModelLoaders
-			try (ConcatenatedInputStream inputStream = (ConcatenatedInputStream) everything.getFileContents()) {
-
-
-				//Yeah glide can go fuck itself I guess, we're using something else
-				//Don't know what that something else is though...
-
-
-				//ArrayPool arrayPool = Glide.get(getApplicationContext()).getArrayPool();
-				//RecyclableBufferedInputStream is = new RecyclableBufferedInputStream(inputStream, arrayPool);
-				ImageView view = findViewById(R.id.image);
-				runOnUiThread(() -> {
-					System.out.println("Setting bitmap");
-					Bitmap bitmap = BitmapFactory.decodeStream(inputStream, null,
-							new BitmapFactory.Options());
-
-					view.setImageBitmap(bitmap);
-					//view.setImageBitmap(BitmapFactory.decodeStream(inputStream));
-					System.out.println("Bitmap was set");
-
-					/*
-					Glide.with(view.getContext())
-							.load(is)
-							.into(view);
-					 */
-				});
-
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-
-
-
-			/*
-			runOnUiThread(() -> {
-				//Get an inputStream of the file contents, from the closest repo
-				try (ConcatenatedInputStream inputStream = (ConcatenatedInputStream) everything.getFileContents()){
-
-					//And put the contents into our testing ImageView
-					ImageView view = findViewById(R.id.image);
-					view.setImageBitmap(BitmapFactory.decodeStream(inputStream));
-
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				}
+			//And put the contents into our testing ImageView
+			ImageView view = findViewById(R.id.image);
+			view.post(() -> {
+				System.out.println("Setting Bitmap --------------------------------------------------");
+				view.setImageBitmap(bitmap);
 			});
-			 */
 
 		});
 
