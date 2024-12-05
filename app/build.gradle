@@ -52,7 +52,7 @@ android {
             //Remove these
             //implementation "com.github.bumptech.glide:glide:4.16.0"
             //annotationProcessor 'com.github.bumptech.glide:compiler:4.11.0'
-            implementation "commons-io:commons-io:2.18.0"
+            //implementation "commons-io:commons-io:2.18.0"
 
         }
     }

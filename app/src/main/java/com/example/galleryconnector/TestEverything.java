@@ -11,7 +11,7 @@ import com.example.galleryconnector.repositories.local.file.LFileEntity;
 import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 
 
-import org.apache.commons.io.FileUtils;
+//import org.apache.commons.io.FileUtils;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -90,13 +90,15 @@ public class TestEverything {
 			throw new RuntimeException(e);
 		}
 
+		//Need Apache commons for this
+		/*
 		try {
-
 			FileUtils.copyURLToFile(new URL(externalUri.toString()), tempFile.toFile());
 			System.out.println("Copied to file");
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
+		 */
 	}
 
 
