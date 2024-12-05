@@ -16,6 +16,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -151,23 +152,20 @@ public class LBlockHandler {
 	public BlockSet writeUriToBlocks(@NonNull Uri source) {
 		BlockSet blockSet = new BlockSet();
 
-		try (InputStream is = MyApplication.getAppContext().getContentResolver().openInputStream(source);
+
+
+		try (InputStream is = new URL(source.toString()).openStream();
 			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
 
-			//Read the next block
-			byte[] block = new byte[CHUNK_SIZE];
-			int read;
-			while((read = dis.read(block)) != -1) {
 
-				//Trim block if needed (for tail of the file, when not enough bytes to fill a full block)
-				if (read != CHUNK_SIZE) {
-					byte[] smallerData = new byte[read];
-					System.arraycopy(block, 0, smallerData, 0, read);
-					block = smallerData;
+			byte[] block;
+			do {
+				System.out.println("Reading bytes from DIS");
+				block = dis.readNBytes(BlockConnector.CHUNK_SIZE);
+				System.out.println("Length: "+block.length);
 
-					if(block.length == 0)   //Don't put empty blocks in the blocklist
-						continue;
-				}
+				if(block.length == 0)   //Don't put empty blocks in the blocklist
+					continue;
 
 
 				//Write the block to the system
@@ -176,10 +174,13 @@ public class LBlockHandler {
 				//Add to the blockSet
 				blockSet.blockList.add(hashString);
 				blockSet.fileSize += block.length;
-			}
+
+			} while (block.length >= BlockConnector.CHUNK_SIZE);
+
 
 			//Get the SHA-256 hash of the entire file
 			blockSet.fileHash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
+			Log.d(TAG, "File has "+blockSet.blockList.size()+" blocks, with a size of "+blockSet.fileSize+".");
 
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);

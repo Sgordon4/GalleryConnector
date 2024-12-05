@@ -195,6 +195,9 @@ public class LocalRepo {
 		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
 		LFileEntity file = getFileProps(fileUID);
 
+		System.out.println("\n\n\n\n");
+		System.out.println("Local URL is "+source);
+
 		//Write the Uri to the system as a set of blocks
 		LBlockHandler.BlockSet blockSet = blockHandler.writeUriToBlocks(source);
 

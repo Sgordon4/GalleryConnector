@@ -108,8 +108,8 @@ public class TestEverything {
 			GFile newFile = new GFile(fileUID, accountUID);
 			grepo.putFilePropsLocal(newFile).get();
 
-			//grepo.putFileContentsLocal(fileUID, Uri.fromFile(tempFile.toFile())).get();
-			grepo.putFileContentsLocal(fileUID, externalUri).get();
+			//grepo.putFileContentsLocal(fileUID, Uri.fromFile(tempFile.toFile())).get();		//Local temp file
+			grepo.putFileContentsLocal(fileUID, externalUri).get();							//WebURL
 
 			try {
 				LFileEntity file = LocalRepo.getInstance().getFileProps(fileUID);
@@ -136,8 +136,8 @@ public class TestEverything {
 			GFile newFile = new GFile(fileUID, accountUID);
 			grepo.putFilePropsServer(newFile).get();
 
-			//grepo.putFileContentsServer(fileUID, Uri.fromFile(tempFile.toFile())).get();
-			grepo.putFileContentsServer(fileUID, externalUri).get();
+			//grepo.putFileContentsServer(fileUID, Uri.fromFile(tempFile.toFile())).get();		//Local temp file
+			grepo.putFileContentsServer(fileUID, externalUri).get();							//WebURL
 
 		} catch (ExecutionException | InterruptedException e) {
 			throw new RuntimeException(e);

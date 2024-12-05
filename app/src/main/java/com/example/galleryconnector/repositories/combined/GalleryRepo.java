@@ -33,6 +33,7 @@ import com.google.gson.JsonObject;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -177,6 +178,8 @@ public class GalleryRepo {
 				return serverRepo.getFileContents(fileUID);
 			} catch (FileNotFoundException e) {
 				//Do nothing
+			} catch (ConnectException | SocketTimeoutException e) {
+				//Do nothing
 			}
 
 			//If the file doesn't exist in either, throw an exception
@@ -197,7 +200,13 @@ public class GalleryRepo {
 	public ListenableFuture<Boolean> putFilePropsServer(@NonNull GFile gFile) {
 		return executor.submit(() -> {
 			SFile file = gFile.toServerFile();
-			serverRepo.putFileProps(file);
+
+			try {
+				serverRepo.putFileProps(file);
+			} catch (ConnectException | SocketTimeoutException e) {
+				Log.e(TAG, "TIMEOUT in putFileProps");
+				return false;
+			}
 			return true;
 		});
 	}
@@ -212,7 +221,12 @@ public class GalleryRepo {
 	}
 	public ListenableFuture<Boolean> putFileContentsServer(@NonNull UUID fileUID, @NonNull Uri source) {
 		return executor.submit(() -> {
-			serverRepo.putFileContents(fileUID, source);
+			try {
+				serverRepo.putFileContents(fileUID, source);
+			} catch (ConnectException | SocketTimeoutException e) {
+				Log.e(TAG, "TIMEOUT in putFileContents");
+				return false;
+			}
 			return true;
 		});
 	}
@@ -230,6 +244,9 @@ public class GalleryRepo {
 				serverRepo.deleteFileProps(fileUID);
 				return true;
 			} catch (FileNotFoundException e) {
+				return false;
+			} catch (ConnectException | SocketTimeoutException e) {
+				Log.e(TAG, "TIMEOUT in deleteFileProps");
 				return false;
 			}
 		});
@@ -258,6 +275,9 @@ public class GalleryRepo {
 				return true;
 			}
 			catch (FileNotFoundException e) {
+				return false;
+			} catch (ConnectException | SocketTimeoutException e) {
+				Log.e(TAG, "TIMEOUT in isFileServer");
 				return false;
 			}
 		});

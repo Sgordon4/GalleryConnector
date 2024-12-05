@@ -59,7 +59,7 @@ public class BlockConnector {
 	}
 
 	public List<SBlock> getProps(@NonNull List<String> blocks) throws IOException {
-		Log.i(TAG, String.format("\nGET BLOCK PROPS called with blocks='%s'", blocks));
+		//Log.i(TAG, String.format("\nGET BLOCK PROPS called with blocks='%s'", blocks));
 
 		//Alongside the usual url, compile all passed blocks into query parameters
 		String base = Paths.get(baseServerUrl, "blocks", "props").toString();
@@ -95,7 +95,7 @@ public class BlockConnector {
 
 	//Get a presigned URL for reading block data
 	public String getUrl(@NonNull String blockHash) throws IOException {
-		Log.i(TAG, String.format("\nGET BLOCK GET URL called with blockHash='"+blockHash+"'"));
+		//Log.i(TAG, String.format("\nGET BLOCK GET URL called with blockHash='"+blockHash+"'"));
 		String url = Paths.get(baseServerUrl, "blocks", "link", blockHash).toString();
 
 		Request request = new Request.Builder().url(url).build();
@@ -110,7 +110,7 @@ public class BlockConnector {
 	}
 
 	public byte[] readBlock(@NonNull String blockHash) throws IOException {
-		Log.i(TAG, String.format("\nGET BLOCK called with blockHash='"+blockHash+"'"));
+		//Log.i(TAG, String.format("\nGET BLOCK called with blockHash='"+blockHash+"'"));
 		String url = Paths.get(baseServerUrl, "blocks", blockHash).toString();
 
 		Request request = new Request.Builder().url(url).build();
@@ -156,7 +156,10 @@ public class BlockConnector {
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
 		}
-		Log.i(TAG, String.format("\nUPLOAD BLOCK called with blockHash='"+blockHash+"'"));
+		//Log.i(TAG, String.format("\nUPLOAD BLOCK called with blockHash='"+blockHash+"'"));
+
+
+		//TODO Check if block exists in the server first
 
 
 		//Get the url we need to upload the block to

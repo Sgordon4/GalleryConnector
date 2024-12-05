@@ -20,10 +20,12 @@ import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import java.io.BufferedInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -121,12 +123,14 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	public SFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
+	public SFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException, SocketTimeoutException {
 		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
 
 		try {
 			return fileConn.getProps(fileUID);
-		} catch (FileNotFoundException | ConnectException e) {
+		} catch (FileNotFoundException e) {
+			throw e;
+		} catch (ConnectException | SocketTimeoutException e) {
 			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -134,7 +138,7 @@ public class ServerRepo {
 	}
 
 
-	public void putFileProps(@NonNull SFile fileProps) throws ConnectException {
+	public void putFileProps(@NonNull SFile fileProps) throws ConnectException, SocketTimeoutException {
 		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", fileProps.fileuid));
 
 		//Check if the block repo is missing any blocks from the blockset
@@ -147,14 +151,14 @@ public class ServerRepo {
 		if(!missingBlocks.isEmpty())
 			throw new IllegalStateException("Missing blocks: "+missingBlocks);
 
-		System.out.println("Upsering file props");
+		System.out.println("Upserting file props");
 		System.out.println(fileProps);
 
 
 		//Now that we've confirmed all blocks exist, create/update the file metadata
 		try {
 			fileConn.upsert(fileProps);
-		} catch (ConnectException e) {
+		} catch (ConnectException | SocketTimeoutException e) {
 			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -165,7 +169,7 @@ public class ServerRepo {
 
 
 
-	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException, ConnectException {
+	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException, ConnectException, SocketTimeoutException {
 		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
 
 		SFile file = getFileProps(fileUID);
@@ -177,6 +181,8 @@ public class ServerRepo {
 			try {
 				Uri blockUri = getBlockContentsUri(block); //TODO Might be null if block doesn't exist
 				blockStreams.add(new URL(blockUri.toString()).openStream());
+			} catch (ConnectException | SocketTimeoutException e) {
+				throw e;
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -194,23 +200,22 @@ public class ServerRepo {
 		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
 		SFile file = getFileProps(fileUID);
 
-		try (InputStream is = MyApplication.getAppContext().getContentResolver().openInputStream(source);
+		System.out.println("\n\n\n\n");
+		System.out.println("Server URL is "+source);
+
+		//try (InputStream is = MyApplication.getAppContext().getContentResolver().openInputStream(source);
+		try (InputStream is = new URL(source.toString()).openStream();
 			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
 
-			//Read the next block
-			byte[] block = new byte[BlockConnector.CHUNK_SIZE];
-			int read;
-			while((read = dis.read(block)) != -1) {
 
-				//Trim block if needed (for tail of the file, when not enough bytes to fill a full block)
-				if (read != BlockConnector.CHUNK_SIZE) {
-					byte[] smallerData = new byte[read];
-					System.arraycopy(block, 0, smallerData, 0, read);
-					block = smallerData;
+			byte[] block;
+			do {
+				System.out.println("Reading bytes from DIS");
+				block = dis.readNBytes(BlockConnector.CHUNK_SIZE);
+				System.out.println("Length: "+block.length);
 
-					if(block.length == 0)   //Don't put empty blocks in the blocklist
-						continue;
-				}
+				if(block.length == 0)   //Don't put empty blocks in the blocklist
+					continue;
 
 
 				//Write the block to the system
@@ -219,15 +224,18 @@ public class ServerRepo {
 				//Add to the blockSet
 				file.fileblocks.add(hashString);
 				file.filesize += block.length;
-			}
+
+			} while (block.length >= BlockConnector.CHUNK_SIZE);
 
 
 			//Get the SHA-256 hash of the entire file
 			file.filehash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
+			Log.d(TAG, "File has "+file.fileblocks.size()+" blocks, with a size of "+file.filesize+". ID: "+file.fileuid);
 
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
 		}
+
 
 		//Update the file information in the system
 		putFileProps(file);
@@ -236,11 +244,11 @@ public class ServerRepo {
 
 
 
-	public void deleteFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
+	public void deleteFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException, SocketTimeoutException {
 		Log.i(TAG, String.format("DELETE FILE called with fileUID='%s'", fileUID));
 		try {
 			fileConn.delete(fileUID);
-		} catch (FileNotFoundException | ConnectException e) {
+		} catch (FileNotFoundException | ConnectException | SocketTimeoutException e) {
 			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -328,7 +336,7 @@ public class ServerRepo {
 		public Response intercept(Chain chain) throws IOException {
 			Request request = chain.request();
 			//Log.i(TAG, "");
-			Log.i(TAG, String.format("	OKHTTP: %s --> %s", request.method(), request.url()));
+			Log.d(TAG, String.format("	OKHTTP: %s --> %s", request.method(), request.url()));
 			//if(request.body() != null)	//Need another method to print body, this no worky
 				//Log.d(TAG, String.format("OKHTTP: Sending with body - %s", request.body()));
 
@@ -336,14 +344,14 @@ public class ServerRepo {
 			Response response = chain.proceed(request);
 			long t2 = System.nanoTime();
 
-			Log.i(TAG, String.format("	OKHTTP: Received response %s for %s in %.1fms",
+			Log.d(TAG, String.format("	OKHTTP: Received response %s for %s in %.1fms",
 					response.code(), response.request().url(), (t2 - t1) / 1e6d));
 
 			//Log.v(TAG, String.format("%s", response.headers()));
 			if(response.body() != null)
-				Log.v(TAG, "	OKHTTP: Returned with body length of "+response.body().contentLength());
+				Log.d(TAG, "	OKHTTP: Returned with body length of "+response.body().contentLength());
 			else
-				Log.v(TAG, "	OKHTTP: Returned with null body");
+				Log.d(TAG, "	OKHTTP: Returned with null body");
 
 			return response;
 		}

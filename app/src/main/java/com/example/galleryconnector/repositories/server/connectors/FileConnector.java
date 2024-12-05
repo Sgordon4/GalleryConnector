@@ -73,7 +73,7 @@ public class FileConnector {
 	}
 
 	public SFile getProps(@NonNull UUID fileUID) throws IOException {
-		Log.i(TAG, String.format("\nGET FILE called with fileUID='"+fileUID+"'"));
+		//Log.i(TAG, String.format("\nGET FILE called with fileUID='"+fileUID+"'"));
 		String url = Paths.get(baseServerUrl, "files", fileUID.toString()).toString();
 
 
@@ -88,10 +88,9 @@ public class FileConnector {
 
 			String responseData = response.body().string();
 
-			System.out.println(responseData);
+			//TODO Remove this logging
 			JsonObject responseJson = JsonParser.parseString(responseData).getAsJsonObject();
-			System.out.println("RESPONSE");
-			System.out.println(responseJson);
+			Log.d(TAG, "Response: "+responseJson.toString());
 
 			Gson gson = new GsonBuilder()
 					.registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) ->
@@ -114,23 +113,16 @@ public class FileConnector {
 
 	//Create or update a file entry in the database
 	public boolean upsert(@NonNull SFile file) throws IOException {
-		Log.i(TAG, "\nUPSERT FILE called");
+		//Log.i(TAG, "\nUPSERT FILE called");
 		String url = Paths.get(baseServerUrl, "files", "upsert").toString();
-
-		file.userattr.addProperty("potato", "potato");
-
-		System.out.println("FILE PROPS");
-		System.out.println(file.toJson());
+		
 
 		//Note: We would check that file properties contain fileuid & accountuid, but both are NonNull in obj def
 		JsonObject props = file.toJson();
-		Log.v(TAG, "Keyset: "+props.keySet());
 
 		//Compile all passed properties into a form body. Doesn't matter what they are, send them all.
 		FormBody.Builder builder = new FormBody.Builder();
 		for(String key : props.keySet()) {
-			System.out.println("Key: "+key+" Value: "+props.get(key));
-
 			//Postgres (& SQL standard) requires single quotes around strings. What an absolute pain in the ass.
 			if (key.equals("userattr"))
 				builder.add(key, "'" + props.get(key) + "'");
@@ -159,7 +151,7 @@ public class FileConnector {
 	//---------------------------------------------------------------------------------------------
 
 	public boolean delete(@NonNull UUID fileUID) throws IOException {
-		Log.i(TAG, String.format("\nDELETE FILE called with fileUID='"+fileUID+"'"));
+		//Log.i(TAG, String.format("\nDELETE FILE called with fileUID='"+fileUID+"'"));
 		String url = Paths.get(baseServerUrl, "files", fileUID.toString()).toString();
 
 
