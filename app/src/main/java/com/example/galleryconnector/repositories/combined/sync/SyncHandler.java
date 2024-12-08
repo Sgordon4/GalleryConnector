@@ -48,6 +48,7 @@ public class SyncHandler {
 	}
 
 	//TODO We don't actually update or store these yet. Right now they're always 0 and do nothing.
+	//TODO Also, this doesn't exactly work with multiple accounts atm
 	public void updateLastSyncLocal(int id) {
 		if(id > lastSyncLocalID)	//Gets rid of race conditions when several file updates come in at once. We just want the largest ID.
 			lastSyncLocalID = id;

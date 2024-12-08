@@ -3,15 +3,16 @@ package com.example.galleryconnector.repositories.combined;
 import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.combinedtypes.GJournal;
-import com.example.galleryconnector.repositories.local.LocalFileObservers;
 import com.example.galleryconnector.repositories.local.LocalRepo;
+import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
 import com.example.galleryconnector.repositories.server.ServerFileObservers;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,17 +78,24 @@ public class GFileUpdateObservers {
 
 
 
-	public void attachToLocal(@NonNull LocalRepo localRepo) {
-		LocalFileObservers.LFileObservable lFileChangedObs = (journalID, localFile) -> {
-			//Notify listeners
-			GFile file = new Gson().fromJson(localFile.toJson(), GFile.class);
-			onLocalFileUpdate(journalID, file);
+	public void attachToLocal(@NonNull LocalRepo localRepo, int journalID) {
+		localRepo.setFileListener(journalID, newJournal -> {
+			try {
+				//Get the file that the journal is linked to	TODO Authenticate
+				LFileEntity file = localRepo.getFileProps(newJournal.fileuid);
+				if(file == null) throw new IllegalStateException("File not found! ID: '"+newJournal.fileuid+"'");
 
-			//Update the latest synced journalID
-			syncHandler.updateLastSyncLocal(journalID);
-		};
+				//Notify listeners
+				GFile gFile = GFile.fromLocalFile(file);
+				onLocalFileUpdate(newJournal.journalid, gFile);
 
-		localRepo.addObserver(lFileChangedObs);
+				//Update the latest synced journalID
+				syncHandler.updateLastSyncLocal(journalID);
+
+			} catch (FileNotFoundException e) {
+				throw new RuntimeException(e);
+			}
+		});
 	}
 	public void attachToServer(@NonNull ServerRepo serverRepo) {
 		ServerFileObservers.SFileObservable sFileChangedObs = (journalID, serverFile) -> {

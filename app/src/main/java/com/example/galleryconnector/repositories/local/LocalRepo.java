@@ -35,15 +35,14 @@ public class LocalRepo {
 	public final LocalDatabase database;
 	public final LBlockHandler blockHandler;
 
-	private final LocalFileObservers observers;
-	private LiveData<List<LJournalEntity>> latestJournals;
+	private final RoomDatabaseUpdateListener listener;
 
 	public LocalRepo() {
 		database = new LocalDatabase.DBBuilder().newInstance( MyApplication.getAppContext() );
 
 		blockHandler = new LBlockHandler(database.getBlockDao());
 
-		observers = new LocalFileObservers();
+		listener = new RoomDatabaseUpdateListener();
 	}
 
 	public static LocalRepo getInstance() {
@@ -55,30 +54,25 @@ public class LocalRepo {
 
 	//---------------------------------------------------------------------------------------------
 
-	public void addObserver(LocalFileObservers.LFileObservable observer) {
-		observers.addObserver(observer);
-	}
-	public void removeObserver(LocalFileObservers.LFileObservable observer) {
-		observers.removeObserver(observer);
+
+	public interface OnDataChangeListener<T> {
+		void onDataChanged(T data);
 	}
 
-
-	int nextIndex = 0;
-	public void startListening(int journalID) {
-		database.getJournalDao().longpollAfterID(journalID).observeForever(lJournalEntities -> {
-			for(; nextIndex < lJournalEntities.size(); nextIndex++) {
-				LJournalEntity journal = lJournalEntities.get(nextIndex);
-
-				//Get the file that the journal is linked to
-				LFileEntity file = database.getFileDao().loadByUID(journal.fileuid);
-				if(file == null) throw new IllegalStateException("File not found! ID: '"+journal.fileuid+"'");
-
-				//Send it off to the observers
-				observers.notifyObservers(journal.journalid, file);
-
-				nextIndex++;
+	//TODO We could probably do the account filtering here instead of GRepo, doesn't really matter
+	public void setFileListener(int journalID, OnDataChangeListener<LJournalEntity> onChanged) {
+		LiveData<List<LJournalEntity>> liveData = database.getJournalDao().longpollAfterID(journalID);
+		listener.stopAll();
+		listener.listen(liveData, journals -> {
+			System.out.println("New Journals recieved: ");
+			for(LJournalEntity journal : journals) {
+				System.out.println(journal);
+				onChanged.onDataChanged(journal);
 			}
 		});
+	}
+	public void removeFileListener() {
+		listener.stopAll();
 	}
 
 
