@@ -2,13 +2,10 @@ package com.example.galleryconnector;
 
 import android.net.Uri;
 
-import androidx.annotation.NonNull;
-
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.local.LocalRepo;
-import com.example.galleryconnector.repositories.local.file.LFileEntity;
-import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
+import com.example.galleryconnector.repositories.local.file.LFile;
 
 
 //import org.apache.commons.io.FileUtils;
@@ -16,13 +13,9 @@ import com.example.galleryconnector.repositories.server.connectors.BlockConnecto
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -114,7 +107,7 @@ public class TestEverything {
 			grepo.putFileContentsLocal(fileUID, externalUri).get();							//WebURL
 
 			try {
-				LFileEntity file = LocalRepo.getInstance().getFileProps(fileUID);
+				LFile file = LocalRepo.getInstance().getFileProps(fileUID);
 				System.out.println(file);
 			} catch (FileNotFoundException e) {
 				throw new RuntimeException(e);

@@ -40,8 +40,8 @@ public class LBlockHandler {
 
 
 	@Nullable
-	public LBlockEntity getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
-		LBlockEntity block = blockDao.loadByHash(blockHash);
+	public LBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
+		LBlock block = blockDao.loadByHash(blockHash);
 		if(block == null) throw new FileNotFoundException("Block not found! Hash: '"+blockHash+"'");
 		return block;
 	}
@@ -107,7 +107,7 @@ public class LBlockHandler {
 
 
 		//Create a new entry in the block table
-		LBlockEntity blockEntity = new LBlockEntity(blockHash, bytes.length);
+		LBlock blockEntity = new LBlock(blockHash, bytes.length);
 		blockDao.put(blockEntity);
 
 		Log.i(TAG, "Uploading block complete");

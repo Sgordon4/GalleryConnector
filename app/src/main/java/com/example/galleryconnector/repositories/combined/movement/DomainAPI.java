@@ -5,7 +5,7 @@ import androidx.work.Data;
 import androidx.work.OneTimeWorkRequest;
 
 import com.example.galleryconnector.repositories.local.LocalRepo;
-import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.google.gson.Gson;
@@ -116,7 +116,7 @@ public class DomainAPI {
 
 
 		//Now that the blockset is uploaded, put the file metadata into the local database
-		LFileEntity file = new Gson().fromJson(serverFileProps.toJson(), LFileEntity.class);
+		LFile file = new Gson().fromJson(serverFileProps.toJson(), LFile.class);
 		localRepo.putFileProps(file);
 
 		return true;
@@ -126,7 +126,7 @@ public class DomainAPI {
 
 	public boolean copyFileToServer(@NonNull UUID fileuid) throws IOException {
 		//Get the file properties from the local database
-		LFileEntity file = localRepo.getFileProps(fileuid);
+		LFile file = localRepo.getFileProps(fileuid);
 		if(file == null)
 			throw new FileNotFoundException("File not found locally! fileuid="+fileuid);
 

@@ -2,7 +2,7 @@ package com.example.galleryconnector;
 
 import org.junit.Test;
 
-import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.file.LFile;
 
 import java.util.UUID;
 
@@ -14,7 +14,7 @@ import java.util.UUID;
 public class NonInstrumentedTest {
 	@Test
 	public void Test() {
-		LFileEntity entity = new LFileEntity(UUID.randomUUID());
+		LFile entity = new LFile(UUID.randomUUID());
 
 		System.out.println("Gson");
 		System.out.println(entity.toJson());

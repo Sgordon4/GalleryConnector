@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
 
 import com.google.gson.Gson;
@@ -11,12 +12,11 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
 import java.time.Instant;
-import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
 
 @Entity(tableName = "account")
-public class LAccountEntity {
+public class LAccount {
 	@PrimaryKey
 	@NonNull
 	public UUID accountuid;
@@ -42,10 +42,12 @@ public class LAccountEntity {
 
 
 
-	public LAccountEntity(){
+	@Ignore
+	public LAccount(){
 		this(UUID.randomUUID(), UUID.randomUUID());
 	}
-	public LAccountEntity(@NonNull UUID accountuid, @NonNull UUID rootfileuid) {
+
+	public LAccount(@NonNull UUID accountuid, @NonNull UUID rootfileuid) {
 		this.accountuid = accountuid;
 		this.rootfileuid = rootfileuid;
 
@@ -78,7 +80,7 @@ public class LAccountEntity {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		LAccountEntity lAccount = (LAccountEntity) o;
+		LAccount lAccount = (LAccount) o;
 		return isdeleted == lAccount.isdeleted && logintime == lAccount.logintime && changetime == lAccount.changetime && createtime == lAccount.createtime && Objects.equals(accountuid, lAccount.accountuid) && Objects.equals(rootfileuid, lAccount.rootfileuid) && Objects.equals(email, lAccount.email) && Objects.equals(displayname, lAccount.displayname) && Objects.equals(password, lAccount.password);
 	}
 

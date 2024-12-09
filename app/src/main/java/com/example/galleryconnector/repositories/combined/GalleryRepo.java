@@ -18,9 +18,9 @@ import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.combined.movement.ImportExportWorker;
 import com.example.galleryconnector.repositories.local.LocalRepo;
-import com.example.galleryconnector.repositories.local.account.LAccountEntity;
-import com.example.galleryconnector.repositories.local.block.LBlockEntity;
-import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.account.LAccount;
+import com.example.galleryconnector.repositories.local.block.LBlock;
+import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.server.servertypes.SAccount;
 import com.example.galleryconnector.repositories.server.servertypes.SBlock;
@@ -29,7 +29,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -94,7 +93,7 @@ public class GalleryRepo {
 		return executor.submit(() -> {
 			//Try to get the account data from local. If it exists, return that.
 			try {
-				LAccountEntity local = localRepo.getAccountProps(accountuid);
+				LAccount local = localRepo.getAccountProps(accountuid);
 				return new Gson().fromJson(local.toJson(), GAccount.class);
 			}
 			catch (FileNotFoundException e) {
@@ -121,7 +120,7 @@ public class GalleryRepo {
 
 	public ListenableFuture<Boolean> putAccountPropsLocal(@NonNull GAccount gAccount) {
 		return executor.submit(() -> {
-			LAccountEntity account = new Gson().fromJson(gAccount.toJson(), LAccountEntity.class);
+			LAccount account = new Gson().fromJson(gAccount.toJson(), LAccount.class);
 			localRepo.putAccountProps(account);
 			return true;
 		});
@@ -146,7 +145,7 @@ public class GalleryRepo {
 		return executor.submit(() -> {
 			//Try to get the file data from local. If it exists, return that.
 			try {
-				LFileEntity local = localRepo.getFileProps(fileUID);
+				LFile local = localRepo.getFileProps(fileUID);
 				return GFile.fromLocalFile(local);
 			}
 			catch (FileNotFoundException e) {
@@ -198,7 +197,7 @@ public class GalleryRepo {
 
 	public ListenableFuture<Boolean> putFilePropsLocal(@NonNull GFile gFile) {
 		return executor.submit(() -> {
-			LFileEntity file = gFile.toLocalFile();
+			LFile file = gFile.toLocalFile();
 			localRepo.putFileProps(file);
 			return true;
 		});
@@ -310,7 +309,7 @@ public class GalleryRepo {
 		return executor.submit(() -> {
 			//Try to get the block data from local. If it exists, return that.
 			try {
-				LBlockEntity local = localRepo.getBlockProps(blockHash);
+				LBlock local = localRepo.getBlockProps(blockHash);
 				return new Gson().fromJson(local.toJson(), GBlock.class);
 			}
 			catch (FileNotFoundException e) {

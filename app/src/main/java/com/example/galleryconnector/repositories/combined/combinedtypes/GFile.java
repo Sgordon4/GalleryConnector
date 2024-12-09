@@ -4,7 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.room.Ignore;
 
-import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -12,12 +12,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -133,7 +129,7 @@ public class GFile {
 
 
 	//Using Gson has had some undesirable effects concerning timestamps, so I'm adding these instead
-	public static GFile fromLocalFile(@NonNull LFileEntity local) {
+	public static GFile fromLocalFile(@NonNull LFile local) {
 		GFile gFile = new GFile(local.fileuid, local.accountuid);
 		gFile.isdir = local.isdir;
 		gFile.islink = local.islink;
@@ -170,8 +166,8 @@ public class GFile {
 	}
 
 
-	public LFileEntity toLocalFile() {
-		LFileEntity local = new LFileEntity(fileuid, accountuid);
+	public LFile toLocalFile() {
+		LFile local = new LFile(fileuid, accountuid);
 		local.isdir = isdir;
 		local.islink = islink;
 		local.isdeleted = isdeleted;

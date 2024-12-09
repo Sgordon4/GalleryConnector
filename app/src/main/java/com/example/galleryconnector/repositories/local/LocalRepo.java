@@ -11,11 +11,11 @@ import androidx.lifecycle.LiveData;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
-import com.example.galleryconnector.repositories.local.account.LAccountEntity;
-import com.example.galleryconnector.repositories.local.block.LBlockEntity;
+import com.example.galleryconnector.repositories.local.account.LAccount;
+import com.example.galleryconnector.repositories.local.block.LBlock;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
-import com.example.galleryconnector.repositories.local.file.LFileEntity;
-import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
+import com.example.galleryconnector.repositories.local.file.LFile;
+import com.example.galleryconnector.repositories.local.journal.LJournal;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -60,12 +60,12 @@ public class LocalRepo {
 	}
 
 	//TODO We could probably do the account filtering here instead of GRepo, doesn't really matter
-	public void setFileListener(int journalID, OnDataChangeListener<LJournalEntity> onChanged) {
-		LiveData<List<LJournalEntity>> liveData = database.getJournalDao().longpollAfterID(journalID);
+	public void setFileListener(int journalID, OnDataChangeListener<LJournal> onChanged) {
+		LiveData<List<LJournal>> liveData = database.getJournalDao().longpollAfterID(journalID);
 		listener.stopAll();
 		listener.listen(liveData, journals -> {
 			System.out.println("New Journals recieved: ");
-			for(LJournalEntity journal : journals) {
+			for(LJournal journal : journals) {
 				System.out.println(journal);
 				onChanged.onDataChanged(journal);
 			}
@@ -113,15 +113,15 @@ public class LocalRepo {
 	// Account
 	//---------------------------------------------------------------------------------------------
 
-	public LAccountEntity getAccountProps(@NonNull UUID accountUID) throws FileNotFoundException {
+	public LAccount getAccountProps(@NonNull UUID accountUID) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET ACCOUNT PROPS called with accountUID='%s'", accountUID));
 
-		LAccountEntity account = database.getAccountDao().loadByUID(accountUID);
+		LAccount account = database.getAccountDao().loadByUID(accountUID);
 		if(account == null) throw new FileNotFoundException("Account not found! ID: '"+accountUID);
 		return account;
 	}
 
-	public void putAccountProps(@NonNull LAccountEntity accountProps) {
+	public void putAccountProps(@NonNull LAccount accountProps) {
 		Log.i(TAG, String.format("PUT ACCOUNT PROPS called with accountUID='%s'", accountProps.accountuid));
 
 		database.getAccountDao().put(accountProps);
@@ -135,16 +135,16 @@ public class LocalRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	public LFileEntity getFileProps(UUID fileUID) throws FileNotFoundException {
+	public LFile getFileProps(UUID fileUID) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET FILE PROPS called with fileUID='%s'", fileUID));
 
-		LFileEntity file = database.getFileDao().loadByUID(fileUID);
+		LFile file = database.getFileDao().loadByUID(fileUID);
 		if(file == null) throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");
 		return file;
 	}
 
 
-	public LFileEntity putFileProps(@NonNull LFileEntity file) {
+	public LFile putFileProps(@NonNull LFile file) {
 		Log.i(TAG, String.format("PUT FILE PROPS called with fileUID='%s'", file.fileuid));
 
 		//Check if the block repo is missing any blocks from the blockset
@@ -171,7 +171,7 @@ public class LocalRepo {
 	public InputStream getFileContents(UUID fileUID) throws IOException {
 		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
 
-		LFileEntity file = getFileProps(fileUID);
+		LFile file = getFileProps(fileUID);
 		List<String> blockList = file.fileblocks;
 
 		ContentResolver contentResolver = MyApplication.getAppContext().getContentResolver();
@@ -185,9 +185,9 @@ public class LocalRepo {
 	}
 
 
-	public LFileEntity putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws FileNotFoundException {
+	public LFile putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws FileNotFoundException {
 		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
-		LFileEntity file = getFileProps(fileUID);
+		LFile file = getFileProps(fileUID);
 
 		System.out.println("\n\n\n\n");
 		System.out.println("Local URL is "+source);
@@ -206,9 +206,9 @@ public class LocalRepo {
 	}
 
 
-	public LFileEntity putFileContents(@NonNull UUID fileUID, @NonNull String contents) throws FileNotFoundException {
+	public LFile putFileContents(@NonNull UUID fileUID, @NonNull String contents) throws FileNotFoundException {
 		Log.i(TAG, String.format("PUT FILE CONTENTS (String) called with fileUID='%s'", fileUID));
-		LFileEntity file = getFileProps(fileUID);
+		LFile file = getFileProps(fileUID);
 
 		//Write the String to the system as a set of blocks
 		LBlockHandler.BlockSet blockSet = blockHandler.writeBytesToBlocks(contents.getBytes());
@@ -237,7 +237,7 @@ public class LocalRepo {
 	//---------------------------------------------------------------------------------------------
 
 	@Nullable
-	public LBlockEntity getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
+	public LBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
 		return blockHandler.getBlockProps(blockHash);
 	}
@@ -292,14 +292,14 @@ public class LocalRepo {
 	// Journal
 	//---------------------------------------------------------------------------------------------
 
-	public List<LJournalEntity> getJournalEntriesAfter(int journalID) {
+	public List<LJournal> getJournalEntriesAfter(int journalID) {
 		Log.i(TAG, String.format("GET JOURNALS AFTER ID called with journalID='%s'", journalID));
 
-		List<LJournalEntity> journals = database.getJournalDao().loadAllAfterID(journalID);
+		List<LJournal> journals = database.getJournalDao().loadAllAfterID(journalID);
 		return journals != null ? journals : new ArrayList<>();
 	}
 
-	public List<LJournalEntity> longpollJournalEntriesAfter(int journalID) {
+	public List<LJournal> longpollJournalEntriesAfter(int journalID) {
 
 
 
@@ -307,14 +307,14 @@ public class LocalRepo {
 	}
 
 
-	public List<LJournalEntity> getJournalEntriesForFile(@NonNull UUID fileUID) {
+	public List<LJournal> getJournalEntriesForFile(@NonNull UUID fileUID) {
 		Log.i(TAG, String.format("GET JOURNALS FOR FILE called with fileUID='%s'", fileUID));
 
-		List<LJournalEntity> journals = database.getJournalDao().loadAllByFileUID(fileUID);
+		List<LJournal> journals = database.getJournalDao().loadAllByFileUID(fileUID);
 		return journals != null ? journals : new ArrayList<>();
 	}
 
-	public List<LJournalEntity> longpollJournalEntriesForFile(@NonNull UUID fileUID) {
+	public List<LJournal> longpollJournalEntriesForFile(@NonNull UUID fileUID) {
 		throw new RuntimeException("Stub!");
 	}
 
@@ -326,11 +326,11 @@ public class LocalRepo {
 
 
 	//I haven't found a great way to do this with livedata or InvalidationTracker yet
-	public List<Pair<Long, LFileEntity>> longpoll(int journalID) {
+	public List<Pair<Long, LFile>> longpoll(int journalID) {
 		//Try to get new data from the journal 6 times
 		int tries = 6;
 		do {
-			List<Pair<Long, LFileEntity>> data = longpollHelper(journalID);
+			List<Pair<Long, LFile>> data = longpollHelper(journalID);
 			if(!data.isEmpty()) return data;
 
 		} while(tries-- > 0);
@@ -339,23 +339,23 @@ public class LocalRepo {
 	}
 
 
-	private List<Pair<Long, LFileEntity>> longpollHelper(int journalID) {
+	private List<Pair<Long, LFile>> longpollHelper(int journalID) {
 		//Get all recent journals after the given journalID
-		List<LJournalEntity> recentJournals = database.getJournalDao().loadAllAfterID(journalID);
+		List<LJournal> recentJournals = database.getJournalDao().loadAllAfterID(journalID);
 
 
 		//We want all distinct fileUIDs with their greatest journalID. Journals come in sorted order.
-		Map<UUID, LJournalEntity> tempJournalMap = new HashMap<>();
-		for(LJournalEntity journal : recentJournals)
+		Map<UUID, LJournal> tempJournalMap = new HashMap<>();
+		for(LJournal journal : recentJournals)
 			tempJournalMap.put(journal.fileuid, journal);
 
 
 		//Now grab each fileUID and get the file data
-		List<LFileEntity> files = database.getFileDao().loadByUID(tempJournalMap.keySet().toArray(new UUID[0]));
+		List<LFile> files = database.getFileDao().loadByUID(tempJournalMap.keySet().toArray(new UUID[0]));
 
 
 		//Combine the journalID with the file data and sort it by journalID
-		List<Pair<Long, LFileEntity>> journalFileList = files.stream().map(f -> {
+		List<Pair<Long, LFile>> journalFileList = files.stream().map(f -> {
 			long journalIDforFile = tempJournalMap.get(f.fileuid).journalid;
 			return new Pair<>(journalIDforFile, f);
 		}).sorted(Comparator.comparing(longLFileEntityPair -> longLFileEntityPair.first)).collect(Collectors.toList());

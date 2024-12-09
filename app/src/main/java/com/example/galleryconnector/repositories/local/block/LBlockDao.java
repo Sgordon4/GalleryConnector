@@ -10,22 +10,22 @@ import java.util.List;
 @Dao
 public interface LBlockDao {
 	@Query("SELECT * FROM block LIMIT 500")
-	List<LBlockEntity> loadAll();
+	List<LBlock> loadAll();
 	@Query("SELECT * FROM block LIMIT 500 OFFSET :offset")
-	List<LBlockEntity> loadAll(int offset);
+	List<LBlock> loadAll(int offset);
 
 
 	@Query("SELECT * FROM block WHERE blockhash = :blockHash")
-	LBlockEntity loadByHash(String blockHash);
+	LBlock loadByHash(String blockHash);
 
 	@Query("SELECT * FROM block WHERE blockhash IN (:blockHashes)")
-	List<LBlockEntity> loadAllByHash(String... blockHashes);
+	List<LBlock> loadAllByHash(String... blockHashes);
 	@Query("SELECT * FROM block WHERE blockhash IN (:blockHashes)")
-	List<LBlockEntity> loadAllByHash(List<String> blockHashes);
+	List<LBlock> loadAllByHash(List<String> blockHashes);
 
 
 	@Upsert
-	List<Long> put(LBlockEntity... blocks);
+	List<Long> put(LBlock... blocks);
 
 	/*
 	@Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -36,7 +36,7 @@ public interface LBlockDao {
 	 */
 
 	@Delete
-	Integer delete(LBlockEntity... blocks);
+	Integer delete(LBlock... blocks);
 	@Query("DELETE FROM block WHERE blockhash = :blockHash")
 	Integer delete(String blockHash);
 }

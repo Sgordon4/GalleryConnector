@@ -70,11 +70,11 @@ public class SJournal {
 		SJournal that = (SJournal) object;
 		return Objects.equals(fileuid, that.fileuid) && Objects.equals(accountuid, that.accountuid) &&
 				Objects.equals(fileblocks, that.fileblocks) && Objects.equals(filehash, that.filehash) &&
-				Objects.equals(attrhash, that.attrhash);
+				Objects.equals(attrhash, that.attrhash) && Objects.equals(changetime, that.changetime);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(fileuid, accountuid, fileblocks, filehash, attrhash);
+		return Objects.hash(fileuid, accountuid, fileblocks, filehash, attrhash, changetime);
 	}
 }

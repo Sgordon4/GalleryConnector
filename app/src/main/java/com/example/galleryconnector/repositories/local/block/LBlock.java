@@ -10,10 +10,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
 import java.time.Instant;
-import java.util.Date;
 
 @Entity(tableName = "block")
-public class LBlockEntity {
+public class LBlock {
 	@PrimaryKey
 	@NonNull
 	public String blockhash;
@@ -25,7 +24,7 @@ public class LBlockEntity {
 	public Instant createtime;
 
 
-	public LBlockEntity(@NonNull String blockhash, int blocksize) {
+	public LBlock(@NonNull String blockhash, int blocksize) {
 		this.blockhash = blockhash;
 		this.blocksize = blocksize;
 		this.createtime = Instant.now();

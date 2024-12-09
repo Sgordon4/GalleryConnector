@@ -56,27 +56,27 @@ public class SyncTest {
 		handler.trySync();
 
 		//Add a few files to both local and server ------------
-		LFileEntity file1 = new LFileEntity(UUID_1);
+		LFile file1 = new LFile(UUID_1);
 		file1.isdir = true;
 		lRepo.uploadFile(file1, url, context);
 		sRepo.uploadFile(file1.toJson(), url, context);
 
-		LFileEntity file2 = new LFileEntity(UUID_2);
+		LFile file2 = new LFile(UUID_2);
 		file2.islink = true;
 		lRepo.uploadFile(file2, url, context);
 		sRepo.uploadFile(file2.toJson(), url, context);
 
-		LFileEntity file3 = new LFileEntity(UUID_3);
+		LFile file3 = new LFile(UUID_3);
 		file1.isdir = true;
 		file3.islink = true;
 		lRepo.uploadFile(file3, url, context);
 		sRepo.uploadFile(file3.toJson(), url, context);
 
-		LFileEntity file4 = new LFileEntity(UUID_4);
+		LFile file4 = new LFile(UUID_4);
 		file4.isdir = true;
 		lRepo.uploadFile(file4, url, context);
 
-		LFileEntity file5 = new LFileEntity(UUID_5);
+		LFile file5 = new LFile(UUID_5);
 		file5.islink = true;
 		sRepo.uploadFile(file5.toJson(), url, context);
 

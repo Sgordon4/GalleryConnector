@@ -9,17 +9,17 @@ import androidx.room.RoomDatabase;
 import androidx.room.TypeConverters;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
-import com.example.galleryconnector.repositories.local.account.LAccountEntity;
+import com.example.galleryconnector.repositories.local.account.LAccount;
 import com.example.galleryconnector.repositories.local.account.LAccountDAO;
-import com.example.galleryconnector.repositories.local.block.LBlockEntity;
+import com.example.galleryconnector.repositories.local.block.LBlock;
 import com.example.galleryconnector.repositories.local.block.LBlockDao;
-import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.file.LFileDAO;
-import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
+import com.example.galleryconnector.repositories.local.journal.LJournal;
 import com.example.galleryconnector.repositories.local.journal.LJournalDao;
 
 
-@Database(entities = {LAccountEntity.class, LFileEntity.class, LJournalEntity.class, LBlockEntity.class}, version = 1)
+@Database(entities = {LAccount.class, LFile.class, LJournal.class, LBlock.class}, version = 1)
 @TypeConverters({LocalConverters.class})
 public abstract class LocalDatabase extends RoomDatabase {
 

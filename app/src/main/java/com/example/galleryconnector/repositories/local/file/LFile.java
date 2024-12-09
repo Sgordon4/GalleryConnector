@@ -18,13 +18,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
 @Entity(tableName = "file")
-public class LFileEntity {
+public class LFile {
 	@PrimaryKey
 	@NonNull
 	public UUID fileuid;
@@ -64,10 +63,10 @@ public class LFileEntity {
 
 
 	@Ignore
-	public LFileEntity(@NonNull UUID accountuid) {
+	public LFile(@NonNull UUID accountuid) {
 		this(accountuid, UUID.randomUUID());
 	}
-	public LFileEntity(@NonNull UUID fileuid, @NonNull UUID accountuid) {
+	public LFile(@NonNull UUID fileuid, @NonNull UUID accountuid) {
 		this.fileuid = fileuid;
 		this.accountuid = accountuid;
 
@@ -165,7 +164,7 @@ public class LFileEntity {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		LFileEntity that = (LFileEntity) o;
+		LFile that = (LFile) o;
 		return isdir == that.isdir && islink == that.islink && isdeleted == that.isdeleted &&
 				filesize == that.filesize && Objects.equals(fileuid, that.fileuid) &&
 				Objects.equals(accountuid, that.accountuid) && Objects.equals(userattr, that.userattr) &&

@@ -6,7 +6,7 @@ import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
-import com.example.galleryconnector.repositories.local.file.LFileEntity;
+import com.example.galleryconnector.repositories.local.file.LFile;
 import com.google.gson.JsonObject;
 
 import java.util.UUID;
@@ -30,14 +30,14 @@ public class ImportExportApi {
 
 	//Import a file to the local system from a uri.
 	//Upon a successful import, the file will be moved between local/server based on its parent.
-	public LFileEntity importFileToLocal(@NonNull UUID accountuid, @NonNull UUID parent, @NonNull Uri source) {
+	public LFile importFileToLocal(@NonNull UUID accountuid, @NonNull UUID parent, @NonNull Uri source) {
 
 		//Import the blockset to the local repository
 		LBlockHandler.BlockSet blockSet = localRepo.putBlockContents(source);
 
 
 		//Make a brand new file entity, and update its block info
-		LFileEntity file = new LFileEntity(accountuid);
+		LFile file = new LFile(accountuid);
 		file.fileblocks = blockSet.blockList;
 		file.filesize = blockSet.fileSize;
 		file.filehash = blockSet.fileHash;

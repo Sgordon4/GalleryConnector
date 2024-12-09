@@ -4,16 +4,14 @@ import android.util.Log;
 
 import com.example.galleryconnector.repositories.combined.combinedtypes.GJournal;
 import com.example.galleryconnector.repositories.local.LocalRepo;
-import com.example.galleryconnector.repositories.local.journal.LJournalEntity;
+import com.example.galleryconnector.repositories.local.journal.LJournal;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
@@ -79,7 +77,7 @@ public class SyncHandler {
 	public boolean trySync(UUID fileUID) throws ExecutionException, InterruptedException, IOException {
 		Log.i(TAG, String.format("SYNC TO SERVER called with fileUID='%s'", fileUID));
 
-		List<LJournalEntity> localJournals = localRepo.database.getJournalDao().loadAllByFileUID(fileUID);
+		List<LJournal> localJournals = localRepo.database.getJournalDao().loadAllByFileUID(fileUID);
 		List<SJournal> serverJournals = serverRepo.getJournalEntriesForFile(fileUID);
 
 		//if(localJournals.isEmpty() && serverJournals.isEmpty())
@@ -96,7 +94,7 @@ public class SyncHandler {
 		int localIndex = -1;
 		int serverIndex = -1;
 		for(int i = localJournals.size()-1; i >= 0; i--) {
-			LJournalEntity lJournal = localJournals.get(i);
+			LJournal lJournal = localJournals.get(i);
 
 			for(int j = serverJournals.size()-1; j >= 0; j--) {
 				SJournal sJournal = serverJournals.get(j);
@@ -135,7 +133,7 @@ public class SyncHandler {
 		}
 		//Otherwise, both have updates and we need to merge
 		else {
-			LJournalEntity local = localJournals.get(localIndex);
+			LJournal local = localJournals.get(localIndex);
 			SJournal server = serverJournals.get(serverIndex);
 
 			merge(local, server);
@@ -149,7 +147,7 @@ public class SyncHandler {
 
 	//Merging is going to take a significant amount of effort, so for now we're doing last writer wins.
 	//Maybe we should just always copy from Server. Idk.
-	public void merge(LJournalEntity local, SJournal server) throws IOException {
+	public void merge(LJournal local, SJournal server) throws IOException {
 		//TODO Don't know if these date conversions work from the different sql
 		// Might need to convert to epoch during sql gets
 		Instant localInstant = local.changetime;
@@ -162,7 +160,7 @@ public class SyncHandler {
 	}
 
 
-	private boolean entriesMatch(LJournalEntity local, SJournal server) {
+	private boolean entriesMatch(LJournal local, SJournal server) {
 		GJournal localJournal = new Gson().fromJson(local.toJson(), GJournal.class);
 		GJournal serverJournal = new Gson().fromJson(server.toJson(), GJournal.class);
 		return localJournal.equals(serverJournal);
@@ -173,14 +171,14 @@ public class SyncHandler {
 
 	public void trySyncAll() throws ExecutionException, InterruptedException, IOException {
 		//Get all new journal entries
-		List<LJournalEntity> localJournals = localRepo.database.getJournalDao().loadAllAfterID(lastSyncLocalID);
+		List<LJournal> localJournals = localRepo.database.getJournalDao().loadAllAfterID(lastSyncLocalID);
 		List<SJournal> serverJournals = serverRepo.getJournalEntriesAfter(lastSyncServerID);
 
 
 		//We just want the fileUIDs of the new journal entries
 		HashSet<UUID> fileUIDs = new HashSet<>();
 
-		for(LJournalEntity journal : localJournals) {
+		for(LJournal journal : localJournals) {
 			if(journal == null) continue;
 			fileUIDs.add(journal.fileuid);
 		}

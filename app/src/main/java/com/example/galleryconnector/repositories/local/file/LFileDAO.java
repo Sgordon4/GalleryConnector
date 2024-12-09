@@ -6,8 +6,6 @@ import androidx.room.Delete;
 import androidx.room.Query;
 import androidx.room.Upsert;
 
-import com.google.common.util.concurrent.ListenableFuture;
-
 import java.util.List;
 import java.util.UUID;
 
@@ -24,30 +22,30 @@ https://medium.com/@stephenja/timestamps-with-android-room-f3fd57b48250
 public interface LFileDAO {
 	//Mostly for testing
 	@Query("SELECT * FROM file LIMIT 500")
-	List<LFileEntity> loadAll();
+	List<LFile> loadAll();
 	@Query("SELECT * FROM file LIMIT 500  OFFSET :offset")
-	List<LFileEntity> loadAll(int offset);
+	List<LFile> loadAll(int offset);
 
 	@Query("SELECT * FROM file WHERE accountuid IN (:accountuids) LIMIT 500")
-	List<LFileEntity> loadAllByAccount(UUID... accountuids);
+	List<LFile> loadAllByAccount(UUID... accountuids);
 	@Query("SELECT * FROM file WHERE accountuid IN (:accountuids) LIMIT 500 OFFSET :offset")
-	List<LFileEntity> loadAllByAccount(int offset, UUID... accountuids);
+	List<LFile> loadAllByAccount(int offset, UUID... accountuids);
 
 
 	@Nullable
 	@Query("SELECT * FROM file WHERE fileuid = :fileUID")
-	LFileEntity loadByUID(UUID fileUID);
+	LFile loadByUID(UUID fileUID);
 	@Query("SELECT * FROM file WHERE fileuid IN (:fileUIDs)")
-	List<LFileEntity> loadByUID(UUID... fileUIDs);
+	List<LFile> loadByUID(UUID... fileUIDs);
 
 
 
 	@Upsert
-	List<Long> put(LFileEntity... files);
+	List<Long> put(LFile... files);
 
 
 	@Delete
-	Integer delete(LFileEntity... files);
+	Integer delete(LFile... files);
 	@Query("DELETE FROM file WHERE fileuid IN (:fileUIDs)")
 	Integer delete(UUID... fileUIDs);
 }
