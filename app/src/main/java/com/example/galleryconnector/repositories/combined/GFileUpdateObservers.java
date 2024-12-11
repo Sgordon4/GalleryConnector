@@ -14,6 +14,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 public class GFileUpdateObservers {
@@ -25,8 +26,13 @@ public class GFileUpdateObservers {
 		listeners = new ArrayList<>();
 		this.syncHandler = SyncHandler.getInstance();
 
-		attachToLocal(lRepo);
-		attachToServer(sRepo);
+		//TODO Get these through the system using syncHandler
+		int localJournalStartID = 0;
+		int serverJournalStartID = 0;
+		UUID currentLoggedInAccount = UUID.randomUUID();	//Doesn't actually do anything atm
+
+		attachToLocal(lRepo, localJournalStartID, currentLoggedInAccount);
+		attachToServer(sRepo, serverJournalStartID, currentLoggedInAccount);
 	}
 
 
@@ -81,8 +87,8 @@ public class GFileUpdateObservers {
 
 
 
-	public void attachToLocal(@NonNull LocalRepo localRepo, int journalID) {
-		localRepo.setFileListener(journalID, newJournal -> {
+	public void attachToLocal(@NonNull LocalRepo localRepo, int startJournalID, UUID accountUID) {
+		localRepo.setFileListener(startJournalID, newJournal -> {
 			try {
 				//Get the file that the journal is linked to	TODO Authenticate
 				LFile file = localRepo.getFileProps(newJournal.fileuid);
@@ -97,7 +103,7 @@ public class GFileUpdateObservers {
 			}
 		});
 	}
-	public void attachToServer(@NonNull ServerRepo serverRepo) {
+	public void attachToServer(@NonNull ServerRepo serverRepo, int startJournalID, UUID accountUID) {
 		ServerFileObservers.SFileObservable sFileChangedObs = (journalID, serverFile) -> {
 			//Notify listeners
 			GFile file = new Gson().fromJson(serverFile.toJson(), GFile.class);
@@ -105,6 +111,7 @@ public class GFileUpdateObservers {
 		};
 
 		serverRepo.addObserver(sFileChangedObs);
+		serverRepo.startListening(startJournalID, accountUID);
 	}
 
 

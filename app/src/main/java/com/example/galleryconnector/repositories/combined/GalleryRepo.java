@@ -77,12 +77,6 @@ public class GalleryRepo {
 		observers.removeObserver(observer);
 	}
 
-	public void startListening(int journalID, UUID accountUID) {
-		//observers.startListening(journalID, accountUID);
-	}
-	public void stopListening() {
-		//observers.stopListening();
-	}
 
 	//---------------------------------------------------------------------------------------------
 	// Account
