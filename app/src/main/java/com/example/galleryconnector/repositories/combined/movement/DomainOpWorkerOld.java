@@ -16,26 +16,22 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 
-public class DomainOpWorker extends Worker {
+public class DomainOpWorkerOld extends Worker {
 	private static final String TAG = "Gal.DOp";
 	private final DomainAPI domainAPI;
 
 
-	public DomainOpWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
+	public DomainOpWorkerOld(@NonNull Context context, @NonNull WorkerParameters workerParams) {
 		super(context, workerParams);
 		domainAPI = DomainAPI.getInstance();
 	}
 
 
 	//TODO Make sure this reruns if no internet
-
-	//TODO Just set all this up via queue, especially the skipping part below. Then launch the job and,
-	// if fails (due to internet issue only), just put it at end of queue. 
 
 	@NonNull
 	@Override

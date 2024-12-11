@@ -14,12 +14,16 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.stream.Collectors;
 
 
 public class DomainAPI {
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
+
+	//TODO Persist this somehow, maybe with shared prefs, maybe with https://square.github.io/tape/
+	private BlockingQueue queue;
 
 
 	public static DomainAPI getInstance() {
@@ -62,6 +66,14 @@ public class DomainAPI {
 		}
 	}
 
+
+	private void test() {
+		int mask = Operation.COPY_TO_LOCAL.flag & Operation.COPY_TO_SERVER.flag;
+		if((mask & Operation.COPY_TO_LOCAL.flag) > 0)
+			System.out.println("True");
+		else
+			System.out.println("False");
+	}
 
 
 	//TODO Make sure when these are queued, they're appended AFTER any existing work for the file
