@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined.movement;
+package com.example.galleryconnector.repositories.combined.movement.old;
 
 import android.content.Context;
 import android.util.Log;
@@ -11,6 +11,8 @@ import androidx.work.WorkQuery;
 import androidx.work.WorkRequest;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
+
+import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 
 import java.io.IOException;
 import java.util.Collections;

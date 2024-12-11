@@ -58,6 +58,8 @@ public class ServerRepo {
 	private final ServerFileObservers observers;
 
 
+	//TODO Perhaps pass along a timeout, maybe just for longpoll?
+
 	public ServerRepo() {
 		client = new OkHttpClient().newBuilder()
 				.addInterceptor(new LogInterceptor())

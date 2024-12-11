@@ -450,16 +450,18 @@ public class GalleryRepo {
 
 
 	public void copyFileToLocal(@NonNull UUID fileuid) {
-		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-
-		OneTimeWorkRequest.Builder builder = domainAPI.buildWorker(fileuid, DomainAPI.Operation.COPY_TO_LOCAL);
-		workManager.enqueue(builder.build());
+		try {
+			domainAPI.enqueue(fileuid, DomainAPI.COPY_TO_LOCAL);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 	}
 	public void copyFileToServer(@NonNull UUID fileuid) {
-		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-
-		OneTimeWorkRequest.Builder builder = domainAPI.buildWorker(fileuid, DomainAPI.Operation.COPY_TO_SERVER);
-		workManager.enqueue(builder.build());
+		try {
+			domainAPI.enqueue(fileuid, DomainAPI.COPY_TO_SERVER);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	protected ListenableFuture<Boolean> copyFileToLocalImmediate(@NonNull UUID fileuid) {
@@ -471,16 +473,18 @@ public class GalleryRepo {
 
 
 	public void removeFileFromLocal(@NonNull UUID fileuid) {
-		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-
-		OneTimeWorkRequest.Builder builder = domainAPI.buildWorker(fileuid, DomainAPI.Operation.REMOVE_FROM_LOCAL);
-		workManager.enqueue(builder.build());
+		try {
+			domainAPI.enqueue(fileuid, DomainAPI.REMOVE_FROM_LOCAL);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 	}
 	public void removeFileFromServer(@NonNull UUID fileuid) {
-		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-
-		OneTimeWorkRequest.Builder builder = domainAPI.buildWorker(fileuid, DomainAPI.Operation.REMOVE_FROM_SERVER);
-		workManager.enqueue(builder.build());
+		try {
+			domainAPI.enqueue(fileuid, DomainAPI.REMOVE_FROM_SERVER);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }
 
