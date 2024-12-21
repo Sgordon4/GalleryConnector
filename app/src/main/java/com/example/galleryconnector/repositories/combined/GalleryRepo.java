@@ -198,11 +198,15 @@ public class GalleryRepo {
 	}
 
 	public ListenableFuture<Boolean> putFilePropsServer(@NonNull GFile gFile) {
+		return putFilePropsServer(gFile, null, null);
+	}
+	public ListenableFuture<Boolean> putFilePropsServer(@NonNull GFile gFile,
+												@Nullable String prevFileHash, @Nullable String prevAttrHash) {
 		return executor.submit(() -> {
 			SFile file = gFile.toServerFile();
 
 			try {
-				serverRepo.putFileProps(file);
+				serverRepo.putFileProps(file, prevFileHash, prevAttrHash);
 			} catch (ConnectException | SocketTimeoutException e) {
 				Log.e(TAG, "TIMEOUT in putFileProps");
 				return false;

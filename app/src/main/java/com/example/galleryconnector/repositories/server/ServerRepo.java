@@ -140,7 +140,8 @@ public class ServerRepo {
 	}
 
 
-	public void putFileProps(@NonNull SFile fileProps) throws ConnectException, SocketTimeoutException {
+	public void putFileProps(@NonNull SFile fileProps, @Nullable String prevFileHash, @Nullable String prevAttrHash)
+			throws ConnectException, SocketTimeoutException {
 		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", fileProps.fileuid));
 
 		//Check if the block repo is missing any blocks from the blockset
@@ -159,7 +160,7 @@ public class ServerRepo {
 
 		//Now that we've confirmed all blocks exist, create/update the file metadata
 		try {
-			fileConn.upsert(fileProps);
+			fileConn.upsert(fileProps, prevFileHash, prevAttrHash);
 		} catch (ConnectException | SocketTimeoutException e) {
 			throw e;
 		} catch (IOException e) {

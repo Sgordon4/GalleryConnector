@@ -3,6 +3,7 @@ package com.example.galleryconnector.repositories.server.connectors;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.google.gson.Gson;
@@ -15,6 +16,7 @@ import com.google.gson.JsonSerializer;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.time.Instant;
@@ -23,6 +25,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 import okhttp3.FormBody;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -112,9 +115,20 @@ public class FileConnector {
 
 
 	//Create or update a file entry in the database
-	public boolean upsert(@NonNull SFile file) throws IOException {
+	public boolean upsert(@NonNull SFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash) throws IOException {
 		//Log.i(TAG, "\nUPSERT FILE called");
-		String url = Paths.get(baseServerUrl, "files", "upsert").toString();
+
+		//Alongside the usual url, send fileHash and attrHash as query params if applicable
+		String base = Paths.get(baseServerUrl, "files", "upsert").toString();
+		HttpUrl.Builder httpBuilder = HttpUrl.parse(base).newBuilder();
+
+		if(prevFileHash != null)
+			httpBuilder.addQueryParameter("prevfilehash", prevFileHash);
+		if(prevAttrHash != null)
+			httpBuilder.addQueryParameter("prevattrhash", prevAttrHash);
+
+		URL url = httpBuilder.build().url();
+
 		
 
 		//Note: We would check that file properties contain fileuid & accountuid, but both are NonNull in obj def
@@ -130,6 +144,9 @@ public class FileConnector {
 				builder.add(key, String.valueOf(props.get(key)).replace("\"", "'"));
 		}
 		RequestBody body = builder.build();
+
+
+
 
 
 		Request request = new Request.Builder().url(url).put(body).build();

@@ -144,7 +144,7 @@ public class LocalRepo {
 	}
 
 
-	public LFile putFileProps(@NonNull LFile file) {
+	public LFile putFileProps(@NonNull LFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash) {
 		Log.i(TAG, String.format("PUT FILE PROPS called with fileUID='%s'", file.fileuid));
 
 		//Check if the block repo is missing any blocks from the blockset
@@ -155,6 +155,18 @@ public class LocalRepo {
 		//If any are missing, we can't commit the file changes
 		if(!missingBlocks.isEmpty())
 			throw new IllegalStateException("Missing blocks: "+missingBlocks);
+
+
+		//Make sure the hashes match if any were passed
+		LFile oldFile = database.getFileDao().loadByUID(file.fileuid);
+
+		if(oldFile != null) {
+			if(prevFileHash != null && !oldFile.filehash.equals(prevFileHash))
+				throw new IllegalStateException(String.format("File contents hash doesn't match for fileUID='%s'", oldFile.fileuid));
+			if(prevAttrHash != null && !oldFile.attrhash.equals(prevAttrHash))
+				throw new IllegalStateException(String.format("File attributes hash doesn't match for fileUID='%s'", oldFile.fileuid));
+		}
+
 
 		//Now that we've confirmed all blocks exist, create/update the file metadata:
 
