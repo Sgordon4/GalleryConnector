@@ -204,7 +204,7 @@ public class DomainAPI {
 
 		//Now that the blockset is uploaded, put the file metadata into the local database
 		LFile file = new Gson().fromJson(serverFileProps.toJson(), LFile.class);
-		localRepo.putFileProps(file);
+		localRepo.putFileProps(file, null, null);
 
 		return true;
 	}
@@ -245,7 +245,7 @@ public class DomainAPI {
 
 		//Now that the blockset is uploaded, create/update the file metadata
 		SFile fileProps = new Gson().fromJson(file.toJson(), SFile.class);
-		serverRepo.putFileProps(fileProps);
+		serverRepo.putFileProps(fileProps, null, null);
 
 		return true;
 	}

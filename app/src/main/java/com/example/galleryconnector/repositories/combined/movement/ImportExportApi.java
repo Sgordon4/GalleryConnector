@@ -43,7 +43,7 @@ public class ImportExportApi {
 		file.filehash = blockSet.fileHash;
 
 		//Write the new file entity to the database
-		localRepo.putFileProps(file);
+		localRepo.putFileProps(file, null, null);
 
 
 

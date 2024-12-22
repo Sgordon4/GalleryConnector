@@ -2,11 +2,15 @@ package com.example.galleryconnector.repositories.combined.sync;
 
 import android.util.Log;
 
+import com.example.galleryconnector.repositories.combined.GalleryRepo;
+import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GJournal;
 import com.example.galleryconnector.repositories.local.LocalRepo;
+import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.journal.LJournal;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.server.ServerRepo;
+import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.Gson;
 
@@ -14,6 +18,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -23,6 +28,7 @@ public class SyncHandler {
 	private int lastSyncLocalID;
 	private int lastSyncServerID;
 
+	private final GalleryRepo galleryRepo;
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
 
@@ -39,6 +45,7 @@ public class SyncHandler {
 		lastSyncLocalID = 0;
 		lastSyncServerID = 0;
 
+		galleryRepo = GalleryRepo.getInstance();
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
 
@@ -76,6 +83,56 @@ public class SyncHandler {
 	//Returns true if data was written, false if not
 	public boolean trySync(UUID fileUID) throws ExecutionException, InterruptedException, IOException {
 		Log.i(TAG, String.format("SYNC TO SERVER called with fileUID='%s'", fileUID));
+
+		//Get props
+		//Check hashes
+		//Get contents
+		//Merge
+		//Write with hash included
+
+		//Get the file from both repositories
+		LFile localFile = localRepo.getFileProps(fileUID);
+		if(localFile == null) return false;
+		SFile serverFile = serverRepo.getFileProps(fileUID);
+		if(serverFile == null) return false;
+
+
+		//If the hashes of both files match, nothing needs to be synced
+		if(Objects.equals(localFile.attrhash, serverFile.attrhash))
+			return false;
+		//If attrHash doesn't match, but fileHash does, the file contents are the same but other props are different
+		else if(Objects.equals(localFile.filehash, serverFile.filehash)) {
+			//We're just going with a last writer wins for now TODO Remake this
+
+			//TODO Add IllegalState errors
+			//Write whichever properties are most recent to their opposite repository
+			if(localFile.changetime.isAfter(serverFile.changetime))
+				galleryRepo.putFilePropsServer(GFile.fromLocalFile(localFile), null, serverFile.attrhash);	//Local is more recent
+			else
+				galleryRepo.putFilePropsLocal(GFile.fromServerFile(serverFile), null, localFile.attrhash);	//Server is more recent
+
+			return true;
+		}
+
+
+		//TODO We need to compare journals to see if this was just an update. 
+
+
+		//If the fileHashes differ, we unfortunately need to merge. TODO This can be improved with the use of previous Journal entries in each repo
+
+		//Get the contents of each file so we can merge them
+		//I'm pretty much just assuming any merges will be with small text files
+		String localFileContents
+
+
+
+
+
+
+
+
+
+
 
 		List<LJournal> localJournals = localRepo.database.getJournalDao().loadAllByFileUID(fileUID);
 		List<SJournal> serverJournals = serverRepo.getJournalEntriesForFile(fileUID);

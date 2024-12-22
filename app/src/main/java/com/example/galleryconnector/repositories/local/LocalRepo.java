@@ -144,7 +144,7 @@ public class LocalRepo {
 	}
 
 
-	public LFile putFileProps(@NonNull LFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash) {
+	public LFile putFileProps(@NonNull LFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash) throws IllegalStateException {
 		Log.i(TAG, String.format("PUT FILE PROPS called with fileUID='%s'", file.fileuid));
 
 		//Check if the block repo is missing any blocks from the blockset

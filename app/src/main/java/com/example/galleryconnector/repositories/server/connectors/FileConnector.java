@@ -115,7 +115,8 @@ public class FileConnector {
 
 
 	//Create or update a file entry in the database
-	public boolean upsert(@NonNull SFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash) throws IOException {
+	public boolean upsert(@NonNull SFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash)
+			throws IOException, IllegalStateException {
 		//Log.i(TAG, "\nUPSERT FILE called");
 
 		//Alongside the usual url, send fileHash and attrHash as query params if applicable
@@ -151,6 +152,8 @@ public class FileConnector {
 
 		Request request = new Request.Builder().url(url).put(body).build();
 		try (Response response = client.newCall(request).execute()) {
+			if(response.code() == 419)
+				throw new IllegalStateException("PrevHashes do not match with latest properties!");
 			if (!response.isSuccessful())
 				throw new IOException("Unexpected code " + response.code());
 			if(response.body() == null)

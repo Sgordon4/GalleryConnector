@@ -210,7 +210,10 @@ public class GalleryRepo {
 
 			try {
 				serverRepo.putFileProps(file, prevFileHash, prevAttrHash);
-			} catch (ConnectException | SocketTimeoutException e) {
+			} catch (IllegalStateException e) {
+				Log.e(TAG, "PrevHashes do not match in putFileProps");
+				return false;
+			}catch (ConnectException | SocketTimeoutException e) {
 				Log.e(TAG, "TIMEOUT in putFileProps");
 				return false;
 			}
