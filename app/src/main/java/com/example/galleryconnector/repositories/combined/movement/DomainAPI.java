@@ -184,6 +184,44 @@ public class DomainAPI {
 		//Get the blockset of the file
 		List<String> blockset = serverFileProps.fileblocks;
 
+		//And download them all from the server
+		copyBlocksToLocal(blockset);
+
+
+		//Now that the blockset is uploaded, put the file metadata into the local database
+		LFile file = new Gson().fromJson(serverFileProps.toJson(), LFile.class);
+		localRepo.putFileProps(file, null, null);
+
+		return true;
+	}
+
+
+	public boolean copyFileToServer(@NonNull UUID fileuid) throws IOException {
+		//Get the file properties from the local database
+		LFile file = localRepo.getFileProps(fileuid);
+		if(file == null)
+			throw new FileNotFoundException("File not found locally! fileuid="+fileuid);
+
+
+		//Get the blockset of the file
+		List<String> blockset = file.fileblocks;
+
+		//And send them all to the server
+		copyBlocksToServer(blockset);
+
+
+		//Now that the blockset is uploaded, create/update the file metadata
+		SFile fileProps = new Gson().fromJson(file.toJson(), SFile.class);
+		serverRepo.putFileProps(fileProps, null, null);
+
+		return true;
+	}
+
+
+	//---------------------------------------------------
+
+
+	public void copyBlocksToLocal(@NonNull List<String> blockset) throws IOException {
 		List<String> missingBlocks;
 		do {
 			//Find if local is missing any blocks from the server file's blockset
@@ -200,54 +238,25 @@ public class DomainAPI {
 				localRepo.putBlockContents(blockData);
 			}
 		} while(!missingBlocks.isEmpty());
-
-
-		//Now that the blockset is uploaded, put the file metadata into the local database
-		LFile file = new Gson().fromJson(serverFileProps.toJson(), LFile.class);
-		localRepo.putFileProps(file, null, null);
-
-		return true;
 	}
 
-	//---------------------------------------------------
-
-	public boolean copyFileToServer(@NonNull UUID fileuid) throws IOException {
-		//Get the file properties from the local database
-		LFile file = localRepo.getFileProps(fileuid);
-		if(file == null)
-			throw new FileNotFoundException("File not found locally! fileuid="+fileuid);
-
-
-		//Get the blockset of the file
-		List<String> blockset = file.fileblocks;
-
+	public void copyBlocksToServer(@NonNull List<String> blockset) throws IOException {
 		List<String> missingBlocks;
-		try {
-			do {
-				//Find if the server is missing any blocks from the local file's blockset
-				missingBlocks = blockset.stream()
-						.filter( b -> !serverRepo.getBlockPropsExist(b) )
-						.collect(Collectors.toList());
+		do {
+			//Find if the server is missing any blocks from the local file's blockset
+			missingBlocks = blockset.stream()
+					.filter( b -> !serverRepo.getBlockPropsExist(b) )
+					.collect(Collectors.toList());
 
-				//For each block the server is missing...
-				for(String block : missingBlocks) {
-					//Read the block data from local block storage
-					byte[] blockData = localRepo.getBlockContents(block);
+			//For each block the server is missing...
+			for(String block : missingBlocks) {
+				//Read the block data from local block storage
+				byte[] blockData = localRepo.getBlockContents(block);
 
-					//And upload the data to the server
-					serverRepo.putBlockContents(blockData);
-				}
-			} while(!missingBlocks.isEmpty());
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-
-
-		//Now that the blockset is uploaded, create/update the file metadata
-		SFile fileProps = new Gson().fromJson(file.toJson(), SFile.class);
-		serverRepo.putFileProps(fileProps, null, null);
-
-		return true;
+				//And upload the data to the server
+				serverRepo.putBlockContents(blockData);
+			}
+		} while(!missingBlocks.isEmpty());
 	}
 
 
