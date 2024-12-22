@@ -197,6 +197,7 @@ public class ServerRepo {
 
 
 	//More of a helper method
+	//DOES NOT UPDATE FILE PROPERTIES
 	//Given a Uri, parse its contents into an evenly chunked set of blocks and write them to disk
 	//Find the fileSize and SHA-256 fileHash while we do so.
 	public SFile putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws IOException {
@@ -240,8 +241,9 @@ public class ServerRepo {
 		}
 
 
+		//DO NOT
 		//Update the file information in the system
-		putFileProps(file);
+		//putFileProps(file);
 		return file;
 	}
 

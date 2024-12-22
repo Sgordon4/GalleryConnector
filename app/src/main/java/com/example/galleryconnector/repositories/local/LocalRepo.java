@@ -197,6 +197,7 @@ public class LocalRepo {
 	}
 
 
+	//DOES NOT UPDATE FILE PROPERTIES
 	public LFile putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws FileNotFoundException {
 		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
 		LFile file = getFileProps(fileUID);
@@ -212,12 +213,14 @@ public class LocalRepo {
 		file.filesize = blockSet.fileSize;
 		file.filehash = blockSet.fileHash;
 
+		//DO NOT
 		//And update the file information
-		file = putFileProps(file);
+		//file = putFileProps(file);
 		return file;
 	}
 
 
+	//DOES NOT UPDATE FILE PROPERTIES
 	public LFile putFileContents(@NonNull UUID fileUID, @NonNull String contents) throws FileNotFoundException {
 		Log.i(TAG, String.format("PUT FILE CONTENTS (String) called with fileUID='%s'", fileUID));
 		LFile file = getFileProps(fileUID);
@@ -230,8 +233,9 @@ public class LocalRepo {
 		file.filesize = blockSet.fileSize;
 		file.filehash = blockSet.fileHash;
 
+		//DO NOT
 		//And update the file information
-		putFileProps(file);
+		//putFileProps(file);
 		return file;
 	}
 

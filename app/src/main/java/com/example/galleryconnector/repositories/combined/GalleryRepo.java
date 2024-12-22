@@ -188,11 +188,14 @@ public class GalleryRepo {
 	}
 
 
-
 	public ListenableFuture<Boolean> putFilePropsLocal(@NonNull GFile gFile) {
+		return putFilePropsLocal(gFile, null, null);
+	}
+	public ListenableFuture<Boolean> putFilePropsLocal(@NonNull GFile gFile,
+											   @Nullable String prevFileHash, @Nullable String prevAttrHash) {
 		return executor.submit(() -> {
 			LFile file = gFile.toLocalFile();
-			localRepo.putFileProps(file);
+			localRepo.putFileProps(file, prevFileHash, prevAttrHash);
 			return true;
 		});
 	}
@@ -217,21 +220,23 @@ public class GalleryRepo {
 
 
 
-	public ListenableFuture<Boolean> putFileContentsLocal(@NonNull UUID fileUID, @NonNull Uri source) {
+	//DOES NOT UPDATE FILE PROPERTIES
+	public ListenableFuture<GFile> putFileContentsLocal(@NonNull UUID fileUID, @NonNull Uri source) {
 		return executor.submit(() -> {
-			localRepo.putFileContents(fileUID, source);
-			return true;
+			LFile file = localRepo.putFileContents(fileUID, source);
+			return GFile.fromLocalFile(file);
 		});
 	}
-	public ListenableFuture<Boolean> putFileContentsServer(@NonNull UUID fileUID, @NonNull Uri source) {
+	//DOES NOT UPDATE FILE PROPERTIES
+	public ListenableFuture<GFile> putFileContentsServer(@NonNull UUID fileUID, @NonNull Uri source) {
 		return executor.submit(() -> {
 			try {
-				serverRepo.putFileContents(fileUID, source);
+				SFile file = serverRepo.putFileContents(fileUID, source);
+				return GFile.fromServerFile(file);
 			} catch (ConnectException | SocketTimeoutException e) {
 				Log.e(TAG, "TIMEOUT in putFileContents");
-				return false;
+				return null;
 			}
-			return true;
 		});
 	}
 
