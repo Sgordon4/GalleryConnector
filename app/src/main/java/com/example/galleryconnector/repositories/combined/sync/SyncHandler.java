@@ -81,6 +81,7 @@ public class SyncHandler {
 	Also, our merge rn is just last writer wins.
 	*/
 
+	//TODO If fail, add back to queue. Need to do some exception testing before that though.
 	//Returns true if data was written, false if not
 	public boolean trySync(UUID fileUID) throws ExecutionException, InterruptedException, IOException {
 		Log.i(TAG, String.format("SYNC TO SERVER called with fileUID='%s'", fileUID));
