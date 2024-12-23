@@ -2,13 +2,20 @@ package com.example.galleryconnector.repositories.combined.sync;
 
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+import androidx.work.Data;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
+import androidx.work.WorkRequest;
+
+import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GJournal;
+import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.journal.LJournal;
-import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.example.galleryconnector.repositories.server.servertypes.SJournal;
@@ -17,17 +24,18 @@ import com.google.gson.Gson;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+
 
 public class SyncHandler {
 	private static final String TAG = "Gal.SRepo.Sync";
 
+	//TODO Figure out how to persist these two (SharedPreferences? DataStore?)
 	private int lastSyncLocalID;
 	private int lastSyncServerID;
 	private final SyncQueue syncQueue;
@@ -39,7 +47,6 @@ public class SyncHandler {
 	private final DomainAPI domainAPI;
 
 
-	//TODO Figure out how to persist this
 
 
 
@@ -61,7 +68,63 @@ public class SyncHandler {
 
 		domainAPI = DomainAPI.getInstance();
 
+
+		//Catch up on synchronizations we've missed while the app has been closed
+		//Will only run once since this class is a singleton
+		try {
+			catchUpOnSyncing();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
+
+
+	//---------------------------------------------------------------------------------------------
+
+
+	//Actually launches n workers to execute the next n sync operations (if available)
+	public void doSomething(int times) {
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+
+		//Grab up to n items from the queue
+		List<UUID> idsToSync = syncQueue.getNextItems(times);
+
+		//For each item...
+		for(UUID id : idsToSync) {
+			//Launch the worker to perform the sync
+			WorkRequest request = buildWorker(id).build();
+			workManager.enqueue(request);
+		}
+	}
+
+
+	public OneTimeWorkRequest.Builder buildWorker(@NonNull UUID fileuid) {
+		Data.Builder data = new Data.Builder();
+		data.putString("FILEUID", fileuid.toString());
+
+		return new OneTimeWorkRequest.Builder(SyncWorker.class)
+				.setInputData(data.build())
+				.addTag(fileuid.toString());
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+
+	public void enqueue(@NonNull UUID fileuid) {
+		syncQueue.enqueue(fileuid);
+	}
+	public void enqueue(@NonNull List<UUID> fileuids) {
+		syncQueue.enqueue(fileuids);
+	}
+
+	public void dequeue(@NonNull UUID fileuid) {
+		syncQueue.dequeue(fileuid);
+	}
+	public void dequeue(@NonNull List<UUID> fileuids) {
+		syncQueue.dequeue(fileuids);
+	}
+
+	//---------------------------------------------------------------------------------------------
 
 	//TODO We don't actually update or store these yet. Right now they're always 0 and do nothing.
 	//TODO Also, this doesn't exactly work with multiple accounts atm
@@ -104,7 +167,6 @@ public class SyncHandler {
 
 
 
-		//TODO We need to compare journals to see if this was just an update.
 		List<LJournal> localJournals = localRepo.database.getJournalDao().loadAllByFileUID(fileUID);
 		List<SJournal> serverJournals = serverRepo.getJournalEntriesForFile(fileUID);
 
@@ -286,7 +348,8 @@ public class SyncHandler {
 
 	//----------------------------------------------
 
-	public void catchUpOnSyncing() throws ExecutionException, InterruptedException, IOException {
+	//TODO Do we want this to be account specific? Probably not, may as well just sync everything we've got.
+	public void catchUpOnSyncing() throws IOException {
 		//Get all new journal entries we've missed
 		List<LJournal> localJournals = localRepo.database.getJournalDao().loadAllAfterID(lastSyncLocalID);
 		List<SJournal> serverJournals = serverRepo.getJournalEntriesAfter(lastSyncServerID);
@@ -306,9 +369,8 @@ public class SyncHandler {
 		}
 
 
-		//For each fileUID, try to sync
-		for(UUID fileUID : fileUIDs) {
-			trySync(fileUID);
-		}
+		//Queue all fileUIDs for sync
+		List<UUID> fileUIDsList = new ArrayList<>(fileUIDs);
+		enqueue(fileUIDsList);
 	}
 }

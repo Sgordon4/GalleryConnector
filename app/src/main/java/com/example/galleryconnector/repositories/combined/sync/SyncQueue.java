@@ -44,6 +44,10 @@ public class SyncQueue {
 	//---------------------------------------------------------------------------------------------
 
 
+	public boolean isEmpty() {
+		return pendingSync.isEmpty();
+	}
+
 	public List<UUID> getNextItems(int items) {
 		try {
 			lock.lock();
@@ -87,6 +91,25 @@ public class SyncQueue {
 			lock.unlock();
 		}
 	}
+
+	public void dequeue(UUID item) {
+		dequeue(Collections.singletonList(item));
+	}
+	public void dequeue(List<UUID> items) {
+		try {
+			lock.lock();
+
+			//Remove the items from the set, and write the changes to disk
+			items.forEach(pendingSync::remove);
+			persistQueue();
+
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		} finally {
+			lock.unlock();
+		}
+	}
+
 
 
 	//---------------------------------------------------------------------------------------------
