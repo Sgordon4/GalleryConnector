@@ -18,8 +18,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -34,6 +36,10 @@ public class SyncHandler {
 	private final ServerRepo serverRepo;
 
 	private final DomainAPI domainAPI;
+
+	//TODO Figure out how to persist this
+	//Ordered queue
+	private final Set<UUID> pendingSync;
 
 
 	public static SyncHandler getInstance() {
@@ -51,6 +57,8 @@ public class SyncHandler {
 		serverRepo = ServerRepo.getInstance();
 
 		domainAPI = DomainAPI.getInstance();
+
+		pendingSync = new LinkedHashSet<>();
 	}
 
 	//TODO We don't actually update or store these yet. Right now they're always 0 and do nothing.

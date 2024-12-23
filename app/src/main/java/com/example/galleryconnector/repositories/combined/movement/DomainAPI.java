@@ -63,7 +63,7 @@ public class DomainAPI {
 
 
 
-	//Actually launches a worker to execute the operation on the file
+	//Actually launches n workers to execute the next n operations (if available)
 	public void doSomething(int times) throws InterruptedException {
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
 
