@@ -30,6 +30,7 @@ public class SyncHandler {
 
 	private int lastSyncLocalID;
 	private int lastSyncServerID;
+	private final SyncQueue syncQueue;
 
 	private final GalleryRepo galleryRepo;
 	private final LocalRepo localRepo;
@@ -37,9 +38,9 @@ public class SyncHandler {
 
 	private final DomainAPI domainAPI;
 
+
 	//TODO Figure out how to persist this
-	//Ordered queue
-	private final Set<UUID> pendingSync;
+
 
 
 	public static SyncHandler getInstance() {
@@ -51,6 +52,8 @@ public class SyncHandler {
 	private SyncHandler() {
 		lastSyncLocalID = 0;
 		lastSyncServerID = 0;
+		syncQueue = SyncQueue.getInstance();
+
 
 		galleryRepo = GalleryRepo.getInstance();
 		localRepo = LocalRepo.getInstance();
@@ -58,7 +61,6 @@ public class SyncHandler {
 
 		domainAPI = DomainAPI.getInstance();
 
-		pendingSync = new LinkedHashSet<>();
 	}
 
 	//TODO We don't actually update or store these yet. Right now they're always 0 and do nothing.
@@ -73,7 +75,7 @@ public class SyncHandler {
 	}
 
 
-
+	//---------------------------------------------------------------------------------------------
 
 	//Bro HOW do we do this correctly? How do other people even do this correctly? Google?
 	//We can sync all of server to local np, but then syncing local to server is a pain
@@ -284,8 +286,8 @@ public class SyncHandler {
 
 	//----------------------------------------------
 
-	public void trySyncAll() throws ExecutionException, InterruptedException, IOException {
-		//Get all new journal entries
+	public void catchUpOnSyncing() throws ExecutionException, InterruptedException, IOException {
+		//Get all new journal entries we've missed
 		List<LJournal> localJournals = localRepo.database.getJournalDao().loadAllAfterID(lastSyncLocalID);
 		List<SJournal> serverJournals = serverRepo.getJournalEntriesAfter(lastSyncServerID);
 
