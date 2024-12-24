@@ -26,9 +26,9 @@ public class GFileUpdateObservers {
 		listeners = new ArrayList<>();
 		this.syncHandler = SyncHandler.getInstance();
 
-		//TODO Get these through the system using syncHandler
-		int localJournalStartID = 0;
-		int serverJournalStartID = 0;
+		int localJournalStartID = syncHandler.getLastSyncLocal();
+		int serverJournalStartID = syncHandler.getLastSyncServer();
+
 		UUID currentLoggedInAccount = UUID.randomUUID();	//Doesn't actually do anything atm
 
 		attachToLocal(lRepo, localJournalStartID, currentLoggedInAccount);
@@ -45,69 +45,64 @@ public class GFileUpdateObservers {
 
 
 
-	//TODO Once we add in hash checking, we could skip all the sync checking mumbo jumbo and just have these call
-	// a new trySyncToServer() or trySyncToLocal() instead.
 	private void onLocalFileUpdate(int journalID, @NonNull GFile file) {
-		//Now that we know there's been an update, start a sync. OK to have multiple consecutive syncs for same file
-		try {
-			//Try to sync this file's data local <-> server
-			boolean dataWritten = syncHandler.trySync(file.fileuid);
+		//Queue this file to be synced local <-> server
+		syncHandler.enqueue(file.fileuid);
 
-			//Update the latest synced journalID
-			syncHandler.updateLastSyncLocal(journalID);
+		//Update the latest synced journalID
+		syncHandler.updateLastSyncLocal(journalID);
 
-			if(dataWritten) {
-				//Notify the observers of the update
-				notifyObservers(journalID, file);
-			}
-		} catch (ExecutionException | InterruptedException | IOException e) {
-			throw new RuntimeException(e);
-		}
+		System.out.println("Local file with journalID '"+journalID+"' updated! File: "+file.fileuid);
+
+		//Notify the observers of the update
+		notifyObservers(journalID, file);
 	}
 
 	//Perhaps on getting an update from server, compare to local (cheap) to prevent unnecessary update notifications
 	//Will probably be obsoleted once we add prevHash checking noted in the comment above
 	private void onServerFileUpdate(int journalID, @NonNull GFile file) {
-		//Now that we know there's been an update, start a sync. OK to have multiple consecutive syncs for same file
-		try {
-			//Try to sync this file's data local <-> server
-			syncHandler.enqueue(file.fileuid);
+		//Queue this file to be synced local <-> server
+		syncHandler.enqueue(file.fileuid);
 
-			//Update the latest synced journalID
-			syncHandler.updateLastSyncServer(journalID);
+		//Update the latest synced journalID
+		syncHandler.updateLastSyncServer(journalID);
 
-			if(dataWritten) {
-				//Notify the observers of the update
-				notifyObservers(journalID, file);
-			}
-		} catch (ExecutionException | InterruptedException | IOException e) {
-			throw new RuntimeException(e);
-		}
+		System.out.println("Server file with journalID '"+journalID+"' updated! File: "+file.fileuid);
+
+		//Notify the observers of the update
+		notifyObservers(journalID, file);
 	}
 
 
 
 	public void attachToLocal(@NonNull LocalRepo localRepo, int startJournalID, UUID accountUID) {
 		localRepo.setFileListener(startJournalID, newJournal -> {
-			try {
-				//Get the file that the journal is linked to	TODO Authenticate
-				LFile file = localRepo.getFileProps(newJournal.fileuid);
-				if(file == null) throw new IllegalStateException("File not found! ID: '"+newJournal.fileuid+"'");
+			Thread thread = new Thread(() -> {
+				try {
+					//Get the file that the journal is linked to	TODO Authenticate
+					LFile file = localRepo.getFileProps(newJournal.fileuid);
+					if(file == null) throw new IllegalStateException("File not found! ID: '"+newJournal.fileuid+"'");
 
-				//Notify listeners
-				GFile gFile = GFile.fromLocalFile(file);
-				onLocalFileUpdate(newJournal.journalid, gFile);
+					//Notify listeners
+					GFile gFile = GFile.fromLocalFile(file);
+					onLocalFileUpdate(newJournal.journalid, gFile);
 
-			} catch (FileNotFoundException e) {
-				throw new RuntimeException(e);
-			}
+				} catch (FileNotFoundException e) {
+					//File was likely deleted somewhere along the line
+					//throw new RuntimeException(e);
+				}
+			});
+			thread.start();
 		});
 	}
 	public void attachToServer(@NonNull ServerRepo serverRepo, int startJournalID, UUID accountUID) {
 		ServerFileObservers.SFileObservable sFileChangedObs = (journalID, serverFile) -> {
-			//Notify listeners
-			GFile file = new Gson().fromJson(serverFile.toJson(), GFile.class);
-			onServerFileUpdate(journalID, file);
+			Thread thread = new Thread(() -> {
+				//Notify listeners
+				GFile file = new Gson().fromJson(serverFile.toJson(), GFile.class);
+				onServerFileUpdate(journalID, file);
+			});
+			thread.start();
 		};
 
 		serverRepo.addObserver(sFileChangedObs);

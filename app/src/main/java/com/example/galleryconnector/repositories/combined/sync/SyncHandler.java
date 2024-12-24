@@ -69,8 +69,8 @@ public class SyncHandler {
 		domainAPI = DomainAPI.getInstance();
 
 
-		lastSyncLocalID = 0;
-		lastSyncServerID = 0;
+		lastSyncLocalID = 22;
+		lastSyncServerID = 2;
 
 
 		String appDataDir = MyApplication.getAppContext().getApplicationInfo().dataDir;
@@ -148,6 +148,13 @@ public class SyncHandler {
 	public void updateLastSyncServer(int id) {
 		if(id > lastSyncServerID)
 			lastSyncServerID = id;
+	}
+
+	public int getLastSyncLocal() {
+		return lastSyncLocalID;
+	}
+	public int getLastSyncServer() {
+		return lastSyncServerID;
 	}
 
 

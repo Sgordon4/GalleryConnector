@@ -6,6 +6,8 @@ import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -50,13 +52,25 @@ public class ServerFileObservers {
 		//Otherwise start perpetually longpolling the server for new journal entries
 		Runnable runnable = () -> {
 			int latestID = journalID;
-			try {
-				while (!Thread.currentThread().isInterrupted()) {
-					Log.v(TAG, "Longpolling...");
+			while (!Thread.currentThread().isInterrupted()) {
+				//Log.v(TAG, "Longpolling...");
+				try {
 					latestID = longpoll(latestID);
 				}
-			} catch (IOException e) {
-				throw new RuntimeException(e);
+				catch (SocketTimeoutException e) {
+					//This is supposed to happen, restart the poll
+				}
+				catch (SocketException e) {
+					//Odd, but likely a server restart. Try to restart the poll
+				}
+				catch (IOException e) {
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException ex) {
+						throw new RuntimeException(ex);
+					}
+					//throw new RuntimeException(e);
+				}
 			}
 		};
 		// Create and start the thread

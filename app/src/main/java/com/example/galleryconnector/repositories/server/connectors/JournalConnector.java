@@ -49,7 +49,7 @@ public class JournalConnector {
 
 	//Get all journal entries after a given journalID
 	public List<SJournal> getJournalEntriesAfter(int journalID) throws IOException {
-		Log.i(TAG, String.format("\nGET JOURNAL called with journalID='%s'", journalID));
+		//Log.i(TAG, String.format("\nGET JOURNAL called with journalID='%s'", journalID));
 		String url = Paths.get(baseServerUrl, "journal", ""+journalID).toString();
 
 		Request request = new Request.Builder().url(url).build();
@@ -60,30 +60,22 @@ public class JournalConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			System.out.println("\n\n\nResponse data for journalAfter: ");
-			System.out.println(responseData);
-			System.out.println("\n\n");
-
 
 			JsonArray jsonArray = gson.fromJson(responseData, JsonArray.class);
 
 			List<SJournal> journals = jsonArray.asList().stream()
-					.map(json -> {
-						System.out.println(json);
-						return gson.fromJson(json, SJournal.class);
-					})
+					.map(json -> gson.fromJson(json, SJournal.class))
 					.collect(Collectors.toList());
 
-			System.out.println("\n\n");
-			return journals;
-			//return new Gson().fromJson(responseData, new TypeToken< List<SJournal> >(){}.getType());
+			//return journals;
+			return new Gson().fromJson(responseData, new TypeToken< List<SJournal> >(){}.getType());
 		}
 	}
 
 
 	//Get all journal entries for a given fileUID
 	public List<SJournal> getJournalEntriesForFile(UUID fileUID) throws IOException {
-		Log.i(TAG, String.format("\nGET JOURNAL BY ID called with fileUID='%s'", fileUID));
+		//Log.i(TAG, String.format("\nGET JOURNAL BY ID called with fileUID='%s'", fileUID));
 		String url = Paths.get(baseServerUrl, "journal", "file", fileUID.toString()).toString();
 
 		Request request = new Request.Builder().url(url).build();
@@ -101,7 +93,7 @@ public class JournalConnector {
 
 	//LONGPOLL all journal entries after a given journalID
 	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws IOException {
-		Log.i(TAG, String.format("\nLONGPOLL JOURNAL called with journalID='%s'", journalID));
+		//Log.i(TAG, String.format("\nLONGPOLL JOURNAL called with journalID='%s'", journalID));
 		String url = Paths.get(baseServerUrl, "journal", "longpoll", ""+journalID).toString();
 
 		Request request = new Request.Builder().url(url).build();

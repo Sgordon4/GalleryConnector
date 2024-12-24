@@ -136,7 +136,7 @@ public class LocalRepo {
 
 
 	public LFile getFileProps(UUID fileUID) throws FileNotFoundException {
-		Log.i(TAG, String.format("GET FILE PROPS called with fileUID='%s'", fileUID));
+		Log.v(TAG, String.format("GET FILE PROPS called with fileUID='%s'", fileUID));
 
 		LFile file = database.getFileDao().loadByUID(fileUID);
 		if(file == null) throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");

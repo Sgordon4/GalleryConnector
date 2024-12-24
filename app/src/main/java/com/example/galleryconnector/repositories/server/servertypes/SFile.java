@@ -90,10 +90,10 @@ public class SFile {
 		sb.append(this.fileblocks);
 		sb.append(this.filesize);
 		sb.append(this.filehash);
-		sb.append(this.changetime);
-		sb.append(this.modifytime);
-		sb.append(this.accesstime);
-		sb.append(this.createtime);
+		//sb.append(this.changetime);
+		//sb.append(this.modifytime);
+		//sb.append(this.accesstime);
+		//sb.append(this.createtime);
 
 		try {
 			byte[] hash = MessageDigest.getInstance("SHA-1").digest(sb.toString().getBytes());

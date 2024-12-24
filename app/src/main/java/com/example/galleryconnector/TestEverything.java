@@ -5,8 +5,10 @@ import android.net.Uri;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
+import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
+import com.example.galleryconnector.repositories.local.journal.LJournal;
 
 
 //import org.apache.commons.io.FileUtils;
@@ -17,6 +19,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -44,6 +47,12 @@ public class TestEverything {
 	}
 
 
+	public void updateLocalSyncPointer() {
+		//Update the sync pointer since we don't persist it yet...
+		List<LJournal> journals = LocalRepo.getInstance().getJournalEntriesAfter(0);
+		System.out.println("NumJournals: ");
+		System.out.println(journals.size());
+	}
 
 
 	public void externalUriToTestFile() {
@@ -81,11 +90,14 @@ public class TestEverything {
 			grepo.putFilePropsLocal(newFile).get();
 
 			//grepo.putFileContentsLocal(fileUID, Uri.fromFile(tempFile.toFile())).get();		//Local temp file
-			grepo.putFileContentsLocal(fileUID, externalUri).get();							//WebURL
+			GFile file = grepo.putFileContentsLocal(fileUID, externalUri).get();				//WebURL
+
+			grepo.putFilePropsLocal(file);
 
 			try {
-				LFile file = LocalRepo.getInstance().getFileProps(fileUID);
-				System.out.println(file);
+				LFile actualFile = LocalRepo.getInstance().getFileProps(fileUID);
+				System.out.println("Reading actual file: ");
+				System.out.println(actualFile);
 			} catch (FileNotFoundException e) {
 				throw new RuntimeException(e);
 			}
@@ -106,10 +118,14 @@ public class TestEverything {
 
 		try {
 			GFile newFile = new GFile(fileUID, accountUID);
-			grepo.putFilePropsServer(newFile).get();
+			//grepo.putFilePropsServer(newFile).get();
 
 			//grepo.putFileContentsServer(fileUID, Uri.fromFile(tempFile.toFile())).get();		//Local temp file
-			grepo.putFileContentsServer(fileUID, externalUri).get();							//WebURL
+			GFile file = grepo.putFileContentsServer(fileUID, externalUri).get();				//WebURL
+
+			//System.out.println("Just put file contents on server, does that update shit? Don't think so...");
+
+			grepo.putFilePropsServer(file);
 
 		} catch (ExecutionException | InterruptedException e) {
 			throw new RuntimeException(e);
