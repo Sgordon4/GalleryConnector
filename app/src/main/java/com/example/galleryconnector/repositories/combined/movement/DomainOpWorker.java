@@ -27,14 +27,13 @@ public class DomainOpWorker extends Worker {
 	public Result doWork() {
 		Log.i(TAG, "DomainOpWorker doing work");
 
-
-		String operationsMapString = getInputData().getString("OPERATIONS");
-		assert operationsMapString != null;
-		Integer operationsMap = Integer.parseInt(operationsMapString);
-
 		String fileUIDString = getInputData().getString("FILEUID");
 		assert fileUIDString != null;
 		UUID fileUID = UUID.fromString(fileUIDString);
+
+		String operationsMapString = getInputData().getString("OPERATIONS");
+		assert operationsMapString != null;
+		int operationsMap = Integer.parseInt(operationsMapString);
 
 
 

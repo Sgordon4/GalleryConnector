@@ -3,6 +3,7 @@ package com.example.galleryconnector.repositories.combined.sync;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.work.Data;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
@@ -10,6 +11,7 @@ import androidx.work.WorkRequest;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
+import com.example.galleryconnector.repositories.combined.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GJournal;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
@@ -23,10 +25,14 @@ import com.google.gson.Gson;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -38,15 +44,14 @@ public class SyncHandler {
 	//TODO Figure out how to persist these two (SharedPreferences? DataStore?)
 	private int lastSyncLocalID;
 	private int lastSyncServerID;
-	private final SyncQueue syncQueue;
+
+	private final PersistedMapQueue<UUID, Nullable> pendingSync;
 
 	private final GalleryRepo galleryRepo;
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
 
 	private final DomainAPI domainAPI;
-
-
 
 
 
@@ -57,16 +62,26 @@ public class SyncHandler {
 		private static final SyncHandler INSTANCE = new SyncHandler();
 	}
 	private SyncHandler() {
-		lastSyncLocalID = 0;
-		lastSyncServerID = 0;
-		syncQueue = SyncQueue.getInstance();
-
-
 		galleryRepo = GalleryRepo.getInstance();
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
 
 		domainAPI = DomainAPI.getInstance();
+
+
+		lastSyncLocalID = 0;
+		lastSyncServerID = 0;
+
+
+		String appDataDir = MyApplication.getAppContext().getApplicationInfo().dataDir;
+		Path persistLocation = Paths.get(appDataDir, "queues", "syncQueue.txt");
+
+		pendingSync = new PersistedMapQueue<UUID, Nullable>(persistLocation) {
+			@Override
+			public UUID parseKey(String keyString) { return UUID.fromString(keyString); }
+			@Override
+			public Nullable parseVal(String valString) { return null; }
+		};
 
 
 		//Catch up on synchronizations we've missed while the app has been closed
@@ -86,13 +101,13 @@ public class SyncHandler {
 	public void doSomething(int times) {
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
 
-		//Grab up to n items from the queue
-		List<UUID> idsToSync = syncQueue.getNextItems(times);
+		//Get the next N fileUIDs that need syncing
+		List<Map.Entry<UUID, Nullable>> filesToSync = pendingSync.pop(times);
 
 		//For each item...
-		for(UUID id : idsToSync) {
+		for(Map.Entry<UUID, Nullable> entry : filesToSync) {
 			//Launch the worker to perform the sync
-			WorkRequest request = buildWorker(id).build();
+			WorkRequest request = buildWorker(entry.getKey()).build();
 			workManager.enqueue(request);
 		}
 	}
@@ -111,17 +126,19 @@ public class SyncHandler {
 	//---------------------------------------------------------------------------------------------
 
 	public void enqueue(@NonNull UUID fileuid) {
-		syncQueue.enqueue(fileuid);
+		pendingSync.enqueue(fileuid, null);
 	}
 	public void enqueue(@NonNull List<UUID> fileuids) {
-		syncQueue.enqueue(fileuids);
+		Map<UUID, Nullable> map = new LinkedHashMap<>();
+		fileuids.forEach(fileUID -> map.put(fileUID, null));
+		pendingSync.enqueue(map);
 	}
 
 	public void dequeue(@NonNull UUID fileuid) {
-		syncQueue.dequeue(fileuid);
+		pendingSync.dequeue(fileuid);
 	}
 	public void dequeue(@NonNull List<UUID> fileuids) {
-		syncQueue.dequeue(fileuids);
+		pendingSync.dequeue(fileuids);
 	}
 
 	//---------------------------------------------------------------------------------------------
@@ -138,6 +155,8 @@ public class SyncHandler {
 	}
 
 
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
 
 	//Bro HOW do we do this correctly? How do other people even do this correctly? Google?
