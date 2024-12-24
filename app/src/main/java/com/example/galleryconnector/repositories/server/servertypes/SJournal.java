@@ -30,7 +30,7 @@ public class SJournal {
 	@Nullable
 	public String attrhash;
 
-	public Instant changetime;
+	public Long changetime;
 
 
 	public SJournal(@NonNull UUID fileuid, @NonNull UUID accountuid) {

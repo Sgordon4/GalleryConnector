@@ -29,7 +29,7 @@ public class GJournal {
 	@Nullable
 	public String attrhash;
 
-	public Instant changetime;
+	public Long changetime;
 
 
 	public GJournal(@NonNull UUID fileuid, @NonNull UUID accountuid) {

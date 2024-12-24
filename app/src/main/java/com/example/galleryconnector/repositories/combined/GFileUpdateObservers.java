@@ -71,7 +71,7 @@ public class GFileUpdateObservers {
 		//Now that we know there's been an update, start a sync. OK to have multiple consecutive syncs for same file
 		try {
 			//Try to sync this file's data local <-> server
-			boolean dataWritten = syncHandler.trySync(file.fileuid);
+			syncHandler.enqueue(file.fileuid);
 
 			//Update the latest synced journalID
 			syncHandler.updateLastSyncServer(journalID);

@@ -51,7 +51,7 @@ public class LJournal {
 
 
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
-	public Instant changetime;
+	public Long changetime;
 
 
 

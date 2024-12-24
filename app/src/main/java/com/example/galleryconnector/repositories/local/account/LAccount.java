@@ -34,11 +34,11 @@ public class LAccount {
 	public boolean isdeleted;
 
 	@ColumnInfo(defaultValue = "-1")
-	public Instant logintime;
+	public Long logintime;
 	@ColumnInfo(defaultValue = "-1")
-	public Instant changetime;
+	public Long changetime;
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
-	public Instant createtime;
+	public Long createtime;
 
 
 
@@ -59,7 +59,7 @@ public class LAccount {
 
 		this.logintime = null;
 		this.changetime = null;
-		this.createtime = Instant.now();
+		this.createtime = Instant.now().toEpochMilli();
 	}
 
 
@@ -81,7 +81,7 @@ public class LAccount {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		LAccount lAccount = (LAccount) o;
-		return isdeleted == lAccount.isdeleted && logintime == lAccount.logintime && changetime == lAccount.changetime && createtime == lAccount.createtime && Objects.equals(accountuid, lAccount.accountuid) && Objects.equals(rootfileuid, lAccount.rootfileuid) && Objects.equals(email, lAccount.email) && Objects.equals(displayname, lAccount.displayname) && Objects.equals(password, lAccount.password);
+		return isdeleted == lAccount.isdeleted && Objects.equals(logintime, lAccount.logintime) && Objects.equals(changetime, lAccount.changetime) && Objects.equals(createtime, lAccount.createtime) && Objects.equals(accountuid, lAccount.accountuid) && Objects.equals(rootfileuid, lAccount.rootfileuid) && Objects.equals(email, lAccount.email) && Objects.equals(displayname, lAccount.displayname) && Objects.equals(password, lAccount.password);
 	}
 
 	@Override

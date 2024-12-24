@@ -27,9 +27,9 @@ public class GAccount {
 
 	public boolean isdeleted;
 
-	public Instant logintime;
-	public Instant changetime;
-	public Instant createtime;
+	public Long logintime;
+	public Long changetime;
+	public Long createtime;
 
 
 	public GAccount(){
@@ -47,7 +47,7 @@ public class GAccount {
 
 		this.logintime = null;
 		this.changetime = null;
-		this.createtime = Instant.now();
+		this.createtime = Instant.now().toEpochMilli();
 	}
 
 
@@ -69,7 +69,10 @@ public class GAccount {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		GAccount sAccount = (GAccount) o;
-		return isdeleted == sAccount.isdeleted && logintime == sAccount.logintime && changetime == sAccount.changetime && createtime == sAccount.createtime && Objects.equals(accountuid, sAccount.accountuid) && Objects.equals(rootfileuid, sAccount.rootfileuid) && Objects.equals(email, sAccount.email) && Objects.equals(displayname, sAccount.displayname) && Objects.equals(password, sAccount.password);
+		return isdeleted == sAccount.isdeleted && Objects.equals(logintime, sAccount.logintime) &&
+				Objects.equals(changetime, sAccount.changetime) && Objects.equals(createtime, sAccount.createtime) &&
+				Objects.equals(accountuid, sAccount.accountuid) && Objects.equals(rootfileuid, sAccount.rootfileuid) &&
+				Objects.equals(email, sAccount.email) && Objects.equals(displayname, sAccount.displayname) && Objects.equals(password, sAccount.password);
 	}
 
 	@Override

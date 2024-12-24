@@ -21,13 +21,13 @@ public class LBlock {
 	public int blocksize;
 
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
-	public Instant createtime;
+	public Long createtime;
 
 
 	public LBlock(@NonNull String blockhash, int blocksize) {
 		this.blockhash = blockhash;
 		this.blocksize = blocksize;
-		this.createtime = Instant.now();
+		this.createtime = Instant.now().toEpochMilli();
 	}
 
 

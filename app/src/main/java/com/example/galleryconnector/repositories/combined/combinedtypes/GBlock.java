@@ -13,13 +13,13 @@ public class GBlock {
 	@NonNull
 	public String blockhash;
 	public int blocksize;
-	public Instant createtime;
+	public Long createtime;
 
 
 	public GBlock(@NonNull String blockhash, int blocksize) {
 		this.blockhash = blockhash;
 		this.blocksize = blocksize;
-		this.createtime = Instant.now();
+		this.createtime = Instant.now().toEpochMilli();
 	}
 
 

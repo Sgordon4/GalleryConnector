@@ -40,6 +40,9 @@ public class MainActivity extends AppCompatActivity {
 		GalleryRepo gRepo = GalleryRepo.getInstance();
 
 		System.out.println("\n\n\n-----------------------------------------------------");
+		System.out.println("Instant: " + Instant.now());
+		System.out.println(Instant.now().toEpochMilli());
+		System.out.println("\n\n\n-----------------------------------------------------");
 
 
 		Thread thread = new Thread(() -> {

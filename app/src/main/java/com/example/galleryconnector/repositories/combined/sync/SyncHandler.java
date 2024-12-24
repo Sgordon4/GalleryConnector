@@ -204,17 +204,19 @@ public class SyncHandler {
 
 			//TODO Add IllegalState errors
 			//Write whichever properties are most recent to their opposite repository
-			if(latestLocalJournal.changetime.isAfter(latestServerJournal.changetime)) {		//If local is more recent...
+			Instant localInstant = Instant.ofEpochMilli(latestLocalJournal.changetime);
+			Instant serverInstant = Instant.ofEpochMilli(latestServerJournal.changetime);
+			if(localInstant.isAfter(serverInstant)) {										//If local is more recent...
 				LFile localChanges = localRepo.getFileProps(fileUID);						//Get changes from local
 				assert localChanges != null;
 
 				galleryRepo.putFilePropsServer(GFile.fromLocalFile(localChanges));			//And upload them to the server
 			}
-			else {                                                                            //Else, if server is more recent...
-				SFile serverChanges = serverRepo.getFileProps(fileUID);                        //Get changes from server
+			else {																			//Else, if server is more recent...
+				SFile serverChanges = serverRepo.getFileProps(fileUID);						//Get changes from server
 				assert serverChanges != null;
 
-				galleryRepo.putFilePropsLocal(GFile.fromServerFile(serverChanges));            //And upload them to local
+				galleryRepo.putFilePropsLocal(GFile.fromServerFile(serverChanges));			//And upload them to local
 			}
 
 			//Assuming the update was successful, we're done here
@@ -261,8 +263,11 @@ public class SyncHandler {
 			//I cannot be bothered, so I'm just going to do last writer wins for merging 	TODO Upgrade this
 			//Just modify the booleans to do the right copy below
 
+			Instant localInstant = Instant.ofEpochMilli(latestLocalJournal.changetime);
+			Instant serverInstant = Instant.ofEpochMilli(latestServerJournal.changetime);
+
 			//If the localRepo was updated most recently...
-			if(latestLocalJournal.changetime.isAfter(latestServerJournal.changetime))
+			if(localInstant.isAfter(serverInstant))
 				serverHasChanges = false;		//Pretend the serverRepo doesn't have changes so that they're overwritten
 			else
 				localHasChanges = false;		//Pretend the localRepo doesn't have changes so that they're overwritten
@@ -334,7 +339,8 @@ public class SyncHandler {
 		 */
 
 
-		//Data has been written, return true
+		//Data has been written, notify any observers and return true
+		galleryRepo.notify();
 		return true;
 	}
 
@@ -344,8 +350,8 @@ public class SyncHandler {
 	public void merge(LJournal local, SJournal server) throws IOException {
 		//TODO Don't know if these date conversions work from the different sql
 		// Might need to convert to epoch during sql gets
-		Instant localInstant = local.changetime;
-		Instant serverInstant = server.changetime;
+		Instant localInstant = Instant.ofEpochMilli(local.changetime);
+		Instant serverInstant = Instant.ofEpochMilli(server.changetime);
 
 		if(localInstant.isAfter(serverInstant))
 			domainAPI.copyFileToServer(local.fileuid);

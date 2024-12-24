@@ -47,11 +47,11 @@ public class SFile {
 	public String filehash;
 
 	@NonNull
-	public Instant changetime;	//Last time the file properties (database row) were changed
-	public Instant modifytime;	//Last time the file contents were modified
-	public Instant accesstime;	//Last time the file contents were accessed
+	public Long changetime;	//Last time the file properties (database row) were changed
+	public Long modifytime;	//Last time the file contents were modified
+	public Long accesstime;	//Last time the file contents were accessed
 	@NonNull
-	public Instant createtime;
+	public Long createtime;
 
 	@Nullable
 	public String attrhash;
@@ -71,10 +71,10 @@ public class SFile {
 		this.fileblocks = new ArrayList<>();
 		this.filesize = 0;
 		this.filehash = "";
-		this.changetime = Instant.now();
+		this.changetime = Instant.now().toEpochMilli();
 		this.modifytime = null;
 		this.accesstime = null;
-		this.createtime = Instant.now();
+		this.createtime = Instant.now().toEpochMilli();
 	}
 
 
