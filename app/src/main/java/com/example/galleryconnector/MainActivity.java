@@ -12,9 +12,11 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
+import com.example.galleryconnector.repositories.combined.GalleryRepo;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -35,6 +37,10 @@ public class MainActivity extends AppCompatActivity {
 		//Then we just put file once the blocks are uploaded
 
 
+		GalleryRepo gRepo = GalleryRepo.getInstance();
+
+		System.out.println("\n\n\n-----------------------------------------------------");
+
 
 		Thread thread = new Thread(() -> {
 			TestEverything everything = new TestEverything();
@@ -46,26 +52,35 @@ public class MainActivity extends AppCompatActivity {
 
 			// ----------- TESTING START -----------
 
-			//everything.importToLocal();
-			everything.importToServer();
+			everything.importToLocal();
+			//everything.importToServer();
+
+			//Display an inputStream of the file contents, from the closest repo that has it
+			//InputStream inputStream = everything.getFileContents();
+			//displayImage(inputStream);
 
 
-			System.out.println("Getting InputStream ---------------------------------------------");
-			//Get an inputStream of the file contents, from the closest repo that has it
-			InputStream inputStream = everything.getFileContents();
-
-			Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-
-
-			//And put the contents into our testing ImageView
-			ImageView view = findViewById(R.id.image);
-			view.post(() -> {
-				System.out.println("Setting Bitmap --------------------------------------------------");
-				view.setImageBitmap(bitmap);
-			});
+			everything.copyToServer();
 
 		});
 
 		thread.start();
+	}
+
+
+
+
+	private void displayImage(InputStream inputStream) {
+		System.out.println("Getting InputStream ---------------------------------------------");
+
+		Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+
+		//And put the contents into our testing ImageView
+		ImageView view = findViewById(R.id.image);
+		view.post(() -> {
+			System.out.println("Setting Bitmap --------------------------------------------------");
+			view.setImageBitmap(bitmap);
+		});
 	}
 }

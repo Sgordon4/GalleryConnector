@@ -153,8 +153,10 @@ public abstract class PersistedMapQueue<K, V> {
 
 	private void persistQueue() throws IOException {
 		//Make sure the file exists
-		if(!Files.exists(persistLocation))
+		if(!Files.exists(persistLocation)) {
+			Files.createDirectories(persistLocation.getParent());
 			Files.createFile(persistLocation);
+		}
 
 		// Convert the LinkedHashMap to a List and write it to the file, preserving ordering
 		List<String> lines = pendingItems.entrySet().stream()

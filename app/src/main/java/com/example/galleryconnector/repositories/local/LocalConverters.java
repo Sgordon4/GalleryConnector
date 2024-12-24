@@ -3,7 +3,11 @@ package com.example.galleryconnector.repositories.local;
 import androidx.room.TypeConverter;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 
 import java.lang.reflect.Type;
@@ -72,14 +76,37 @@ public class LocalConverters {
 
 	//---------------------------------------------------------------------------------------------
 
+	private static final Gson gson = new GsonBuilder()
+			.registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) ->
+					Instant.parse(json.getAsString()))
+			.registerTypeAdapter(Instant.class, (JsonSerializer<Instant>) (instant, type, jsonSerializationContext) ->
+					new JsonPrimitive(instant.toString()
+					))
+			.create();
+
 	@TypeConverter
 	public static Instant toInstant(String value) {
-		return (value == null) ? null : Instant.parse(value);
+		//return (value == null) ? null : Instant.parse(value);
+
+		//return (value == null) ? null : gson.fromJson('"'+value+'"', Instant.class);
+		System.out.println("ToInstant");
+		System.out.println(value);
+		System.out.println("To");
+		System.out.println((value == null) ? null : Instant.ofEpochMilli(Long.parseLong(value)));
+		System.out.println();
+		return (value == null) ? null : Instant.ofEpochMilli(Long.parseLong(value));
 	}
 
 	@TypeConverter
 	public static String fromInstant(Instant instant) {
-		return (instant == null) ? null : instant.toString();
+		//return (instant == null) ? null : instant.toString();
+		//return (instant == null) ? null : gson.toJson(instant);
+		System.out.println("Instant");
+		System.out.println(instant);
+		System.out.println("To");
+		System.out.println((instant == null) ? null : String.valueOf(instant.toEpochMilli()));
+		System.out.println();
+		return (instant == null) ? null :  String.valueOf(instant.toEpochMilli());
 	}
 
 	//---------------------------------------------------------------------------------------------

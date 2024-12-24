@@ -3,6 +3,8 @@ package com.example.galleryconnector.repositories.local;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
 
+import com.example.galleryconnector.MyApplication;
+
 import java.util.HashMap;
 import java.util.Map;
 

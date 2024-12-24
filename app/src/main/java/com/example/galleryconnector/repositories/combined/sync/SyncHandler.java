@@ -86,11 +86,7 @@ public class SyncHandler {
 
 		//Catch up on synchronizations we've missed while the app has been closed
 		//Will only run once since this class is a singleton
-		try {
-			catchUpOnSyncing();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+		catchUpOnSyncing();
 	}
 
 
@@ -368,28 +364,36 @@ public class SyncHandler {
 	//----------------------------------------------
 
 	//TODO Do we want this to be account specific? Probably not, may as well just sync everything we've got.
-	public void catchUpOnSyncing() throws IOException {
-		//Get all new journal entries we've missed
-		List<LJournal> localJournals = localRepo.database.getJournalDao().loadAllAfterID(lastSyncLocalID);
-		List<SJournal> serverJournals = serverRepo.getJournalEntriesAfter(lastSyncServerID);
+	public void catchUpOnSyncing() {
+		Thread thread = new Thread(() -> {
+			//Get all new journal entries we've missed
+			List<LJournal> localJournals = localRepo.database.getJournalDao().loadAllAfterID(lastSyncLocalID);
+			List<SJournal> serverJournals;
+			try {
+				serverJournals = serverRepo.getJournalEntriesAfter(lastSyncServerID);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
 
 
-		//We just want the fileUIDs of the new journal entries
-		HashSet<UUID> fileUIDs = new HashSet<>();
+			//We just want the fileUIDs of the new journal entries
+			HashSet<UUID> fileUIDs = new HashSet<>();
 
-		for(LJournal journal : localJournals) {
-			if(journal == null) continue;
-			fileUIDs.add(journal.fileuid);
-		}
-		for(SJournal journal : serverJournals) {
-			if(journal == null) continue;
-			UUID uuid = journal.fileuid;
-			fileUIDs.add(uuid);
-		}
+			for(LJournal journal : localJournals) {
+				if(journal == null) continue;
+				fileUIDs.add(journal.fileuid);
+			}
+			for(SJournal journal : serverJournals) {
+				if(journal == null) continue;
+				UUID uuid = journal.fileuid;
+				fileUIDs.add(uuid);
+			}
 
 
-		//Queue all fileUIDs for sync
-		List<UUID> fileUIDsList = new ArrayList<>(fileUIDs);
-		enqueue(fileUIDsList);
+			//Queue all fileUIDs for sync
+			List<UUID> fileUIDsList = new ArrayList<>(fileUIDs);
+			enqueue(fileUIDsList);
+		});
+		thread.start();
 	}
 }

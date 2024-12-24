@@ -4,6 +4,7 @@ import android.net.Uri;
 
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
+import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
 
@@ -22,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 public class TestEverything {
 
 	GalleryRepo grepo = GalleryRepo.getInstance();
+	DomainAPI domainAPI = DomainAPI.getInstance();
 	UUID accountUID = UUID.fromString("b16fe0ba-df94-4bb6-ad03-aab7e47ca8c3");
 	UUID fileUID = UUID.fromString("d79bee5d-1666-4d18-ae29-1bfba6bf0564");
 
@@ -31,40 +33,15 @@ public class TestEverything {
 
 
 
-	//Example show image in View from MainActivity testing
-	/*
-	Thread thread = new Thread(() -> {
-			TestEverything everything = new TestEverything();
 
-			//Delete both local and server files for a clean slate
-			everything.removeFromLocal();
-			everything.removeFromServer();
-
-
-			// ----------- TESTING START -----------
-
-			//everything.importToLocal();
-			everything.importToServer();
-
-
-			System.out.println("Getting InputStream ---------------------------------------------");
-			//Get an inputStream of the file contents, from the closest repo that has it
-			InputStream inputStream = everything.getFileContents();
-
-			Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-
-
-			//And put the contents into our testing ImageView
-			ImageView view = findViewById(R.id.image);
-			view.post(() -> {
-				System.out.println("Setting Bitmap --------------------------------------------------");
-				view.setImageBitmap(bitmap);
-			});
-
-		});
-
-		thread.start();
-	 */
+	public void copyToLocal() {
+		grepo.copyFileToLocal(fileUID);
+		domainAPI.doSomething(1);
+	}
+	public void copyToServer() {
+		grepo.copyFileToServer(fileUID);
+		domainAPI.doSomething(1);
+	}
 
 
 
@@ -161,4 +138,43 @@ public class TestEverything {
 			throw new RuntimeException(e);
 		}
 	}
+
+
+
+
+
+	//Example show image in View from MainActivity testing
+	/*
+	Thread thread = new Thread(() -> {
+			TestEverything everything = new TestEverything();
+
+			//Delete both local and server files for a clean slate
+			everything.removeFromLocal();
+			everything.removeFromServer();
+
+
+			// ----------- TESTING START -----------
+
+			//everything.importToLocal();
+			everything.importToServer();
+
+
+			System.out.println("Getting InputStream ---------------------------------------------");
+			//Get an inputStream of the file contents, from the closest repo that has it
+			InputStream inputStream = everything.getFileContents();
+
+			Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+
+			//And put the contents into our testing ImageView
+			ImageView view = findViewById(R.id.image);
+			view.post(() -> {
+				System.out.println("Setting Bitmap --------------------------------------------------");
+				view.setImageBitmap(bitmap);
+			});
+
+		});
+
+		thread.start();
+	*/
 }
