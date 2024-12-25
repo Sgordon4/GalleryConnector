@@ -2,6 +2,8 @@ package com.example.galleryconnector.repositories.server.connectors;
 
 import android.util.Log;
 
+import androidx.annotation.Nullable;
+
 import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -12,8 +14,11 @@ import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -48,6 +53,7 @@ public class JournalConnector {
 
 
 	//Get all journal entries after a given journalID
+	@Nullable
 	public List<SJournal> getJournalEntriesAfter(int journalID) throws IOException {
 		//Log.i(TAG, String.format("\nGET JOURNAL called with journalID='%s'", journalID));
 		String url = Paths.get(baseServerUrl, "journal", ""+journalID).toString();
@@ -61,14 +67,12 @@ public class JournalConnector {
 
 			String responseData = response.body().string();
 
-			JsonArray jsonArray = gson.fromJson(responseData, JsonArray.class);
-
-			List<SJournal> journals = jsonArray.asList().stream()
-					.map(json -> gson.fromJson(json, SJournal.class))
-					.collect(Collectors.toList());
-
 			//return journals;
 			return new Gson().fromJson(responseData, new TypeToken< List<SJournal> >(){}.getType());
+		}
+		//If we don't get anything back from the server (no internet, server down, etc), just pretend we got nothing
+		catch (SocketTimeoutException | ConnectException e) {
+			return new ArrayList<>();
 		}
 	}
 

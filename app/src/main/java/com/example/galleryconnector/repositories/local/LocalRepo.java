@@ -20,6 +20,7 @@ import com.example.galleryconnector.repositories.local.journal.LJournal;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -61,12 +62,14 @@ public class LocalRepo {
 
 	//TODO We could probably do the account filtering here instead of GRepo, doesn't really matter
 	public void setFileListener(int journalID, OnDataChangeListener<LJournal> onChanged) {
+		Log.i(TAG, "Starting Local longpoll from journalID = "+journalID);
 		LiveData<List<LJournal>> liveData = database.getJournalDao().longpollAfterID(journalID);
 		listener.stopAll();
 		listener.listen(liveData, journals -> {
-			System.out.println("New Journals recieved: ");
+			Log.i(TAG, journals.size()+" new Journals received in listener!");
+			//System.out.println("New Journals recieved: ");
 			for(LJournal journal : journals) {
-				System.out.println(journal);
+				//System.out.println(journal);
 				onChanged.onDataChanged(journal);
 			}
 		});
@@ -198,15 +201,16 @@ public class LocalRepo {
 
 
 	//DOES NOT UPDATE FILE PROPERTIES
-	public LFile putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws FileNotFoundException {
+	public LFile putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws FileNotFoundException, UnknownHostException {
 		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
 		LFile file = getFileProps(fileUID);
 
-		System.out.println("\n\n\n\n");
-		System.out.println("Local URL is "+source);
+		System.out.println("Current file: "+file);
 
 		//Write the Uri to the system as a set of blocks
 		LBlockHandler.BlockSet blockSet = blockHandler.writeUriToBlocks(source);
+
+		System.out.println("Blocks Written");
 
 		//Update the file properties with the new block information
 		file.fileblocks = blockSet.blockList;
@@ -286,7 +290,7 @@ public class LocalRepo {
 		return blockHandler.writeBytesToBlocks(contents);
 	}
 
-	public LBlockHandler.BlockSet putBlockContents(@NonNull Uri uri) {
+	public LBlockHandler.BlockSet putBlockContents(@NonNull Uri uri) throws UnknownHostException {
 		Log.i(TAG, "\nPUT BLOCK CONTENTS URI called");
 		return blockHandler.writeUriToBlocks(uri);
 	}

@@ -1,7 +1,12 @@
 package com.example.galleryconnector.repositories.server;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.util.Log;
 
+import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.JsonObject;
 
@@ -53,7 +58,17 @@ public class ServerFileObservers {
 		Runnable runnable = () -> {
 			int latestID = journalID;
 			while (!Thread.currentThread().isInterrupted()) {
-				//Log.v(TAG, "Longpolling...");
+				if(!MyApplication.doesDeviceHaveInternet()) {
+					Log.v(TAG, "Longpoll Sleeping...");
+					try {
+						Thread.sleep(10000);
+					} catch (InterruptedException e) {
+						throw new RuntimeException(e);
+					}
+					continue;
+				}
+
+				Log.v(TAG, "Longpolling...");
 				try {
 					latestID = longpoll(latestID);
 				}

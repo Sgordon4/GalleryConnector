@@ -1,5 +1,7 @@
 package com.example.galleryconnector.repositories.combined;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
@@ -18,6 +20,8 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 public class GFileUpdateObservers {
+
+	private static final String TAG = "Gal.GRepo.GUpObserve";
 
 	private final List<GFileObservable> listeners;
 	private final SyncHandler syncHandler;
@@ -52,7 +56,7 @@ public class GFileUpdateObservers {
 		//Update the latest synced journalID
 		syncHandler.updateLastSyncLocal(journalID);
 
-		System.out.println("Local file with journalID '"+journalID+"' updated! File: "+file.fileuid);
+		Log.i(TAG, "Local file with journalID '"+journalID+"' updated! File: "+file.fileuid);
 
 		//Notify the observers of the update
 		notifyObservers(journalID, file);

@@ -69,7 +69,7 @@ public class SyncHandler {
 		domainAPI = DomainAPI.getInstance();
 
 
-		lastSyncLocalID = 22;
+		lastSyncLocalID = 30;
 		lastSyncServerID = 2;
 
 

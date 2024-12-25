@@ -16,6 +16,7 @@ import com.example.galleryconnector.repositories.local.journal.LJournal;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -87,11 +88,13 @@ public class TestEverything {
 
 		try {
 			GFile newFile = new GFile(fileUID, accountUID);
-			grepo.putFilePropsLocal(newFile).get();
+			//grepo.putFilePropsLocal(newFile).get();
 
+			System.out.println("Putting file contents into local");
 			//grepo.putFileContentsLocal(fileUID, Uri.fromFile(tempFile.toFile())).get();		//Local temp file
 			GFile file = grepo.putFileContentsLocal(fileUID, externalUri).get();				//WebURL
 
+			System.out.println("Putting file props into local");
 			grepo.putFilePropsLocal(file);
 
 			try {
@@ -102,7 +105,12 @@ public class TestEverything {
 				throw new RuntimeException(e);
 			}
 
-		} catch (ExecutionException | InterruptedException e) {
+		}
+		catch (ExecutionException e) {
+			//Do nothing, likely no internet
+			System.out.println("Could not reach URL!");
+			//e.printStackTrace();
+		} catch(InterruptedException e) {
 			throw new RuntimeException(e);
 		}
 

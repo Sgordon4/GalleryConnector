@@ -17,6 +17,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -149,14 +150,16 @@ public class LBlockHandler {
 
 	//Given a Uri, parse its contents into an evenly chunked set of blocks and write them to disk
 	//Find the fileSize and SHA-256 fileHash while we do so.
-	public BlockSet writeUriToBlocks(@NonNull Uri source) {
+	public BlockSet writeUriToBlocks(@NonNull Uri source) throws UnknownHostException {
 		BlockSet blockSet = new BlockSet();
 
 
+		System.out.println("Inside writing");
 
 		try (InputStream is = new URL(source.toString()).openStream();
 			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
 
+			System.out.println("After stream");
 
 			byte[] block;
 			do {
@@ -184,6 +187,8 @@ public class LBlockHandler {
 
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
+		} catch (UnknownHostException e) {
+			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

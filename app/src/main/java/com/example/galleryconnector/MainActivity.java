@@ -45,11 +45,11 @@ public class MainActivity extends AppCompatActivity {
 		Thread thread = new Thread(() -> {
 
 			//Delete both local and server files for a clean slate
-			everything.removeFromLocal();
-			everything.removeFromServer();
+			//everything.removeFromLocal();
+			//everything.removeFromServer();
 
 			//Since we don't actually persist these yet, update them here for now
-			everything.updateLocalSyncPointer();
+			//everything.updateLocalSyncPointer();
 
 			// ----------- TESTING START -----------
 
@@ -61,6 +61,8 @@ public class MainActivity extends AppCompatActivity {
 
 
 			//everything.printLocalJournals();
+
+			displayImage();
 		});
 
 		thread.start();
@@ -76,7 +78,7 @@ public class MainActivity extends AppCompatActivity {
 			}
 
 			if(file.fileuid.equals(fileUID)) {
-				//displayImage();
+				displayImage();
 			}
 		};
 		gRepo.addObserver(observable);

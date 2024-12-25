@@ -8,6 +8,7 @@ import androidx.annotation.NonNull;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
+import java.net.UnknownHostException;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -62,7 +63,11 @@ public class ImportExportWorker extends Worker {
 			Uri sourceUri = Uri.parse(target);
 
 			//Import the file to the local system
-			ImportExportApi.getInstance().importFileToLocal(accountUID, parentUID, sourceUri);
+			try {
+				ImportExportApi.getInstance().importFileToLocal(accountUID, parentUID, sourceUri);
+			} catch (UnknownHostException e) {
+				throw new RuntimeException(e);
+			}
 		}
 		if(Objects.equals(operation, "EXPORT")) {
 			Log.i(TAG, "Exporting file '"+file+"'");

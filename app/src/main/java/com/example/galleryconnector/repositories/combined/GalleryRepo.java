@@ -1,5 +1,9 @@
 package com.example.galleryconnector.repositories.combined;
 
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.util.Log;
 
@@ -34,6 +38,7 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
@@ -77,6 +82,21 @@ public class GalleryRepo {
 		observers.removeObserver(observer);
 	}
 
+
+	public boolean doesDeviceHaveInternet() {
+		ConnectivityManager connectivityManager = (ConnectivityManager)
+				MyApplication.getAppContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+		Network nw = connectivityManager.getActiveNetwork();
+		if(nw == null) return false;
+
+		NetworkCapabilities cap = connectivityManager.getNetworkCapabilities(nw);
+		return cap != null && (
+				cap.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+				cap.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+				cap.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
+				cap.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) );
+	}
 
 	//---------------------------------------------------------------------------------------------
 	// Account
@@ -226,8 +246,14 @@ public class GalleryRepo {
 	//DOES NOT UPDATE FILE PROPERTIES
 	public ListenableFuture<GFile> putFileContentsLocal(@NonNull UUID fileUID, @NonNull Uri source) {
 		return executor.submit(() -> {
-			LFile file = localRepo.putFileContents(fileUID, source);
-			return GFile.fromLocalFile(file);
+			try {
+				LFile file = localRepo.putFileContents(fileUID, source);
+				return GFile.fromLocalFile(file);
+			} catch (UnknownHostException e) {
+				System.out.println("BAD SOURCE BAD SOURCE	(or no internet idk)");
+				e.printStackTrace();
+			}
+			return null;
 		});
 	}
 	//DOES NOT UPDATE FILE PROPERTIES
