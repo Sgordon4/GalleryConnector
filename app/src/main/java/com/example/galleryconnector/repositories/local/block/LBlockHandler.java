@@ -8,6 +8,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 
 import java.io.File;
@@ -16,13 +17,17 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Objects;
 
 public class LBlockHandler {
 
@@ -31,8 +36,8 @@ public class LBlockHandler {
 	public final LBlockDao blockDao;
 
 	//public static final int CHUNK_SIZE = 1024 * 1024 * 4;  //4MB
-	//public static final int CHUNK_SIZE = 4;  //4B (For testing)
 	public static final int CHUNK_SIZE = 1024 * 1024;  //1MB (For testing)
+	//public static final int CHUNK_SIZE = 4;  //4B (For testing)
 
 
 	public LBlockHandler(LBlockDao blockDao) {
@@ -40,17 +45,18 @@ public class LBlockHandler {
 	}
 
 
-	@Nullable
+	@NonNull
 	public LBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
 		LBlock block = blockDao.loadByHash(blockHash);
 		if(block == null) throw new FileNotFoundException("Block not found! Hash: '"+blockHash+"'");
 		return block;
 	}
 
-	@Nullable
-	public Uri getBlockUri(@NonNull String blockHash) {
+	@NonNull
+	public Uri getBlockUri(@NonNull String blockHash) throws DataNotFoundException {
 		File blockFile = getBlockLocationOnDisk(blockHash);
-		//if(blockFile == null) throw new FileNotFoundException("Block contents do not exist! Hash='"+blockHash+"'");
+		if(!blockFile.exists())
+			throw new DataNotFoundException("Block contents do not exist! Hash='"+blockHash+"'");
 		return Uri.fromFile(blockFile);
 	}
 
@@ -58,14 +64,10 @@ public class LBlockHandler {
 
 
 
-	@Nullable
-	public byte[] readBlock(@NonNull String blockHash) throws FileNotFoundException {
-
+	@NonNull
+	public byte[] readBlock(@NonNull String blockHash) throws DataNotFoundException {
 		Uri blockUri = getBlockUri(blockHash);
-		File blockFile = new File(blockUri.getPath());
-
-		if(!blockFile.exists())
-			throw new FileNotFoundException("Block contents do not exist! Hash='"+blockHash+"'");
+		File blockFile = new File(Objects.requireNonNull( blockUri.getPath() ));
 
 		//Read the block data from the file
 		try (FileInputStream fis = new FileInputStream(blockFile)) {
@@ -85,10 +87,9 @@ public class LBlockHandler {
 		try {
 			byte[] hash = MessageDigest.getInstance("SHA-256").digest(bytes);
 			blockHash = BlockConnector.bytesToHex(hash);
-		} catch (NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
-		Log.i(TAG, String.format("Writing with blockHash='"+blockHash+"'"));
+		} catch (NoSuchAlgorithmException e) { throw new RuntimeException(e); }
+
+		Log.i(TAG, String.format("Writing "+bytes.length+" bytes with blockHash='"+blockHash+"'"));
 
 
 		//Get the location of the block on disk
@@ -100,8 +101,10 @@ public class LBlockHandler {
 
 
 		//Write the block data to the file
-		if(!blockFile.exists())
-			blockFile.createNewFile();
+		if(!blockFile.exists()) {
+			Files.createDirectories(blockFile.toPath().getParent());
+			Files.createFile(blockFile.toPath());
+		}
 		try (FileOutputStream fos = new FileOutputStream(blockFile)) {
 			fos.write(bytes);
 		}
@@ -111,7 +114,7 @@ public class LBlockHandler {
 		LBlock blockEntity = new LBlock(blockHash, bytes.length);
 		blockDao.put(blockEntity);
 
-		Log.i(TAG, "Uploading block complete");
+		Log.v(TAG, "Uploading block complete. BlockHash: '"+blockHash+"'");
 		return blockHash;
 	}
 
@@ -122,16 +125,15 @@ public class LBlockHandler {
 	}
 
 
-	public File getBlockLocationOnDisk(@NonNull String hash) {
-		Context context = MyApplication.getAppContext();
-
+	//WARNING: This method does not create the file or parent directory, it only provides the location
+	@NonNull
+	private File getBlockLocationOnDisk(@NonNull String hash) {
 		//Starting out of the app's data directory...
+		Context context = MyApplication.getAppContext();
 		String appDataDir = context.getApplicationInfo().dataDir;
 
 		//Blocks are stored in a block subdirectory
 		File blockRoot = new File(appDataDir, blockDir);
-		if(!blockRoot.isDirectory())
-			blockRoot.mkdir();
 
 		//With each block named by its SHA256 hash. Don't create the blockFile here, handle that elsewhere.
 		return new File(blockRoot, hash);
@@ -148,24 +150,25 @@ public class LBlockHandler {
 		public String fileHash = "";
 	}
 
+	//Helper method
 	//Given a Uri, parse its contents into an evenly chunked set of blocks and write them to disk
 	//Find the fileSize and SHA-256 fileHash while we do so.
-	public BlockSet writeUriToBlocks(@NonNull Uri source) throws UnknownHostException {
+	public BlockSet writeUriToBlocks(@NonNull Uri source) throws IOException {
 		BlockSet blockSet = new BlockSet();
 
-
-		System.out.println("Inside writing");
+		Log.d(TAG, "Inside writeUriToBlocks");
 
 		try (InputStream is = new URL(source.toString()).openStream();
 			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
 
-			System.out.println("After stream");
+			Log.d(TAG, "Stream open");
+
 
 			byte[] block;
 			do {
-				System.out.println("Reading bytes from DIS");
+				Log.d(TAG, "Reading...");
 				block = dis.readNBytes(BlockConnector.CHUNK_SIZE);
-				System.out.println("Length: "+block.length);
+				Log.d(TAG, "Read "+block.length);
 
 				if(block.length == 0)   //Don't put empty blocks in the blocklist
 					continue;
@@ -185,11 +188,9 @@ public class LBlockHandler {
 			blockSet.fileHash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
 			Log.d(TAG, "File has "+blockSet.blockList.size()+" blocks, with a size of "+blockSet.fileSize+".");
 
-		} catch (NoSuchAlgorithmException e) {
+		} catch (MalformedURLException e) {
 			throw new RuntimeException(e);
-		} catch (UnknownHostException e) {
-			throw e;
-		} catch (IOException e) {
+		} catch (NoSuchAlgorithmException e) {	//Should never happen
 			throw new RuntimeException(e);
 		}
 
@@ -200,24 +201,20 @@ public class LBlockHandler {
 
 	//Given a single block, write to storage (mostly for testing use for small Strings)
 	//Find the fileSize and SHA-256 fileHash while we do so.
-	public BlockSet writeBytesToBlocks(@NonNull byte[] block) {
+	public BlockSet writeBytesToBlocks(@NonNull byte[] block) throws IOException {
 		BlockSet blockSet = new BlockSet();
 
 		//Don't put empty blocks in the blocklist
 		if(block.length == 0)
 			return new BlockSet();
 
-		try {
-			//Write the block to the system
-			String hashString = writeBlock(block);
+		//Write the block to the system
+		String hashString = writeBlock(block);
 
-			//Add to the blockSet
-			blockSet.blockList.add(hashString);
-			blockSet.fileSize = block.length;
-			blockSet.fileHash = hashString;
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+		//Add to the blockSet
+		blockSet.blockList.add(hashString);
+		blockSet.fileSize = block.length;
+		blockSet.fileHash = hashString;
 
 		return blockSet;
 	}

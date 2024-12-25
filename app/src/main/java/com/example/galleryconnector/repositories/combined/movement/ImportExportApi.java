@@ -34,7 +34,7 @@ public class ImportExportApi {
 	public LFile importFileToLocal(@NonNull UUID accountuid, @NonNull UUID parent, @NonNull Uri source) throws UnknownHostException {
 
 		//Import the blockset to the local repository
-		LBlockHandler.BlockSet blockSet = localRepo.putBlockContents(source);
+		LBlockHandler.BlockSet blockSet = localRepo.putBlockData(source);
 
 
 		//Make a brand new file entity, and update its block info

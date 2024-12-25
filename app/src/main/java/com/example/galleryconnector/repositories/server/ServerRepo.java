@@ -2,6 +2,8 @@ package com.example.galleryconnector.repositories.server;
 
 import android.content.ContentResolver;
 import android.net.Uri;
+import android.os.Looper;
+import android.os.NetworkOnMainThreadException;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -106,6 +108,7 @@ public class ServerRepo {
 
 	public SAccount getAccountProps(@NonNull UUID accountUID) throws IOException {
 		Log.i(TAG, String.format("GET ACCOUNT PROPS called with accountUID='%s'", accountUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		JsonObject accountProps = accountConn.getProps(accountUID);
 		if(accountProps == null) throw new FileNotFoundException("Account not found! ID: '"+accountUID);
@@ -114,6 +117,7 @@ public class ServerRepo {
 
 	public void putAccountProps(@NonNull SAccount accountProps) throws IOException {
 		Log.i(TAG, String.format("PUT ACCOUNT PROPS called with accountUID='%s'", accountProps.accountuid));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		accountConn.updateEntry(accountProps.toJson());
 	}
@@ -127,6 +131,7 @@ public class ServerRepo {
 
 	public SFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException, SocketTimeoutException {
 		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		try {
 			return fileConn.getProps(fileUID);
@@ -143,6 +148,7 @@ public class ServerRepo {
 	public void putFileProps(@NonNull SFile fileProps, @Nullable String prevFileHash, @Nullable String prevAttrHash)
 			throws ConnectException, SocketTimeoutException, IllegalStateException {
 		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", fileProps.fileuid));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		//Check if the block repo is missing any blocks from the blockset
 		List<String> missingBlocks = fileProps.fileblocks.stream()
@@ -174,6 +180,7 @@ public class ServerRepo {
 
 	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException, ConnectException, SocketTimeoutException {
 		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		SFile file = getFileProps(fileUID);
 		List<String> blockList = file.fileblocks;
@@ -202,6 +209,8 @@ public class ServerRepo {
 	//Find the fileSize and SHA-256 fileHash while we do so.
 	public SFile putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws IOException {
 		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 		SFile file = getFileProps(fileUID);
 
 		System.out.println("\n\n\n\n");
@@ -251,6 +260,8 @@ public class ServerRepo {
 
 	public void deleteFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException, SocketTimeoutException {
 		Log.i(TAG, String.format("DELETE FILE called with fileUID='%s'", fileUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 		try {
 			fileConn.delete(fileUID);
 		} catch (FileNotFoundException | ConnectException | SocketTimeoutException e) {
@@ -268,6 +279,7 @@ public class ServerRepo {
 
 	public SBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException{
 		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		SBlock block;
 		try {
@@ -292,17 +304,23 @@ public class ServerRepo {
 	@Nullable
 	public Uri getBlockContentsUri(@NonNull String blockHash) throws IOException {
 		Log.i(TAG, String.format("\nGET BLOCK URI called with blockHash='"+blockHash+"'"));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 		return Uri.parse(blockConn.getUrl(blockHash));
 	}
 	@Nullable
 	public byte[] getBlockContents(@NonNull String blockHash) throws IOException {
 		Log.i(TAG, String.format("GET BLOCK DATA called with blockHash='%s'", blockHash));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 		return blockConn.readBlock(blockHash);
 	}
 
 
 	public String putBlockContents(@NonNull byte[] blockData) throws IOException {
 		Log.i(TAG, "\nPUT BLOCK CONTENTS BYTE called");
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 		return blockConn.uploadData(blockData);
 	}
 
@@ -314,18 +332,21 @@ public class ServerRepo {
 
 	public List<SJournal> getJournalEntriesAfter(int journalID) throws IOException {
 		Log.i(TAG, String.format("GET JOURNAL ENTRIES called with journalID='%s'", journalID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		return journalConn.getJournalEntriesAfter(journalID);
 	}
 
 	public List<SJournal> getJournalEntriesForFile(UUID fileUID) throws IOException {
 		Log.i(TAG, String.format("GET JOURNAL ENTRIES FOR FILE called with fileUID='%s'", fileUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		return journalConn.getJournalEntriesForFile(fileUID);
 	}
 
 	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws IOException {
 		Log.i(TAG, String.format("LONGPOLL JOURNAL ENTRIES called with journalID='%s'", journalID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		return journalConn.longpollJournalEntriesAfter(journalID);
 	}
@@ -335,7 +356,7 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 
 	//TODO Figure out how to log timeouts
-	public static class LogInterceptor implements Interceptor {
+	private static class LogInterceptor implements Interceptor {
 		@NonNull
 		@Override
 		public Response intercept(Chain chain) throws IOException {
@@ -360,5 +381,11 @@ public class ServerRepo {
 
 			return response;
 		}
+	}
+
+
+
+	private boolean isOnMainThread() {
+		return Thread.currentThread().equals(Looper.getMainLooper().getThread());
 	}
 }

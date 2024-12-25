@@ -20,12 +20,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 
@@ -242,7 +239,7 @@ public class DomainAPI {
 				byte[] blockData = serverRepo.getBlockContents(block);
 
 				//And write the data to local
-				localRepo.putBlockContents(blockData);
+				localRepo.putBlockData(blockData);
 			}
 		} while(!missingBlocks.isEmpty());
 	}

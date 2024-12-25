@@ -29,9 +29,6 @@ import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.server.servertypes.SAccount;
 import com.example.galleryconnector.repositories.server.servertypes.SBlock;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 
 import java.io.FileNotFoundException;
@@ -40,12 +37,11 @@ import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.UUID;
-import java.util.concurrent.Executors;
 
 public class GalleryRepo {
 
 	private static final String TAG = "Gal.GRepo";
-	private final ListeningExecutorService executor;
+	//private final ListeningExecutorService executor;
 
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
@@ -63,7 +59,7 @@ public class GalleryRepo {
 		private static final GalleryRepo INSTANCE = new GalleryRepo();
 	}
 	private GalleryRepo() {
-		executor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(10));
+		//executor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(10));
 
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
@@ -103,49 +99,43 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 
 	@Nullable
-	public ListenableFuture<GAccount> getAccountProps(@NonNull UUID accountuid) {
-		return executor.submit(() -> {
-			//Try to get the account data from local. If it exists, return that.
-			try {
-				LAccount local = localRepo.getAccountProps(accountuid);
-				return new Gson().fromJson(local.toJson(), GAccount.class);
-			}
-			catch (FileNotFoundException e) {
-				//Do nothing
-			}
+	public GAccount getAccountProps(@NonNull UUID accountuid) {
+		//Try to get the account data from local. If it exists, return that.
+		try {
+			LAccount local = localRepo.getAccountProps(accountuid);
+			return new Gson().fromJson(local.toJson(), GAccount.class);
+		}
+		catch (FileNotFoundException e) {
+			//Do nothing
+		}
 
-			//If the account doesn't exist locally, try to get it from the server.
-			try {
-				SAccount server = serverRepo.getAccountProps(accountuid);
-				return new Gson().fromJson(server.toJson(), GAccount.class);
+		//If the account doesn't exist locally, try to get it from the server.
+		try {
+			SAccount server = serverRepo.getAccountProps(accountuid);
+			return new Gson().fromJson(server.toJson(), GAccount.class);
 
-				//TODO If the account exists on server but not on local, we may want to copy it to local.
-				// Not always though, so it shouldn't be done *here*
-				// TBH that can probably just be done by Putting props to both every time
-			} catch (FileNotFoundException e) {
-				//Do nothing
-			}
+			//TODO If the account exists on server but not on local, we may want to copy it to local.
+			// Not always though, so it shouldn't be done *here*
+			// TBH that can probably just be done by Putting props to both every time
+		} catch (FileNotFoundException e) {
+			//Do nothing
+		}
 
-			//If the file doesn't exist in either, throw an exception
-			throw new FileNotFoundException(String.format("Account not found with accountUID='%s'", accountuid));
-		});
+		//If the file doesn't exist in either, throw an exception
+		throw new FileNotFoundException(String.format("Account not found with accountUID='%s'", accountuid));
 	}
 
 
-	public ListenableFuture<Boolean> putAccountPropsLocal(@NonNull GAccount gAccount) {
-		return executor.submit(() -> {
-			LAccount account = new Gson().fromJson(gAccount.toJson(), LAccount.class);
-			localRepo.putAccountProps(account);
-			return true;
-		});
+	public boolean putAccountPropsLocal(@NonNull GAccount gAccount) {
+		LAccount account = new Gson().fromJson(gAccount.toJson(), LAccount.class);
+		localRepo.putAccountProps(account);
+		return true;
 	}
 
-	public ListenableFuture<Boolean> putAccountPropsServer(@NonNull GAccount gAccount) {
-		return executor.submit(() -> {
-			SAccount account = new Gson().fromJson(gAccount.toJson(), SAccount.class);
-			serverRepo.putAccountProps(account);
-			return true;
-		});
+	public boolean putAccountPropsServer(@NonNull GAccount gAccount) {
+		SAccount account = new Gson().fromJson(gAccount.toJson(), SAccount.class);
+		serverRepo.putAccountProps(account);
+		return true;
 	}
 
 
@@ -155,170 +145,149 @@ public class GalleryRepo {
 
 
 	@Nullable
-	public ListenableFuture<GFile> getFileProps(@NonNull UUID fileUID) {
-		return executor.submit(() -> {
-			//Try to get the file data from local. If it exists, return that.
-			try {
-				LFile local = localRepo.getFileProps(fileUID);
-				return GFile.fromLocalFile(local);
-			}
-			catch (FileNotFoundException e) {
-				//Do nothing
-			}
+	public GFile getFileProps(@NonNull UUID fileUID) {
+		//Try to get the file data from local. If it exists, return that.
+		try {
+			LFile local = localRepo.getFileProps(fileUID);
+			return GFile.fromLocalFile(local);
+		}
+		catch (FileNotFoundException e) {
+			//Do nothing
+		}
 
-			//If the file doesn't exist locally, try to get it from the server.
-			try {
-				SFile server = serverRepo.getFileProps(fileUID);
-				return GFile.fromServerFile(server);
-			} catch (FileNotFoundException e) {
-				//Do nothing
-			}
+		//If the file doesn't exist locally, try to get it from the server.
+		try {
+			SFile server = serverRepo.getFileProps(fileUID);
+			return GFile.fromServerFile(server);
+		} catch (FileNotFoundException e) {
+			//Do nothing
+		}
 
-			//If the file doesn't exist in either, throw an exception
-			throw new FileNotFoundException(String.format("File not found with fileUID='%s'", fileUID));
-		});
+		//If the file doesn't exist in either, throw an exception
+		throw new FileNotFoundException(String.format("File not found with fileUID='%s'", fileUID));
 	}
 
 
 	//TODO Should we grab blocks from local if possible, and server if not?
 	// That might just overcomplicate things since blocks for a file are probably all together anyway.
-	public ListenableFuture<InputStream> getFileContents(@NonNull UUID fileUID) {
-		return executor.submit(() -> {
-			//Try to get the file data from local. If it exists, return that.
-			try {
-				return localRepo.getFileContents(fileUID);
-			}
-			catch (FileNotFoundException e) {
-				Log.i(TAG, "File not found locally, trying server");
-				//Do nothing
-			}
+	public InputStream getFileContents(@NonNull UUID fileUID) {
+		//Try to get the file data from local. If it exists, return that.
+		try {
+			return localRepo.getFileContents(fileUID);
+		}
+		catch (FileNotFoundException e) {
+			Log.i(TAG, "File not found locally, trying server");
+			//Do nothing
+		}
 
-			//If the file doesn't exist locally, try to get it from the server.
-			try {
-				return serverRepo.getFileContents(fileUID);
-			} catch (FileNotFoundException e) {
-				//Do nothing
-			} catch (ConnectException | SocketTimeoutException e) {
-				//Do nothing
-			}
+		//If the file doesn't exist locally, try to get it from the server.
+		try {
+			return serverRepo.getFileContents(fileUID);
+		} catch (FileNotFoundException e) {
+			//Do nothing
+		} catch (ConnectException | SocketTimeoutException e) {
+			//Do nothing
+		}
 
-			//If the file doesn't exist in either, throw an exception
-			throw new FileNotFoundException(String.format("File not found with fileUID='%s'", fileUID));
-		});
+		//If the file doesn't exist in either, throw an exception
+		throw new FileNotFoundException(String.format("File not found with fileUID='%s'", fileUID));
 	}
 
 
-	public ListenableFuture<Boolean> putFilePropsLocal(@NonNull GFile gFile) {
+	public boolean putFilePropsLocal(@NonNull GFile gFile) {
 		return putFilePropsLocal(gFile, null, null);
 	}
-	public ListenableFuture<Boolean> putFilePropsLocal(@NonNull GFile gFile,
+	public boolean putFilePropsLocal(@NonNull GFile gFile,
 											   @Nullable String prevFileHash, @Nullable String prevAttrHash) {
-		return executor.submit(() -> {
-			LFile file = gFile.toLocalFile();
-			localRepo.putFileProps(file, prevFileHash, prevAttrHash);
-			return true;
-		});
+		LFile file = gFile.toLocalFile();
+		localRepo.putFileProps(file, prevFileHash, prevAttrHash);
+		return true;
 	}
 
-	public ListenableFuture<Boolean> putFilePropsServer(@NonNull GFile gFile) {
+	public boolean putFilePropsServer(@NonNull GFile gFile) {
 		return putFilePropsServer(gFile, null, null);
 	}
-	public ListenableFuture<Boolean> putFilePropsServer(@NonNull GFile gFile,
-												@Nullable String prevFileHash, @Nullable String prevAttrHash) {
-		return executor.submit(() -> {
-			SFile file = gFile.toServerFile();
+	public boolean putFilePropsServer(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash) {
+		SFile file = gFile.toServerFile();
 
-			try {
-				serverRepo.putFileProps(file, prevFileHash, prevAttrHash);
-			} catch (IllegalStateException e) {
-				Log.e(TAG, "PrevHashes do not match in putFileProps");
-				return false;
-			}catch (ConnectException | SocketTimeoutException e) {
-				Log.e(TAG, "TIMEOUT in putFileProps");
-				return false;
-			}
-			return true;
-		});
+		try {
+			serverRepo.putFileProps(file, prevFileHash, prevAttrHash);
+		} catch (IllegalStateException e) {
+			Log.e(TAG, "PrevHashes do not match in putFileProps");
+			return false;
+		}catch (ConnectException | SocketTimeoutException e) {
+			Log.e(TAG, "TIMEOUT in putFileProps");
+			return false;
+		}
+		return true;
 	}
 
 
 
 	//DOES NOT UPDATE FILE PROPERTIES
-	public ListenableFuture<GFile> putFileContentsLocal(@NonNull UUID fileUID, @NonNull Uri source) {
-		return executor.submit(() -> {
-			try {
-				LFile file = localRepo.putFileContents(fileUID, source);
-				return GFile.fromLocalFile(file);
-			} catch (UnknownHostException e) {
-				System.out.println("BAD SOURCE BAD SOURCE	(or no internet idk)");
-				e.printStackTrace();
-			}
+	public GFile putFileContentsLocal(@NonNull UUID fileUID, @NonNull Uri source) {
+		try {
+			LFile file = localRepo.putData(fileUID, source);
+			return GFile.fromLocalFile(file);
+		} catch (UnknownHostException e) {
+			System.out.println("BAD SOURCE BAD SOURCE	(or no internet idk)");
+			e.printStackTrace();
+		}
+		return null;
+	}
+	//DOES NOT UPDATE FILE PROPERTIES
+	public GFile putFileContentsServer(@NonNull UUID fileUID, @NonNull Uri source) {
+		try {
+			SFile file = serverRepo.putFileContents(fileUID, source);
+			return GFile.fromServerFile(file);
+		} catch (ConnectException | SocketTimeoutException e) {
+			Log.e(TAG, "TIMEOUT in putFileContents");
 			return null;
-		});
-	}
-	//DOES NOT UPDATE FILE PROPERTIES
-	public ListenableFuture<GFile> putFileContentsServer(@NonNull UUID fileUID, @NonNull Uri source) {
-		return executor.submit(() -> {
-			try {
-				SFile file = serverRepo.putFileContents(fileUID, source);
-				return GFile.fromServerFile(file);
-			} catch (ConnectException | SocketTimeoutException e) {
-				Log.e(TAG, "TIMEOUT in putFileContents");
-				return null;
-			}
-		});
+		}
 	}
 
 
-	public ListenableFuture<Boolean> deleteFilePropsLocal(@NonNull UUID fileUID) {
-		return executor.submit(() -> {
-			localRepo.deleteFileProps(fileUID);
+	public boolean deleteFilePropsLocal(@NonNull UUID fileUID) {
+		localRepo.deleteFileProps(fileUID);
+		return true;
+	}
+	public boolean deleteFilePropsServer(@NonNull UUID fileUID) {
+		try {
+			serverRepo.deleteFileProps(fileUID);
 			return true;
-		});
-	}
-	public ListenableFuture<Boolean> deleteFilePropsServer(@NonNull UUID fileUID) {
-		return executor.submit(() -> {
-			try {
-				serverRepo.deleteFileProps(fileUID);
-				return true;
-			} catch (FileNotFoundException e) {
-				return false;
-			} catch (ConnectException | SocketTimeoutException e) {
-				Log.e(TAG, "TIMEOUT in deleteFileProps");
-				return false;
-			}
-		});
+		} catch (FileNotFoundException e) {
+			return false;
+		} catch (ConnectException | SocketTimeoutException e) {
+			Log.e(TAG, "TIMEOUT in deleteFileProps");
+			return false;
+		}
 	}
 
 
 	//TODO Considering caching the UUIDs of the files on server to help speed this up
 	// Or at least for another similar method.
 
-	public ListenableFuture<Boolean> isFileLocal(@NonNull UUID fileUID) {
-		return executor.submit(() -> {
-			try {
-				localRepo.getFileContents(fileUID);
-				return true;
-			}
-			catch (FileNotFoundException e) {
-				return false;
-			}
-		});
+	public boolean isFileLocal(@NonNull UUID fileUID) {
+		try {
+			localRepo.getFileContents(fileUID);
+			return true;
+		}
+		catch (FileNotFoundException e) {
+			return false;
+		}
 	}
 
-	public ListenableFuture<Boolean> isFileServer(@NonNull UUID fileUID) {
-		return executor.submit(() -> {
-			try {
-				serverRepo.getFileContents(fileUID);
-				return true;
-			}
-			catch (FileNotFoundException e) {
-				return false;
-			} catch (ConnectException | SocketTimeoutException e) {
-				Log.e(TAG, "TIMEOUT in isFileServer");
-				return false;
-			}
-		});
+	public boolean isFileServer(@NonNull UUID fileUID) {
+		try {
+			serverRepo.getFileContents(fileUID);
+			return true;
+		}
+		catch (FileNotFoundException e) {
+			return false;
+		} catch (ConnectException | SocketTimeoutException e) {
+			Log.e(TAG, "TIMEOUT in isFileServer");
+			return false;
+		}
 	}
 
 
@@ -337,93 +306,81 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 
 	@Nullable
-	public ListenableFuture<GBlock> getBlockProps(@NonNull String blockHash) {
-		return executor.submit(() -> {
-			//Try to get the block data from local. If it exists, return that.
-			try {
-				LBlock local = localRepo.getBlockProps(blockHash);
-				return new Gson().fromJson(local.toJson(), GBlock.class);
-			}
-			catch (FileNotFoundException e) {
-				//Do nothing
-			}
+	public GBlock getBlockProps(@NonNull String blockHash) {
+		//Try to get the block data from local. If it exists, return that.
+		try {
+			LBlock local = localRepo.getBlockProps(blockHash);
+			return new Gson().fromJson(local.toJson(), GBlock.class);
+		}
+		catch (FileNotFoundException e) {
+			//Do nothing
+		}
 
-			//If the block doesn't exist locally, try to get it from the server.
-			try {
-				SBlock server = serverRepo.getBlockProps(blockHash);
-				return new Gson().fromJson(server.toJson(), GBlock.class);
-			} catch (FileNotFoundException e) {
-				//Do nothing
-			}
+		//If the block doesn't exist locally, try to get it from the server.
+		try {
+			SBlock server = serverRepo.getBlockProps(blockHash);
+			return new Gson().fromJson(server.toJson(), GBlock.class);
+		} catch (FileNotFoundException e) {
+			//Do nothing
+		}
 
-			//If the file doesn't exist in either, throw an exception
-			throw new FileNotFoundException(String.format("Block not found with blockHash='%s'", blockHash));
-		});
+		//If the file doesn't exist in either, throw an exception
+		throw new FileNotFoundException(String.format("Block not found with blockHash='%s'", blockHash));
 	}
 
 
-	public ListenableFuture<byte[]> getBlockContents(@NonNull String blockHash) {
-		return executor.submit(() -> {
-			//Try to get the block data from local. If it exists, return that.
-			try {
-				return localRepo.getBlockContents(blockHash);
-			}
-			catch (FileNotFoundException e) {
-				//Do nothing
-			}
+	public byte[] getBlockContents(@NonNull String blockHash) {
+		//Try to get the block data from local. If it exists, return that.
+		try {
+			return localRepo.getBlockContents(blockHash);
+		}
+		catch (FileNotFoundException e) {
+			//Do nothing
+		}
 
-			//If the block doesn't exist locally, try to get it from the server.
-			try {
-				return serverRepo.getBlockContents(blockHash);
-			} catch (FileNotFoundException e) {
-				//Do nothing
-			}
+		//If the block doesn't exist locally, try to get it from the server.
+		try {
+			return serverRepo.getBlockContents(blockHash);
+		} catch (FileNotFoundException e) {
+			//Do nothing
+		}
 
-			//If the block doesn't exist in either, throw an exception
-			throw new FileNotFoundException(String.format("Block not found with blockHash='%s'", blockHash));
-		});
+		//If the block doesn't exist in either, throw an exception
+		throw new FileNotFoundException(String.format("Block not found with blockHash='%s'", blockHash));
 	}
 
 
 
-	public ListenableFuture<Boolean> putBlockContentsLocal(@NonNull byte[] data) {
-		return executor.submit(() -> {
-			localRepo.putBlockContents(data);
+	public boolean putBlockContentsLocal(@NonNull byte[] data) {
+		localRepo.putBlockData(data);
+		return true;
+	}
+
+	public boolean putBlockContentsServer(@NonNull byte[] data) {
+		serverRepo.putBlockContents(data);
+		return true;
+	}
+
+
+
+	public boolean isBlockLocal(@NonNull String blockHash) {
+		try {
+			localRepo.getBlockProps(blockHash);
 			return true;
-		});
+		}
+		catch (FileNotFoundException e) {
+			return false;
+		}
 	}
 
-	public ListenableFuture<Boolean> putBlockContentsServer(@NonNull byte[] data) {
-		return executor.submit(() -> {
-			serverRepo.putBlockContents(data);
+	public boolean isBlockServer(@NonNull String blockHash) {
+		try {
+			serverRepo.getBlockProps(blockHash);
 			return true;
-		});
-	}
-
-
-
-	public ListenableFuture<Boolean> isBlockLocal(@NonNull String blockHash) {
-		return executor.submit(() -> {
-			try {
-				localRepo.getBlockProps(blockHash);
-				return true;
-			}
-			catch (FileNotFoundException e) {
-				return false;
-			}
-		});
-	}
-
-	public ListenableFuture<Boolean> isBlockServer(@NonNull String blockHash) {
-		return executor.submit(() -> {
-			try {
-				serverRepo.getBlockProps(blockHash);
-				return true;
-			}
-			catch (FileNotFoundException e) {
-				return false;
-			}
-		});
+		}
+		catch (FileNotFoundException e) {
+			return false;
+		}
 	}
 
 
@@ -502,11 +459,11 @@ public class GalleryRepo {
 		}
 	}
 
-	protected ListenableFuture<Boolean> copyFileToLocalImmediate(@NonNull UUID fileuid) {
-		return executor.submit(() -> domainAPI.copyFileToLocal(fileuid));
+	protected boolean copyFileToLocalImmediate(@NonNull UUID fileuid) {
+		return domainAPI.copyFileToLocal(fileuid);
 	}
-	protected ListenableFuture<Boolean> copyFileToServerImmediate(@NonNull UUID fileuid) {
-		return executor.submit(() -> domainAPI.copyFileToServer(fileuid));
+	protected boolean copyFileToServerImmediate(@NonNull UUID fileuid) {
+		return domainAPI.copyFileToServer(fileuid);
 	}
 
 

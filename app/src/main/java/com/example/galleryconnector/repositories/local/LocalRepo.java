@@ -2,6 +2,8 @@ package com.example.galleryconnector.repositories.local;
 
 import android.content.ContentResolver;
 import android.net.Uri;
+import android.os.Looper;
+import android.os.NetworkOnMainThreadException;
 import android.util.Log;
 import android.util.Pair;
 
@@ -11,6 +13,7 @@ import androidx.lifecycle.LiveData;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
+import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.local.account.LAccount;
 import com.example.galleryconnector.repositories.local.block.LBlock;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
@@ -20,12 +23,12 @@ import com.example.galleryconnector.repositories.local.journal.LJournal;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -118,6 +121,7 @@ public class LocalRepo {
 
 	public LAccount getAccountProps(@NonNull UUID accountUID) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET ACCOUNT PROPS called with accountUID='%s'", accountUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		LAccount account = database.getAccountDao().loadByUID(accountUID);
 		if(account == null) throw new FileNotFoundException("Account not found! ID: '"+accountUID);
@@ -126,6 +130,7 @@ public class LocalRepo {
 
 	public void putAccountProps(@NonNull LAccount accountProps) {
 		Log.i(TAG, String.format("PUT ACCOUNT PROPS called with accountUID='%s'", accountProps.accountuid));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		database.getAccountDao().put(accountProps);
 	}
@@ -140,6 +145,7 @@ public class LocalRepo {
 
 	public LFile getFileProps(UUID fileUID) throws FileNotFoundException {
 		Log.v(TAG, String.format("GET FILE PROPS called with fileUID='%s'", fileUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		LFile file = database.getFileDao().loadByUID(fileUID);
 		if(file == null) throw new FileNotFoundException("File not found! ID: '"+fileUID+"'");
@@ -147,8 +153,11 @@ public class LocalRepo {
 	}
 
 
-	public LFile putFileProps(@NonNull LFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash) throws IllegalStateException {
+	public LFile putFileProps(@NonNull LFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash)
+			throws DataNotFoundException, IllegalStateException {
 		Log.i(TAG, String.format("PUT FILE PROPS called with fileUID='%s'", file.fileuid));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 
 		//Check if the block repo is missing any blocks from the blockset
 		List<String> missingBlocks = file.fileblocks.stream()
@@ -157,16 +166,15 @@ public class LocalRepo {
 
 		//If any are missing, we can't commit the file changes
 		if(!missingBlocks.isEmpty())
-			throw new IllegalStateException("Missing blocks: "+missingBlocks);
+			throw new DataNotFoundException("Cannot put props, system is missing "+missingBlocks.size()+" blocks!");
 
 
 		//Make sure the hashes match if any were passed
 		LFile oldFile = database.getFileDao().loadByUID(file.fileuid);
-
 		if(oldFile != null) {
 			if(prevFileHash != null && !oldFile.filehash.equals(prevFileHash))
 				throw new IllegalStateException(String.format("File contents hash doesn't match for fileUID='%s'", oldFile.fileuid));
-			if(prevAttrHash != null && !oldFile.attrhash.equals(prevAttrHash))
+			if(prevAttrHash != null && ( oldFile.attrhash == null || !oldFile.attrhash.equals(prevAttrHash) ))
 				throw new IllegalStateException(String.format("File attributes hash doesn't match for fileUID='%s'", oldFile.fileuid));
 		}
 
@@ -183,8 +191,9 @@ public class LocalRepo {
 
 
 
-	public InputStream getFileContents(UUID fileUID) throws IOException {
+	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException, DataNotFoundException {
 		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		LFile file = getFileProps(fileUID);
 		List<String> blockList = file.fileblocks;
@@ -193,59 +202,39 @@ public class LocalRepo {
 		List<InputStream> blockStreams = new ArrayList<>();
 		for(String block : blockList) {
 			Uri blockUri = getBlockContentsUri(block);
-			blockStreams.add(contentResolver.openInputStream(blockUri)); //TODO Might be null if block doesn't exist
+			blockStreams.add(contentResolver.openInputStream( Objects.requireNonNull( blockUri) ));
 		}
 
 		return new ConcatenatedInputStream(blockStreams);
 	}
 
 
-	//DOES NOT UPDATE FILE PROPERTIES
-	public LFile putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws FileNotFoundException, UnknownHostException {
-		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
-		LFile file = getFileProps(fileUID);
-
-		System.out.println("Current file: "+file);
+	public LBlockHandler.BlockSet putData(@NonNull Uri source) throws IOException {
+		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with Uri='%s'", source));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		//Write the Uri to the system as a set of blocks
 		LBlockHandler.BlockSet blockSet = blockHandler.writeUriToBlocks(source);
 
-		System.out.println("Blocks Written");
+		Log.d(TAG, "Blocks written to system");
 
-		//Update the file properties with the new block information
-		file.fileblocks = blockSet.blockList;
-		file.filesize = blockSet.fileSize;
-		file.filehash = blockSet.fileHash;
-
-		//DO NOT
-		//And update the file information
-		//file = putFileProps(file);
-		return file;
+		return blockSet;
 	}
 
 
-	//DOES NOT UPDATE FILE PROPERTIES
-	public LFile putFileContents(@NonNull UUID fileUID, @NonNull String contents) throws FileNotFoundException {
-		Log.i(TAG, String.format("PUT FILE CONTENTS (String) called with fileUID='%s'", fileUID));
-		LFile file = getFileProps(fileUID);
+	public LBlockHandler.BlockSet putData(@NonNull String contents) throws IOException {
+		Log.i(TAG, String.format("PUT FILE CONTENTS (String) called with size='%s'", contents.length()));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		//Write the String to the system as a set of blocks
-		LBlockHandler.BlockSet blockSet = blockHandler.writeBytesToBlocks(contents.getBytes());
-
-		//Update the file properties with the new block information
-		file.fileblocks = blockSet.blockList;
-		file.filesize = blockSet.fileSize;
-		file.filehash = blockSet.fileHash;
-
-		//DO NOT
-		//And update the file information
-		//putFileProps(file);
-		return file;
+		return blockHandler.writeBytesToBlocks(contents.getBytes());
 	}
 
 
 	public void deleteFileProps(@NonNull UUID fileUID) {
 		Log.i(TAG, String.format("DELETE FILE called with fileUID='%s'", fileUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 		database.getFileDao().delete(fileUID);
 	}
 
@@ -259,6 +248,8 @@ public class LocalRepo {
 	@Nullable
 	public LBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 		return blockHandler.getBlockProps(blockHash);
 	}
 	public boolean getBlockPropsExist(@NonNull String blockHash) {
@@ -272,26 +263,34 @@ public class LocalRepo {
 
 
 	@Nullable
-	public Uri getBlockContentsUri(@NonNull String blockHash) {
+	public Uri getBlockContentsUri(@NonNull String blockHash) throws DataNotFoundException {
 		Log.i(TAG, String.format("\nGET BLOCK URI called with blockHash='"+blockHash+"'"));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 		return blockHandler.getBlockUri(blockHash);
 	}
 
 
 
 	@Nullable	//Mostly used internally
-	public byte[] getBlockContents(@NonNull String blockHash) throws FileNotFoundException {
+	public byte[] getBlockContents(@NonNull String blockHash) throws DataNotFoundException {
 		Log.i(TAG, String.format("\nGET BLOCK CONTENTS called with blockHash='"+blockHash+"'"));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 		return blockHandler.readBlock(blockHash);
 	}
 
-	public LBlockHandler.BlockSet putBlockContents(@NonNull byte[] contents) {
+	public LBlockHandler.BlockSet putBlockData(@NonNull byte[] contents) throws IOException {
 		Log.i(TAG, "\nPUT BLOCK CONTENTS BYTE called");
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 		return blockHandler.writeBytesToBlocks(contents);
 	}
 
-	public LBlockHandler.BlockSet putBlockContents(@NonNull Uri uri) throws UnknownHostException {
+	public LBlockHandler.BlockSet putBlockData(@NonNull Uri uri) throws IOException {
 		Log.i(TAG, "\nPUT BLOCK CONTENTS URI called");
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 		return blockHandler.writeUriToBlocks(uri);
 	}
 
@@ -299,6 +298,7 @@ public class LocalRepo {
 
 	public void deleteBlock(@NonNull String blockHash) {
 		Log.i(TAG, String.format("\nDELETE BLOCK called with blockHash='"+blockHash+"'"));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		//Remove the database entry first to avoid race conditions
 		database.getBlockDao().delete(blockHash);
@@ -312,23 +312,26 @@ public class LocalRepo {
 	// Journal
 	//---------------------------------------------------------------------------------------------
 
+	@NonNull
 	public List<LJournal> getJournalEntriesAfter(int journalID) {
 		Log.i(TAG, String.format("GET JOURNALS AFTER ID called with journalID='%s'", journalID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 
 		List<LJournal> journals = database.getJournalDao().loadAllAfterID(journalID);
 		return journals != null ? journals : new ArrayList<>();
 	}
 
 	public List<LJournal> longpollJournalEntriesAfter(int journalID) {
-
-
-
 		throw new RuntimeException("Stub!");
 	}
 
 
+	@NonNull
 	public List<LJournal> getJournalEntriesForFile(@NonNull UUID fileUID) {
 		Log.i(TAG, String.format("GET JOURNALS FOR FILE called with fileUID='%s'", fileUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 
 		List<LJournal> journals = database.getJournalDao().loadAllByFileUID(fileUID);
 		return journals != null ? journals : new ArrayList<>();
@@ -383,4 +386,12 @@ public class LocalRepo {
 
 		return journalFileList;
 	}
+
+
+
+	private boolean isOnMainThread() {
+		return Thread.currentThread().equals(Looper.getMainLooper().getThread());
+	}
+
+
 }
