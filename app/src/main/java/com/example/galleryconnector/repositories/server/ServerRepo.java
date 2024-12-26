@@ -11,6 +11,7 @@ import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
+import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.server.connectors.AccountConnector;
 import com.example.galleryconnector.repositories.server.connectors.FileConnector;
 import com.example.galleryconnector.repositories.server.connectors.JournalConnector;
@@ -45,6 +46,9 @@ import okhttp3.Response;
 
 
 //TODO Eventually change most/all of the serverRepo.blockConn or fileConn or whatever to just the SRepo method
+
+//TODO Do extensive response code testing inside each of the connectors, handling things with the
+// appropriate exceptions or empty arrays or whatever
 
 public class ServerRepo {
 	private static final String baseServerUrl = "http://10.0.2.2:3306";
@@ -129,6 +133,7 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 
 
+	@Nullable
 	public SFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException, SocketTimeoutException {
 		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
@@ -137,43 +142,39 @@ public class ServerRepo {
 			return fileConn.getProps(fileUID);
 		} catch (FileNotFoundException e) {
 			throw e;
-		} catch (ConnectException | SocketTimeoutException e) {
-			throw e;
 		} catch (IOException e) {
-			throw new RuntimeException(e);
+			return null;
 		}
 	}
 
 
 	public void putFileProps(@NonNull SFile fileProps, @Nullable String prevFileHash, @Nullable String prevAttrHash)
-			throws ConnectException, SocketTimeoutException, IllegalStateException {
+			throws DataNotFoundException, IllegalStateException, ConnectException, SocketTimeoutException {
 		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", fileProps.fileuid));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
 
 		//Check if the block repo is missing any blocks from the blockset
 		List<String> missingBlocks = fileProps.fileblocks.stream()
 				.filter( b -> !getBlockPropsExist(b) )
 				.collect(Collectors.toList());
 
-
 		//If any are missing, we can't commit the file changes
 		if(!missingBlocks.isEmpty())
-			throw new IllegalStateException("Missing blocks: "+missingBlocks);
-
-		System.out.println("Upserting file props");
-		System.out.println(fileProps);
+			throw new DataNotFoundException("Cannot put props, system is missing "+missingBlocks.size()+" blocks!");
 
 
 		//Now that we've confirmed all blocks exist, create/update the file metadata
 		try {
+			fileProps.hashAttributes();
 			fileConn.upsert(fileProps, prevFileHash, prevAttrHash);
+		} catch (IllegalStateException e) {
+			throw e;
 		} catch (ConnectException | SocketTimeoutException e) {
 			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-
-		//TODO Maybe cache the file?
 	}
 
 

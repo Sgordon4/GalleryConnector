@@ -124,16 +124,7 @@ public class SFile {
 
 
 	public JsonObject toJson() {
-		//Get the dates parsed correctly. Otherwise Gson outputs them as "{}".
-		Gson gson = new GsonBuilder()
-				.registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) ->
-						Instant.parse(json.getAsString()))
-				.registerTypeAdapter(Instant.class, (JsonSerializer<Instant>) (instant, type, jsonSerializationContext) ->
-						new JsonPrimitive(instant.toString()
-				))
-				.create();
-
-		return gson.toJsonTree(this).getAsJsonObject();
+		return new Gson().toJsonTree(this).getAsJsonObject();
 	}
 
 

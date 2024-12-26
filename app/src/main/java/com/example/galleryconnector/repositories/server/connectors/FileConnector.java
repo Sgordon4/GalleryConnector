@@ -75,7 +75,7 @@ public class FileConnector {
 		throw new RuntimeException("Stub");
 	}
 
-	public SFile getProps(@NonNull UUID fileUID) throws IOException {
+	public SFile getProps(@NonNull UUID fileUID) throws FileNotFoundException, IOException {
 		//Log.i(TAG, String.format("\nGET FILE called with fileUID='"+fileUID+"'"));
 		String url = Paths.get(baseServerUrl, "files", fileUID.toString()).toString();
 
@@ -90,21 +90,11 @@ public class FileConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-
 			//TODO Remove this logging
 			JsonObject responseJson = JsonParser.parseString(responseData).getAsJsonObject();
 			Log.d(TAG, "Response: "+responseJson.toString());
 
-			Gson gson = new GsonBuilder()
-					.registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) ->
-							Instant.parse(json.getAsString()))
-					.registerTypeAdapter(Instant.class, (JsonSerializer<Instant>) (instant, type, jsonSerializationContext) ->
-							new JsonPrimitive(instant.toString()
-							))
-					.create();
-
-			return gson.fromJson(responseData.trim(), SFile.class);
-			//return new Gson().fromJson(responseData.trim(), SFile.class);
+			return new Gson().fromJson(responseData.trim(), SFile.class);
 		}
 	}
 
@@ -116,23 +106,18 @@ public class FileConnector {
 
 	//Create or update a file entry in the database
 	public boolean upsert(@NonNull SFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash)
-			throws IOException, IllegalStateException {
+			throws IllegalStateException, IOException {
 		//Log.i(TAG, "\nUPSERT FILE called");
+		String base = Paths.get(baseServerUrl, "files", "upsert").toString();
 
 		//Alongside the usual url, send fileHash and attrHash as query params if applicable
-		String base = Paths.get(baseServerUrl, "files", "upsert").toString();
 		HttpUrl.Builder httpBuilder = HttpUrl.parse(base).newBuilder();
-
-		if(prevFileHash != null)
-			httpBuilder.addQueryParameter("prevfilehash", prevFileHash);
-		if(prevAttrHash != null)
-			httpBuilder.addQueryParameter("prevattrhash", prevAttrHash);
-
+		if(prevFileHash != null) httpBuilder.addQueryParameter("prevfilehash", prevFileHash);
+		if(prevAttrHash != null) httpBuilder.addQueryParameter("prevattrhash", prevAttrHash);
 		URL url = httpBuilder.build().url();
 
-		
 
-		//Note: We would check that file properties contain fileuid & accountuid, but both are NonNull in obj def
+		//Note: No need to check that file properties contain fileuid & accountuid, both are NonNull in obj def
 		JsonObject props = file.toJson();
 
 		//Compile all passed properties into a form body. Doesn't matter what they are, send them all.
@@ -148,8 +133,6 @@ public class FileConnector {
 
 
 
-
-
 		Request request = new Request.Builder().url(url).put(body).build();
 		try (Response response = client.newCall(request).execute()) {
 			if(response.code() == 419)
@@ -159,8 +142,8 @@ public class FileConnector {
 			if(response.body() == null)
 				throw new IOException("Response body is null");
 
-			String responseData = response.body().string();
 			return true;
+			//String responseData = response.body().string();
 			//return new Gson().fromJson(responseData, SFile.class);
 		}
 	}
@@ -170,7 +153,7 @@ public class FileConnector {
 	// Delete
 	//---------------------------------------------------------------------------------------------
 
-	public boolean delete(@NonNull UUID fileUID) throws IOException {
+	public boolean delete(@NonNull UUID fileUID) throws FileNotFoundException, IOException {
 		//Log.i(TAG, String.format("\nDELETE FILE called with fileUID='"+fileUID+"'"));
 		String url = Paths.get(baseServerUrl, "files", fileUID.toString()).toString();
 
@@ -184,8 +167,8 @@ public class FileConnector {
 			if(response.body() == null)
 				throw new IOException("Response body is null");
 
-			String responseData = response.body().string();
 			return true;
+			//String responseData = response.body().string();
 			//return new Gson().fromJson(responseData, SFile.class);
 		}
 	}
