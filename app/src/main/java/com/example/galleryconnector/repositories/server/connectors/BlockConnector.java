@@ -4,6 +4,7 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.server.servertypes.SBlock;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -94,12 +95,14 @@ public class BlockConnector {
 
 
 	//Get a presigned URL for reading block data
-	public String getUrl(@NonNull String blockHash) throws IOException {
+	public String getUrl(@NonNull String blockHash) throws DataNotFoundException, IOException {
 		//Log.i(TAG, String.format("\nGET BLOCK GET URL called with blockHash='"+blockHash+"'"));
 		String url = Paths.get(baseServerUrl, "blocks", "link", blockHash).toString();
 
 		Request request = new Request.Builder().url(url).build();
 		try (Response response = client.newCall(request).execute()) {
+			if(response.code() == 404)
+				throw new DataNotFoundException(blockHash);
 			if (!response.isSuccessful())
 				throw new IOException("Unexpected code " + response.code());
 			if(response.body() == null)
@@ -109,12 +112,14 @@ public class BlockConnector {
 		}
 	}
 
-	public byte[] readBlock(@NonNull String blockHash) throws IOException {
+	public byte[] readBlock(@NonNull String blockHash) throws DataNotFoundException, IOException {
 		//Log.i(TAG, String.format("\nGET BLOCK called with blockHash='"+blockHash+"'"));
 		String url = Paths.get(baseServerUrl, "blocks", blockHash).toString();
 
 		Request request = new Request.Builder().url(url).build();
 		try (Response response = client.newCall(request).execute()) {
+			if(response.code() == 404)
+				throw new DataNotFoundException(blockHash);
 			if (!response.isSuccessful())
 				throw new IOException("Unexpected code " + response.code());
 			if(response.body() == null)

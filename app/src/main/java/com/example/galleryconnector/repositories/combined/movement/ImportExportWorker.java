@@ -8,6 +8,7 @@ import androidx.annotation.NonNull;
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
+import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.Objects;
 import java.util.UUID;
@@ -66,6 +67,8 @@ public class ImportExportWorker extends Worker {
 			try {
 				ImportExportApi.getInstance().importFileToLocal(accountUID, parentUID, sourceUri);
 			} catch (UnknownHostException e) {
+				throw new RuntimeException(e);
+			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
 		}

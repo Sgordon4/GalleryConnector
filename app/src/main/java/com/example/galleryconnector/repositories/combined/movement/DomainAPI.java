@@ -18,6 +18,7 @@ import com.google.gson.Gson;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -249,7 +250,13 @@ public class DomainAPI {
 		do {
 			//Find if the server is missing any blocks from the local file's blockset
 			missingBlocks = blockset.stream()
-					.filter( b -> !serverRepo.getBlockPropsExist(b) )
+					.filter( b -> {
+						try {
+							return !serverRepo.getBlockPropsExist(b);
+						} catch (ConnectException e) {
+							throw new RuntimeException(e);
+						}
+					})
 					.collect(Collectors.toList());
 
 			//For each block the server is missing...

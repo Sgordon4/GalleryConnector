@@ -25,6 +25,7 @@ import com.google.gson.Gson;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
@@ -69,7 +70,7 @@ public class SyncHandler {
 		domainAPI = DomainAPI.getInstance();
 
 
-		lastSyncLocalID = 30;
+		lastSyncLocalID = 31;
 		lastSyncServerID = 2;
 
 
@@ -384,8 +385,8 @@ public class SyncHandler {
 			List<SJournal> serverJournals;
 			try {
 				serverJournals = serverRepo.getJournalEntriesAfter(lastSyncServerID);
-			} catch (IOException e) {
-				throw new RuntimeException(e);
+			} catch (ConnectException e) {
+				return;
 			}
 
 

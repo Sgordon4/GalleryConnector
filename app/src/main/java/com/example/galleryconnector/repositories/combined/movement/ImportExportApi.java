@@ -9,6 +9,7 @@ import com.example.galleryconnector.repositories.local.block.LBlockHandler;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.google.gson.JsonObject;
 
+import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.UUID;
 
@@ -31,7 +32,7 @@ public class ImportExportApi {
 
 	//Import a file to the local system from a uri.
 	//Upon a successful import, the file will be moved between local/server based on its parent.
-	public LFile importFileToLocal(@NonNull UUID accountuid, @NonNull UUID parent, @NonNull Uri source) throws UnknownHostException {
+	public LFile importFileToLocal(@NonNull UUID accountuid, @NonNull UUID parent, @NonNull Uri source) throws IOException {
 
 		//Import the blockset to the local repository
 		LBlockHandler.BlockSet blockSet = localRepo.putBlockData(source);

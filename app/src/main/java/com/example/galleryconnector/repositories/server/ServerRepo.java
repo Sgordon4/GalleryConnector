@@ -1,6 +1,5 @@
 package com.example.galleryconnector.repositories.server;
 
-import android.content.ContentResolver;
 import android.net.Uri;
 import android.os.Looper;
 import android.os.NetworkOnMainThreadException;
@@ -9,9 +8,9 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
 import com.example.galleryconnector.repositories.combined.DataNotFoundException;
+import com.example.galleryconnector.repositories.local.block.LBlockHandler;
 import com.example.galleryconnector.repositories.server.connectors.AccountConnector;
 import com.example.galleryconnector.repositories.server.connectors.FileConnector;
 import com.example.galleryconnector.repositories.server.connectors.JournalConnector;
@@ -23,12 +22,11 @@ import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
-import java.io.BufferedInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
-import java.net.SocketTimeoutException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -110,20 +108,34 @@ public class ServerRepo {
 	// Account
 	//---------------------------------------------------------------------------------------------
 
-	public SAccount getAccountProps(@NonNull UUID accountUID) throws IOException {
+	public SAccount getAccountProps(@NonNull UUID accountUID) throws FileNotFoundException, ConnectException {
 		Log.i(TAG, String.format("GET ACCOUNT PROPS called with accountUID='%s'", accountUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		JsonObject accountProps = accountConn.getProps(accountUID);
+		JsonObject accountProps;
+		try {
+			accountProps = accountConn.getProps(accountUID);
+		} catch (ConnectException e) {
+			throw e;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
 		if(accountProps == null) throw new FileNotFoundException("Account not found! ID: '"+accountUID);
 		return new Gson().fromJson(accountProps, SAccount.class);
 	}
 
-	public void putAccountProps(@NonNull SAccount accountProps) throws IOException {
+	public void putAccountProps(@NonNull SAccount accountProps) throws ConnectException {
 		Log.i(TAG, String.format("PUT ACCOUNT PROPS called with accountUID='%s'", accountProps.accountuid));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		accountConn.updateEntry(accountProps.toJson());
+		try {
+			accountConn.updateEntry(accountProps.toJson());
+		} catch (ConnectException e) {
+			throw e;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 
@@ -133,8 +145,7 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	@Nullable
-	public SFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException, SocketTimeoutException {
+	public SFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
 		Log.i(TAG, String.format("GET FILE called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
@@ -142,21 +153,30 @@ public class ServerRepo {
 			return fileConn.getProps(fileUID);
 		} catch (FileNotFoundException e) {
 			throw e;
+		} catch (ConnectException e) {
+			throw e;
 		} catch (IOException e) {
-			return null;
+			e.printStackTrace();
+			throw new RuntimeException();
 		}
 	}
 
 
 	public void putFileProps(@NonNull SFile fileProps, @Nullable String prevFileHash, @Nullable String prevAttrHash)
-			throws DataNotFoundException, IllegalStateException, ConnectException, SocketTimeoutException {
+			throws DataNotFoundException, IllegalStateException, ConnectException {
 		Log.i(TAG, String.format("PUT FILE called with fileUID='%s'", fileProps.fileuid));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 
 		//Check if the block repo is missing any blocks from the blockset
 		List<String> missingBlocks = fileProps.fileblocks.stream()
-				.filter( b -> !getBlockPropsExist(b) )
+				.filter( b -> {
+					try {
+						return !getBlockPropsExist(b);
+					} catch (ConnectException e) {
+						throw new RuntimeException(e);
+					}
+				})
 				.collect(Collectors.toList());
 
 		//If any are missing, we can't commit the file changes
@@ -170,7 +190,7 @@ public class ServerRepo {
 			fileConn.upsert(fileProps, prevFileHash, prevAttrHash);
 		} catch (IllegalStateException e) {
 			throw e;
-		} catch (ConnectException | SocketTimeoutException e) {
+		} catch (ConnectException e) {
 			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -179,7 +199,7 @@ public class ServerRepo {
 
 
 
-	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException, ConnectException, SocketTimeoutException {
+	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException, DataNotFoundException, ConnectException {
 		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
@@ -192,7 +212,7 @@ public class ServerRepo {
 			try {
 				Uri blockUri = getBlockContentsUri(block); //TODO Might be null if block doesn't exist
 				blockStreams.add(new URL(blockUri.toString()).openStream());
-			} catch (ConnectException | SocketTimeoutException e) {
+			} catch (ConnectException e) {
 				throw e;
 			} catch (IOException e) {
 				throw new RuntimeException(e);
@@ -204,29 +224,30 @@ public class ServerRepo {
 
 
 
-	//More of a helper method
-	//DOES NOT UPDATE FILE PROPERTIES
+	public static class BlockSet {
+		public List<String> blockList = new ArrayList<>();
+		public int fileSize = 0;
+		public String fileHash = "";
+	}
+
+	//Helper method
 	//Given a Uri, parse its contents into an evenly chunked set of blocks and write them to disk
 	//Find the fileSize and SHA-256 fileHash while we do so.
-	public SFile putFileContents(@NonNull UUID fileUID, @NonNull Uri source) throws IOException {
-		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with fileUID='%s'", fileUID));
+	public BlockSet putData(@NonNull Uri source) throws IOException {
+		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with Uri='%s'", source));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		SFile file = getFileProps(fileUID);
+		BlockSet blockSet = new BlockSet();
 
-		System.out.println("\n\n\n\n");
-		System.out.println("Server URL is "+source);
 
-		//try (InputStream is = MyApplication.getAppContext().getContentResolver().openInputStream(source);
 		try (InputStream is = new URL(source.toString()).openStream();
 			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
 
-
 			byte[] block;
 			do {
-				System.out.println("Reading bytes from DIS");
+				Log.d(TAG, "Reading...");
 				block = dis.readNBytes(BlockConnector.CHUNK_SIZE);
-				System.out.println("Length: "+block.length);
+				Log.d(TAG, "Read "+block.length);
 
 				if(block.length == 0)   //Don't put empty blocks in the blocklist
 					continue;
@@ -236,36 +257,36 @@ public class ServerRepo {
 				String hashString = putBlockContents(block);
 
 				//Add to the blockSet
-				file.fileblocks.add(hashString);
-				file.filesize += block.length;
+				blockSet.blockList.add(hashString);
+				blockSet.fileSize += block.length;
 
 			} while (block.length >= BlockConnector.CHUNK_SIZE);
 
 
 			//Get the SHA-256 hash of the entire file
-			file.filehash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
-			Log.d(TAG, "File has "+file.fileblocks.size()+" blocks, with a size of "+file.filesize+". ID: "+file.fileuid);
+			blockSet.fileHash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
+			Log.d(TAG, "File has "+blockSet.blockList.size()+" blocks, with a size of "+blockSet.fileSize+".");
 
-		} catch (NoSuchAlgorithmException e) {
+		} catch (MalformedURLException e) {
+			throw new RuntimeException(e);
+		} catch (NoSuchAlgorithmException e) {	//Should never happen
 			throw new RuntimeException(e);
 		}
 
-
-		//DO NOT
-		//Update the file information in the system
-		//putFileProps(file);
-		return file;
+		return blockSet;
 	}
 
 
 
-	public void deleteFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException, SocketTimeoutException {
+	public void deleteFileProps(@NonNull UUID fileUID) throws ConnectException {
 		Log.i(TAG, String.format("DELETE FILE called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		try {
 			fileConn.delete(fileUID);
-		} catch (FileNotFoundException | ConnectException | SocketTimeoutException e) {
+		} catch (FileNotFoundException e) {
+			//Do nothing
+		} catch (ConnectException e) {
 			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -278,13 +299,15 @@ public class ServerRepo {
 	// Block
 	//---------------------------------------------------------------------------------------------
 
-	public SBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException{
+	public SBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException, ConnectException {
 		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		SBlock block;
 		try {
 			block = blockConn.getProps(blockHash);
+		} catch (ConnectException e) {
+			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
@@ -292,7 +315,7 @@ public class ServerRepo {
 		if(block == null) throw new FileNotFoundException("Block not found! Hash: '"+blockHash);
 		return block;
 	}
-	public boolean getBlockPropsExist(@NonNull String blockHash) {
+	public boolean getBlockPropsExist(@NonNull String blockHash) throws ConnectException {
 		try {
 			getBlockProps(blockHash);
 			return true;
@@ -303,18 +326,34 @@ public class ServerRepo {
 
 
 	@Nullable
-	public Uri getBlockContentsUri(@NonNull String blockHash) throws IOException {
+	public Uri getBlockContentsUri(@NonNull String blockHash) throws DataNotFoundException, ConnectException {
 		Log.i(TAG, String.format("\nGET BLOCK URI called with blockHash='"+blockHash+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		return Uri.parse(blockConn.getUrl(blockHash));
+		try {
+			return Uri.parse(blockConn.getUrl(blockHash));
+		} catch (DataNotFoundException e) {
+			throw e;
+		} catch (ConnectException e) {
+			throw e;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 	@Nullable
-	public byte[] getBlockContents(@NonNull String blockHash) throws IOException {
+	public byte[] getBlockContents(@NonNull String blockHash) throws DataNotFoundException, ConnectException {
 		Log.i(TAG, String.format("GET BLOCK DATA called with blockHash='%s'", blockHash));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		return blockConn.readBlock(blockHash);
+		try {
+			return blockConn.readBlock(blockHash);
+		} catch (DataNotFoundException e) {
+			throw e;
+		} catch (ConnectException e) {
+			throw e;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 
@@ -331,25 +370,43 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	public List<SJournal> getJournalEntriesAfter(int journalID) throws IOException {
+	public List<SJournal> getJournalEntriesAfter(int journalID) throws ConnectException {
 		Log.i(TAG, String.format("GET JOURNAL ENTRIES called with journalID='%s'", journalID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		return journalConn.getJournalEntriesAfter(journalID);
+		try {
+			return journalConn.getJournalEntriesAfter(journalID);
+		} catch (ConnectException e) {
+			throw e;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
-	public List<SJournal> getJournalEntriesForFile(UUID fileUID) throws IOException {
+	public List<SJournal> getJournalEntriesForFile(UUID fileUID) throws ConnectException {
 		Log.i(TAG, String.format("GET JOURNAL ENTRIES FOR FILE called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		return journalConn.getJournalEntriesForFile(fileUID);
+		try {
+			return journalConn.getJournalEntriesForFile(fileUID);
+		} catch (ConnectException e) {
+			throw e;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
-	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws IOException {
+	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws ConnectException {
 		Log.i(TAG, String.format("LONGPOLL JOURNAL ENTRIES called with journalID='%s'", journalID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		return journalConn.longpollJournalEntriesAfter(journalID);
+		try {
+			return journalConn.longpollJournalEntriesAfter(journalID);
+		} catch (ConnectException e) {
+			throw e;
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 
