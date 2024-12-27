@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.MalformedURLException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -396,7 +398,7 @@ public class ServerRepo {
 		}
 	}
 
-	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws ConnectException {
+	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws ConnectException, SocketTimeoutException {
 		Log.i(TAG, String.format("LONGPOLL JOURNAL ENTRIES called with journalID='%s'", journalID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
@@ -404,6 +406,8 @@ public class ServerRepo {
 			return journalConn.longpollJournalEntriesAfter(journalID);
 		} catch (ConnectException e) {
 			throw e;
+		} catch (SocketTimeoutException | SocketException e) {
+			throw new SocketTimeoutException("Connection reset.");
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

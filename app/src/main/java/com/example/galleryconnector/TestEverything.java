@@ -33,14 +33,32 @@ public class TestEverything {
 	GalleryRepo grepo = GalleryRepo.getInstance();
 	DomainAPI domainAPI = DomainAPI.getInstance();
 	UUID accountUID = UUID.fromString("b16fe0ba-df94-4bb6-ad03-aab7e47ca8c3");
-	//UUID fileUID = UUID.fromString("d79bee5d-1666-4d18-ae29-1bfba6bf0564");
-	UUID fileUID = UUID.fromString("d79bee5d-1666-4d18-ae29-1bfba6bf0568");	//Fake
+	UUID fileUID = UUID.fromString("d79bee5d-1666-4d18-ae29-1bfba6bf0564");
+	//UUID fileUID = UUID.fromString("d79bee5d-1666-4d18-ae29-1bfba6bf0568");	//Fake
 
 	Uri externalUri = Uri.parse("https://sample-videos.com/img/Sample-jpg-image-2mb.jpg");
 
 	Path tempFile = Paths.get(MyApplication.getAppContext().getDataDir().toString(), "temp", "testfile.txt");
 
 
+
+
+	public void testDomainMove() {
+		//Make sure the file exists on local but not on server
+		try {
+			assert grepo.isFileLocal(fileUID);
+
+			grepo.deleteFilePropsServer(fileUID);
+			assert !grepo.isFileServer(fileUID);
+
+		} catch (ConnectException e) {
+			throw new RuntimeException(e);
+		}
+
+		//Try to copy the file to server
+		grepo.copyFileToServer(fileUID);
+		domainAPI.doSomething(1);
+	}
 
 
 	public void copyToLocal() {

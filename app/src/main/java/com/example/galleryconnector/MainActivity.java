@@ -53,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
 
 
 		Thread thread = new Thread(() -> {
+			everything.testDomainMove();
 		});
 		//thread.start();
 

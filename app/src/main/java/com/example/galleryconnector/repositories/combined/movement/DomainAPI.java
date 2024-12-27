@@ -75,12 +75,16 @@ public class DomainAPI {
 	public int doSomething(int times) {
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
 
+		System.out.println("Doing something");
 		//Get the next N fileUID and operation pairs
 		List<Map.Entry<UUID, Integer>> nextOperations = pendingOperations.pop(times);
+		System.out.println("Got "+nextOperations.size()+" operations");
 
 		for(Map.Entry<UUID, Integer> entry : nextOperations) {
 			UUID fileUID = entry.getKey();
 			Integer operationsMask = entry.getValue();
+
+			System.out.println("Doing "+fileUID+"::"+operationsMask);
 
 			if(fileUID == null) {
 				Log.w(TAG, "Null file ID in queue!");
