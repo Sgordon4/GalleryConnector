@@ -101,7 +101,7 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 
 	@Nullable
-	public GAccount getAccountProps(@NonNull UUID accountuid) throws FileNotFoundException {
+	public GAccount getAccountProps(@NonNull UUID accountuid) throws FileNotFoundException, ConnectException {
 		//Try to get the account data from local. If it exists, return that.
 		try {
 			LAccount local = localRepo.getAccountProps(accountuid);
@@ -121,8 +121,6 @@ public class GalleryRepo {
 			// TBH that can probably just be done by Putting props to both every time
 		} catch (FileNotFoundException e) {
 			//Do nothing
-		} catch (ConnectException e) {
-			//Do nothing
 		}
 
 		//If the file doesn't exist in either, throw an exception
@@ -136,13 +134,9 @@ public class GalleryRepo {
 		return true;
 	}
 
-	public boolean putAccountPropsServer(@NonNull GAccount gAccount) {
+	public boolean putAccountPropsServer(@NonNull GAccount gAccount) throws ConnectException {
 		SAccount account = new Gson().fromJson(gAccount.toJson(), SAccount.class);
-		try {
-			serverRepo.putAccountProps(account);
-		} catch (ConnectException e) {
-			return false;
-		}
+		serverRepo.putAccountProps(account);
 		return true;
 	}
 
@@ -153,7 +147,7 @@ public class GalleryRepo {
 
 
 	@Nullable
-	public GFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException {
+	public GFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
 		//Try to get the file data from local. If it exists, return that.
 		try {
 			LFile local = localRepo.getFileProps(fileUID);
@@ -169,8 +163,6 @@ public class GalleryRepo {
 			return GFile.fromServerFile(server);
 		} catch (FileNotFoundException e) {
 			//Do nothing
-		} catch (ConnectException e) {
-			throw new RuntimeException(e);
 		}
 
 		//If the file doesn't exist in either, throw an exception
@@ -180,7 +172,7 @@ public class GalleryRepo {
 
 	//TODO Should we grab blocks from local if possible, and server if not?
 	// That might just overcomplicate things since blocks for a file are probably all together anyway.
-	public InputStream getFileContents(@NonNull UUID fileUID) throws FileNotFoundException {
+	public InputStream getFileContents(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
 		//Try to get the file data from local. If it exists, return that.
 		try {
 			return localRepo.getFileContents(fileUID);
@@ -200,8 +192,6 @@ public class GalleryRepo {
 		} catch (DataNotFoundException e) {
 			Log.e(TAG, "Server blockset is missing data!");
 			throw new RuntimeException(e);
-		} catch (ConnectException e) {
-			//Do nothing
 		}
 
 		//If the file doesn't exist in either, throw an exception
@@ -209,35 +199,33 @@ public class GalleryRepo {
 	}
 
 
-	public boolean putFilePropsLocal(@NonNull GFile gFile) {
-		return putFilePropsLocal(gFile, null, null);
+	public void putFilePropsLocal(@NonNull GFile gFile) throws DataNotFoundException {
+		putFilePropsLocal(gFile, null, null);
 	}
-	public boolean putFilePropsLocal(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash) {
+	public void putFilePropsLocal(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash) throws DataNotFoundException {
 		LFile file = gFile.toLocalFile();
 		try {
 			localRepo.putFileProps(file, prevFileHash, prevAttrHash);
 		} catch (DataNotFoundException e) {
-			Log.e(TAG, "Cannot put props, Local blockset is missing data!");
-			return false;
+			throw new DataNotFoundException("Cannot put props, Local blockset is missing data!", e);
 		}
-		return true;
 	}
 
-	public boolean putFilePropsServer(@NonNull GFile gFile) {
+	//TODO What do we want to do with these exceptions. I'm thinking just throw all of them, rather than catch.
+	public boolean putFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, DataNotFoundException, ConnectException {
 		return putFilePropsServer(gFile, null, null);
 	}
-	public boolean putFilePropsServer(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash) {
+	public boolean putFilePropsServer(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash)
+			throws IllegalStateException, DataNotFoundException, ConnectException {
 		SFile file = gFile.toServerFile();
 		try {
 			serverRepo.putFileProps(file, prevFileHash, prevAttrHash);
 		} catch (IllegalStateException e) {
-			Log.e(TAG, "PrevHashes do not match in putFileProps");
-			return false;
+			throw new IllegalStateException("PrevHashes do not match in putFileProps", e);
 		} catch (DataNotFoundException e) {
-			Log.e(TAG, "Cannot put props, Server blockset is missing data!");
-			return false;
+			throw new DataNotFoundException("Cannot put props, Server blockset is missing data!", e);
 		} catch (ConnectException e) {
-			//Do nothing
+			throw e;
 		}
 		return true;
 	}
@@ -262,7 +250,7 @@ public class GalleryRepo {
 		}
 	}
 	//DOES NOT UPDATE FILE PROPERTIES
-	public GFile putDataServer(@NonNull GFile file, @NonNull Uri source) {
+	public GFile putDataServer(@NonNull GFile file, @NonNull Uri source) throws UnknownHostException, ConnectException {
 		try {
 			ServerRepo.BlockSet blockSet = serverRepo.putData(source);
 
@@ -271,8 +259,11 @@ public class GalleryRepo {
 			file.filesize = blockSet.fileSize;
 			file.filehash = blockSet.fileHash;
 			return file;
+		} catch (UnknownHostException e) {
+			System.out.println("BAD SOURCE BAD SOURCE	(or no internet idk)");
+			throw e;
 		} catch (ConnectException e) {
-			throw new RuntimeException(e);
+			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
@@ -282,12 +273,8 @@ public class GalleryRepo {
 	public void deleteFilePropsLocal(@NonNull UUID fileUID) {
 		localRepo.deleteFileProps(fileUID);
 	}
-	public void deleteFilePropsServer(@NonNull UUID fileUID) {
-		try {
-			serverRepo.deleteFileProps(fileUID);
-		} catch (ConnectException e) {
-			throw new RuntimeException(e);
-		}
+	public void deleteFilePropsServer(@NonNull UUID fileUID) throws ConnectException {
+		serverRepo.deleteFileProps(fileUID);
 	}
 
 
@@ -303,14 +290,12 @@ public class GalleryRepo {
 		}
 	}
 
-	public boolean isFileServer(@NonNull UUID fileUID) {
+	public boolean isFileServer(@NonNull UUID fileUID) throws ConnectException {
 		try {
 			serverRepo.getFileProps(fileUID);
 			return true;
 		} catch (FileNotFoundException e) {
 			return false;
-		} catch (ConnectException e) {
-			throw new RuntimeException(e);
 		}
 	}
 
@@ -330,7 +315,7 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 
 	@Nullable
-	public GBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
+	public GBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException, ConnectException {
 		//Try to get the block data from local. If it exists, return that.
 		try {
 			LBlock local = localRepo.getBlockProps(blockHash);
@@ -346,8 +331,6 @@ public class GalleryRepo {
 			return new Gson().fromJson(server.toJson(), GBlock.class);
 		} catch (FileNotFoundException e) {
 			//Do nothing
-		} catch (ConnectException e) {
-			//Do nothing
 		}
 
 		//If the file doesn't exist in either, throw an exception
@@ -355,7 +338,7 @@ public class GalleryRepo {
 	}
 
 
-	public byte[] getBlockContents(@NonNull String blockHash) throws FileNotFoundException {
+	public byte[] getBlockContents(@NonNull String blockHash) throws FileNotFoundException, ConnectException {
 		//Try to get the block data from local. If it exists, return that.
 		try {
 			return localRepo.getBlockContents(blockHash);
@@ -367,8 +350,6 @@ public class GalleryRepo {
 		try {
 			return serverRepo.getBlockContents(blockHash);
 		} catch (DataNotFoundException e) {
-			//Do nothing
-		} catch (ConnectException e) {
 			//Do nothing
 		}
 
@@ -399,14 +380,14 @@ public class GalleryRepo {
 		}
 	}
 
-	public boolean isBlockServer(@NonNull String blockHash) {
+	public boolean isBlockServer(@NonNull String blockHash) throws ConnectException {
 		try {
 			serverRepo.getBlockProps(blockHash);
 			return true;
 		} catch (FileNotFoundException e) {
 			return false;
 		} catch (ConnectException e) {
-			return false;
+			throw e;
 		}
 	}
 

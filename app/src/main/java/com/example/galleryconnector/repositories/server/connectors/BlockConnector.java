@@ -79,17 +79,7 @@ public class BlockConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-
-			Gson gson = new GsonBuilder()
-					.registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) ->
-							Instant.parse(json.getAsString()))
-					.registerTypeAdapter(Instant.class, (JsonSerializer<Instant>) (instant, type, jsonSerializationContext) ->
-							new JsonPrimitive(instant.toString()
-							))
-					.create();
-
-			return gson.fromJson(responseData, new TypeToken< List<SBlock> >(){}.getType());
-			//return new Gson().fromJson(responseData, new TypeToken< List<SBlock> >(){}.getType());
+			return new Gson().fromJson(responseData, new TypeToken< List<SBlock> >(){}.getType());
 		}
 	}
 

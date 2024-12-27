@@ -357,7 +357,7 @@ public class ServerRepo {
 	}
 
 
-	public String putBlockContents(@NonNull byte[] blockData) throws IOException {
+	public String putBlockContents(@NonNull byte[] blockData) throws ConnectException, IOException {
 		Log.i(TAG, "\nPUT BLOCK CONTENTS BYTE called");
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 

@@ -245,7 +245,6 @@ public class LocalRepo {
 	// Block
 	//---------------------------------------------------------------------------------------------
 
-	@Nullable
 	public LBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
 		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();

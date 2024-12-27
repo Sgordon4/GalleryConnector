@@ -1,7 +1,11 @@
 package com.example.galleryconnector;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.widget.ImageView;
 
+import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
@@ -15,6 +19,7 @@ import com.example.galleryconnector.repositories.local.journal.LJournal;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ConnectException;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -71,6 +76,8 @@ public class TestEverything {
 		} catch (UnknownHostException e) {
 			System.out.println("Houston we have a problem");
 			throw new RuntimeException(e);
+		} catch (DataNotFoundException e) {
+			throw new RuntimeException(e);
 		}
 
 
@@ -78,20 +85,30 @@ public class TestEverything {
 	public void importToServer() {
 		GFile newFile = new GFile(fileUID, accountUID);
 
-		System.out.println("Putting file contents into server");
-		//externalUriToTestFile();
-		//grepo.putFileContentsServer(fileUID, Uri.fromFile(tempFile.toFile())).get();		//Local temp file
-		newFile = grepo.putDataServer(newFile, externalUri);				//WebURL
+		try {
+			System.out.println("Putting file contents into server");
+			newFile = grepo.putDataServer(newFile, externalUri);				//WebURL
 
-		System.out.println("Putting file props into server");
-		grepo.putFilePropsServer(newFile);
+			System.out.println("Putting file props into server");
+			grepo.putFilePropsServer(newFile);
+		} catch (UnknownHostException e) {
+			throw new RuntimeException(e);
+		} catch (DataNotFoundException e) {
+			throw new RuntimeException(e);
+		} catch (ConnectException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public void removeFromLocal() {
 		grepo.deleteFilePropsLocal(fileUID);
 	}
 	public void removeFromServer() {
-		grepo.deleteFilePropsServer(fileUID);
+		try {
+			grepo.deleteFilePropsServer(fileUID);
+		} catch (ConnectException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public InputStream getFileContents() {
@@ -99,9 +116,104 @@ public class TestEverything {
 			return grepo.getFileContents(fileUID);
 		} catch (FileNotFoundException e) {
 			throw new RuntimeException(e);
+		} catch (ConnectException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
+
+
+
+	public void displayImage(ImageView view) {
+		System.out.println("Getting InputStream ---------------------------------------------");
+
+		//Grab an inputStream of the file contents from the closest repo that has it
+		InputStream inputStream = getFileContents();
+		Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+
+		//And put the contents into our testing ImageView
+		view.post(() -> {
+			System.out.println("Setting Bitmap --------------------------------------------------");
+			view.setImageBitmap(bitmap);
+		});
+		System.out.println("Finished displaying");
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+
+	//Temp testing storage
+
+	/*
+	Thread thread = new Thread(() -> {
+
+		//Delete both local and server files for a clean slate
+		//everything.removeFromLocal();
+		//everything.removeFromServer();
+
+		//Since we don't actually persist these yet, update them here for now
+		//everything.updateLocalSyncPointer();
+
+		// ----------- TESTING START -----------
+
+		//everything.importToLocal();
+		//everything.importToServer();
+
+		//everything.copyToServer();
+
+
+
+		//everything.printLocalJournals();
+
+		displayImage( findViewById(R.id.image) );
+	});
+
+
+	GFileUpdateObservers.GFileObservable observable = (journalID, file) -> {
+		UUID fileUID = UUID.fromString("d79bee5d-1666-4d18-ae29-1bfba6bf0564");
+
+
+		System.out.println("Grabbing local file inside observer: ");
+		try {
+			System.out.println(gRepo.getFileProps(fileUID));
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException(e);
+		} catch (ConnectException e) {
+			throw new RuntimeException(e);
+		}
+
+		if(file.fileuid.equals(fileUID)) {
+			displayImage( findViewById(R.id.image) );
+
+		}
+	};
+	//gRepo.addObserver(observable);
+	 */
+
+
+	/*
+	displayImage( findViewById(R.id.image) );
+
+
+	private void displayImage(ImageView view) {
+		System.out.println("Getting InputStream ---------------------------------------------");
+
+		//Grab an inputStream of the file contents from the closest repo that has it
+		InputStream inputStream = everything.getFileContents();
+		Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+
+		//And put the contents into our testing ImageView
+		ImageView view = findViewById(R.id.image);
+		view.post(() -> {
+			System.out.println("Setting Bitmap --------------------------------------------------");
+			view.setImageBitmap(bitmap);
+		});
+		System.out.println("Finished displaying");
+	}
+	 */
 
 
 

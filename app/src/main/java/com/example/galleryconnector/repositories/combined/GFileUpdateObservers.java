@@ -35,7 +35,7 @@ public class GFileUpdateObservers {
 
 		UUID currentLoggedInAccount = UUID.randomUUID();	//Doesn't actually do anything atm
 
-		attachToLocal(lRepo, localJournalStartID, currentLoggedInAccount);
+		//attachToLocal(lRepo, localJournalStartID, currentLoggedInAccount);
 		attachToServer(sRepo, serverJournalStartID, currentLoggedInAccount);
 	}
 

@@ -16,12 +16,12 @@ import com.example.galleryconnector.repositories.combined.GalleryRepo;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.net.ConnectException;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
 	GalleryRepo gRepo;
-	TestEverything everything = new TestEverything();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -37,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 
-
+	TestEverything everything = new TestEverything();
 
 	@Override
 	protected void onResume() {
@@ -53,63 +53,8 @@ public class MainActivity extends AppCompatActivity {
 
 
 		Thread thread = new Thread(() -> {
-
-			//Delete both local and server files for a clean slate
-			//everything.removeFromLocal();
-			//everything.removeFromServer();
-
-			//Since we don't actually persist these yet, update them here for now
-			//everything.updateLocalSyncPointer();
-
-			// ----------- TESTING START -----------
-
-			//everything.importToLocal();
-			//everything.importToServer();
-
-			//everything.copyToServer();
-
-
-
-			//everything.printLocalJournals();
-
-			displayImage();
 		});
+		//thread.start();
 
-		thread.start();
-
-
-		GFileUpdateObservers.GFileObservable observable = (journalID, file) -> {
-			UUID fileUID = UUID.fromString("d79bee5d-1666-4d18-ae29-1bfba6bf0564");
-
-
-			System.out.println("Grabbing local file inside observer: ");
-			try {
-				System.out.println(gRepo.getFileProps(fileUID));
-			} catch (FileNotFoundException e) {
-				throw new RuntimeException(e);
-			}
-
-			if(file.fileuid.equals(fileUID)) {
-				displayImage();
-			}
-		};
-		//gRepo.addObserver(observable);
-	}
-
-	private void displayImage() {
-		System.out.println("Getting InputStream ---------------------------------------------");
-
-		//Grab an inputStream of the file contents from the closest repo that has it
-		InputStream inputStream = everything.getFileContents();
-		Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-
-
-		//And put the contents into our testing ImageView
-		ImageView view = findViewById(R.id.image);
-		view.post(() -> {
-			System.out.println("Setting Bitmap --------------------------------------------------");
-			view.setImageBitmap(bitmap);
-		});
-		System.out.println("Finished displaying");
 	}
 }
