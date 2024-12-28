@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import okhttp3.Interceptor;
@@ -54,7 +55,6 @@ public class ServerRepo {
 	private static final String baseServerUrl = "http://10.0.2.2:3306";
 	//private static final String baseServerUrl = "http://localhost:3306";
 	OkHttpClient client;
-	OkHttpClient longpollClient;
 	private static final String TAG = "Gal.SRepo";
 
 	public final AccountConnector accountConn;
@@ -72,21 +72,15 @@ public class ServerRepo {
 				.addInterceptor(new LogInterceptor())
 				.followRedirects(true)
 				.connectTimeout(5, TimeUnit.SECONDS)	//TODO Temporary timeout, prob increase later
-				.followSslRedirects(true)
-				.build();
-
-		//Same as above with a longer timeout
-		longpollClient = new OkHttpClient().newBuilder()
-				.addInterceptor(new LogInterceptor())
-				.followRedirects(true)
-				.connectTimeout(30, TimeUnit.SECONDS)
+				.readTimeout(30, TimeUnit.SECONDS)		//Long timeout for longpolling
+				.writeTimeout(5, TimeUnit.SECONDS)
 				.followSslRedirects(true)
 				.build();
 
 		accountConn = new AccountConnector(baseServerUrl, client);
 		fileConn = new FileConnector(baseServerUrl, client);
 		blockConn = new BlockConnector(baseServerUrl, client);
-		journalConn = new JournalConnector(baseServerUrl, client, longpollClient);
+		journalConn = new JournalConnector(baseServerUrl, client);
 
 		observers = new ServerFileObservers();
 	}
@@ -161,7 +155,7 @@ public class ServerRepo {
 
 
 	public SFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
-		Log.i(TAG, String.format("GET SERVER FILE called with fileUID='%s'", fileUID));
+		Log.v(TAG, String.format("GET SERVER FILE PROPS called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		try {
@@ -435,7 +429,7 @@ public class ServerRepo {
 		}
 	}
 
-	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws ConnectException {
+	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws ConnectException, TimeoutException {
 		Log.i(TAG, String.format("LONGPOLL SERVER JOURNAL ENTRIES called with journalID='%s'", journalID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
@@ -443,8 +437,8 @@ public class ServerRepo {
 			return journalConn.longpollJournalEntriesAfter(journalID);
 		} catch (ConnectException e) {
 			throw e;
-		} catch (SocketTimeoutException | SocketException e) {
-			throw new ConnectException();
+		} catch (TimeoutException | SocketTimeoutException | SocketException e) {
+			throw new TimeoutException();
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
@@ -460,13 +454,16 @@ public class ServerRepo {
 		@Override
 		public Response intercept(Chain chain) throws IOException {
 			Request request = chain.request();
-			//Log.i(TAG, "");
 			Log.d(TAG, String.format("	OKHTTP: %s --> %s", request.method(), request.url()));
 			//if(request.body() != null)	//Need another method to print body, this no worky
 				//Log.d(TAG, String.format("OKHTTP: Sending with body - %s", request.body()));
 
 			long t1 = System.nanoTime();
-			Response response = chain.proceed(request);
+			//Response response = chain.proceed(request);
+			Response response = chain
+					.withConnectTimeout(chain.connectTimeoutMillis(), TimeUnit.MILLISECONDS)
+					.withReadTimeout(chain.readTimeoutMillis(), TimeUnit.MILLISECONDS)
+					.withWriteTimeout(chain.writeTimeoutMillis(), TimeUnit.MILLISECONDS).proceed(request);
 			long t2 = System.nanoTime();
 
 			Log.d(TAG, String.format("	OKHTTP: Received response %s for %s in %.1fms",

@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import okhttp3.OkHttpClient;
@@ -30,14 +31,12 @@ import okhttp3.Response;
 public class JournalConnector {
 	private final String baseServerUrl;
 	private final OkHttpClient client;
-	private final OkHttpClient longpollClient;
 	private static final String TAG = "Gal.SRepo.Journal";
 
 
-	public JournalConnector(String baseServerUrl, OkHttpClient client, OkHttpClient longpollClient) {
+	public JournalConnector(String baseServerUrl, OkHttpClient client) {
 		this.baseServerUrl = baseServerUrl;
 		this.client = client;
-		this.longpollClient = client;
 	}
 
 
@@ -98,12 +97,14 @@ public class JournalConnector {
 
 
 	//LONGPOLL all journal entries after a given journalID
-	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws IOException {
+	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws IOException, TimeoutException {
 		//Log.i(TAG, String.format("\nLONGPOLL JOURNAL called with journalID='%s'", journalID));
 		String url = Paths.get(baseServerUrl, "journal", "longpoll", ""+journalID).toString();
 
 		Request request = new Request.Builder().url(url).build();
-		try (Response response = longpollClient.newCall(request).execute()) {
+		try (Response response = client.newCall(request).execute()) {
+			if(response.code() == 408)
+				throw new TimeoutException();
 			if (!response.isSuccessful())
 				throw new IOException("Unexpected code " + response.code());
 			if(response.body() == null)

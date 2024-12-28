@@ -75,16 +75,15 @@ public class DomainAPI {
 	public int doSomething(int times) {
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
 
-		System.out.println("Doing something");
 		//Get the next N fileUID and operation pairs
 		List<Map.Entry<UUID, Integer>> nextOperations = pendingOperations.pop(times);
-		System.out.println("Got "+nextOperations.size()+" operations");
+		System.out.println("DomainAPI doing something "+nextOperations.size()+" times...");
 
 		for(Map.Entry<UUID, Integer> entry : nextOperations) {
 			UUID fileUID = entry.getKey();
 			Integer operationsMask = entry.getValue();
 
-			System.out.println("Doing "+fileUID+"::"+operationsMask);
+			System.out.println("Launching DomainOp: "+fileUID+"::"+operationsMask);
 
 			if(fileUID == null) {
 				Log.w(TAG, "Null file ID in queue!");
@@ -180,14 +179,21 @@ public class DomainAPI {
 	//TODO These eventually need to accept a hash of the previous entry for the endpoint to be sure there
 	// were no updates done while we were computing/sending this. Endpoints would need to be updated as well.
 
-	public boolean copyFileToLocal(@NonNull UUID fileuid) throws IOException {
-		//Get the file properties from the server database
-		SFile serverFileProps;
+	//Note: These are intended to copy the file if it does not already exist.
+	// If the file already exists, they will return with a success
+
+	public boolean copyFileToLocal(@NonNull UUID fileuid) throws IllegalStateException, IOException {
+		//If this file already exists locally, we just return true
 		try {
-			serverFileProps = serverRepo.getFileProps(fileuid);
+			localRepo.getFileProps(fileuid);
+			Log.v(TAG, "Skipping copyFileToLocal, file already exists. FileUID: "+fileuid);
+			return true;
 		} catch (FileNotFoundException e) {
-			throw new FileNotFoundException("File not found in server! fileuid="+fileuid);
+			//We can continue
 		}
+
+		//Get the file properties from the server database
+		SFile serverFileProps = serverRepo.getFileProps(fileuid);
 
 
 		//Get the blockset of the file
@@ -199,17 +205,24 @@ public class DomainAPI {
 
 		//Now that the blockset is uploaded, put the file metadata into the local database
 		LFile file = new Gson().fromJson(serverFileProps.toJson(), LFile.class);
-		localRepo.putFileProps(file, null, null);
+		localRepo.putFileProps(file, null, "null");
 
 		return true;
 	}
 
 
-	public boolean copyFileToServer(@NonNull UUID fileuid) throws IOException {
+	public boolean copyFileToServer(@NonNull UUID fileuid) throws IllegalStateException, IOException {
+		//If this file already exists on server, we just return true
+		try {
+			serverRepo.getFileProps(fileuid);
+			Log.v(TAG, "Skipping copyFileToServer, file already exists. FileUID: "+fileuid);
+			return true;
+		} catch (FileNotFoundException e) {
+			//We can continue
+		}
+
 		//Get the file properties from the local database
 		LFile file = localRepo.getFileProps(fileuid);
-		if(file == null)
-			throw new FileNotFoundException("File not found locally! fileuid="+fileuid);
 
 
 		//Get the blockset of the file
@@ -221,7 +234,7 @@ public class DomainAPI {
 
 		//Now that the blockset is uploaded, create/update the file metadata
 		SFile fileProps = new Gson().fromJson(file.toJson(), SFile.class);
-		serverRepo.putFileProps(fileProps, null, null);
+		serverRepo.putFileProps(fileProps, null, "null");
 
 		return true;
 	}

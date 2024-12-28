@@ -86,6 +86,23 @@ public class TestEverything {
 		domainAPI.doSomething(1);
 	}
 
+	public void testCopyServerWhenExists() {
+		//Make sure the file exists on local
+		if(!grepo.isFileLocal(fileUID))
+			importToLocal(externalUri_1MB);
+		assert grepo.isFileLocal(fileUID);
+
+		try {
+			assert grepo.isFileServer(fileUID);
+		} catch (ConnectException e) {
+			throw new RuntimeException(e);
+		}
+
+		//Try to copy the file to server, where it already exists
+		grepo.copyFileToServer(fileUID);
+		domainAPI.doSomething(1);
+	}
+
 
 	public void copyToLocal() {
 		grepo.copyFileToLocal(fileUID);

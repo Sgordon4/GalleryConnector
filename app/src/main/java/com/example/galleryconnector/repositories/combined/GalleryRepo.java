@@ -50,8 +50,11 @@ public class GalleryRepo {
 
 	private final DomainAPI domainAPI;
 
-	private final GFileUpdateObservers observers;
+	private GFileUpdateObservers observers;
 
+
+
+	//TODO Make sure LRepo and SRepo attrHash hashing is the same
 
 
 	public static GalleryRepo getInstance() {
@@ -67,7 +70,9 @@ public class GalleryRepo {
 		serverRepo = ServerRepo.getInstance();
 
 		domainAPI = DomainAPI.getInstance();
+	}
 
+	public void initializeListeners() {
 		observers = new GFileUpdateObservers(localRepo, serverRepo);
 	}
 

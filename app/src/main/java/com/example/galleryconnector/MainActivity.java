@@ -44,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
 		super.onResume();
 
 		gRepo = GalleryRepo.getInstance();
+		//gRepo.initializeListeners();
 
 
 		//Plan: Make a test text file, and import it to local repo
@@ -53,8 +54,9 @@ public class MainActivity extends AppCompatActivity {
 
 
 		Thread thread = new Thread(() -> {
+			//everything.testServerUpdate();
 			//everything.testDomainMove();
-			everything.testServerUpdate();
+			everything.testCopyServerWhenExists();
 		});
 		thread.start();
 

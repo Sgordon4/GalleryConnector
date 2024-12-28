@@ -90,9 +90,10 @@ public class FileConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
+
 			//TODO Remove this logging
-			JsonObject responseJson = JsonParser.parseString(responseData).getAsJsonObject();
-			Log.d(TAG, "Response: "+responseJson.toString());
+			//JsonObject responseJson = JsonParser.parseString(responseData).getAsJsonObject();
+			//Log.d(TAG, "Response: "+responseJson.toString());
 
 			return new Gson().fromJson(responseData.trim(), SFile.class);
 		}
@@ -135,7 +136,7 @@ public class FileConnector {
 
 		Request request = new Request.Builder().url(url).put(body).build();
 		try (Response response = client.newCall(request).execute()) {
-			if(response.code() == 419)
+			if(response.code() == 412)
 				throw new IllegalStateException("PrevHashes do not match with latest properties!");
 			if (!response.isSuccessful())
 				throw new IOException("Unexpected code " + response.code());

@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 
 public class ServerFileObservers {
 
@@ -72,11 +73,8 @@ public class ServerFileObservers {
 				try {
 					latestID = longpoll(latestID);
 				}
-				catch (SocketTimeoutException e) {
+				catch (TimeoutException e) {
 					//This is supposed to happen, restart the poll
-				}
-				catch (SocketException e) {
-					//Odd, but likely a server restart. Try to restart the poll
 				}
 				catch (IOException e) {
 					try {
@@ -101,7 +99,7 @@ public class ServerFileObservers {
 
 
 	//Check the server for new journal entries. Returns the largest journal ID found.
-	public int longpoll(int journalID) throws IOException {
+	public int longpoll(int journalID) throws IOException, TimeoutException {
 		//Try to get any new journal entries. The request is designed to hang until new data is made
 		List<SJournal> entries = ServerRepo.getInstance().longpollJournalEntriesAfter(journalID);
 
