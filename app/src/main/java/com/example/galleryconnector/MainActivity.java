@@ -1,9 +1,6 @@
 package com.example.galleryconnector;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
-import android.widget.ImageView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -11,14 +8,7 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.example.galleryconnector.repositories.combined.GFileUpdateObservers;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
-
-import java.io.FileNotFoundException;
-import java.io.InputStream;
-import java.net.ConnectException;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
 	GalleryRepo gRepo;

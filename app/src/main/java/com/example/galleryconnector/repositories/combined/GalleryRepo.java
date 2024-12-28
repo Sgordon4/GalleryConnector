@@ -472,13 +472,6 @@ public class GalleryRepo {
 		}
 	}
 
-	protected boolean copyFileToLocalImmediate(@NonNull UUID fileuid) throws IOException {
-		return domainAPI.copyFileToLocal(fileuid);
-	}
-	protected boolean copyFileToServerImmediate(@NonNull UUID fileuid) throws IOException {
-		return domainAPI.copyFileToServer(fileuid);
-	}
-
 
 	public void removeFileFromLocal(@NonNull UUID fileuid) {
 		try {

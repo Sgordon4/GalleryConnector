@@ -9,6 +9,7 @@ import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
 
 import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.combined.PersistedMapQueue;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
@@ -176,67 +177,58 @@ public class DomainAPI {
 	// API
 	//=============================================================================================
 
-	//TODO These eventually need to accept a hash of the previous entry for the endpoint to be sure there
-	// were no updates done while we were computing/sending this. Endpoints would need to be updated as well.
-
-	//Note: These are intended to copy the file if it does not already exist.
-	// If the file already exists, they will return with a success
-
-	public boolean copyFileToLocal(@NonNull UUID fileuid) throws IllegalStateException, IOException {
-		//If this file already exists locally, we just return true
-		try {
-			localRepo.getFileProps(fileuid);
-			Log.v(TAG, "Skipping copyFileToLocal, file already exists. FileUID: "+fileuid);
-			return true;
-		} catch (FileNotFoundException e) {
-			//We can continue
-		}
-
-		//Get the file properties from the server database
-		SFile serverFileProps = serverRepo.getFileProps(fileuid);
-
-
-		//Get the blockset of the file
-		List<String> blockset = serverFileProps.fileblocks;
-
-		//And download them all from the server
-		copyBlocksToLocal(blockset);
-
-
-		//Now that the blockset is uploaded, put the file metadata into the local database
-		LFile file = new Gson().fromJson(serverFileProps.toJson(), LFile.class);
-		localRepo.putFileProps(file, null, "null");
-
-		return true;
+	public void createFileOnServer(@NonNull UUID fileUID) throws IllegalStateException, IOException {
+		LFile file = localRepo.getFileProps(fileUID);
+		createFileOnServer(file);
 	}
-
-
-	public boolean copyFileToServer(@NonNull UUID fileuid) throws IllegalStateException, IOException {
-		//If this file already exists on server, we just return true
-		try {
-			serverRepo.getFileProps(fileuid);
-			Log.v(TAG, "Skipping copyFileToServer, file already exists. FileUID: "+fileuid);
-			return true;
-		} catch (FileNotFoundException e) {
-			//We can continue
-		}
-
-		//Get the file properties from the local database
-		LFile file = localRepo.getFileProps(fileuid);
-
-
+	public void createFileOnServer(@NonNull LFile file) throws IllegalStateException, IOException {
+		copyFileToServer(file, null, "null");
+	}
+	public void copyFileToServer(@NonNull LFile file, String lastServerFileHash, String lastServerAttrHash)
+			throws IllegalStateException, IOException {
 		//Get the blockset of the file
 		List<String> blockset = file.fileblocks;
 
-		//And send them all to the server
+		//And upload them all to the server
 		copyBlocksToServer(blockset);
-
 
 		//Now that the blockset is uploaded, create/update the file metadata
 		SFile fileProps = new Gson().fromJson(file.toJson(), SFile.class);
-		serverRepo.putFileProps(fileProps, null, "null");
 
-		return true;
+		try {
+			serverRepo.putFileProps(fileProps, lastServerFileHash, lastServerAttrHash);
+		} catch (DataNotFoundException e) {
+			Log.e(TAG, "copyFileToServer() failed! Blockset failed to copy!");
+			throw new RuntimeException(e);
+		}
+	}
+
+
+
+	public void createFileOnLocal(@NonNull UUID fileUID) throws IllegalStateException, IOException {
+		SFile file = serverRepo.getFileProps(fileUID);
+		createFileOnLocal(file);
+	}
+	public void createFileOnLocal(@NonNull SFile file) throws IllegalStateException, IOException {
+		copyFileToLocal(file, null, "null");
+	}
+	public void copyFileToLocal(@NonNull SFile file, String lastLocalFileHash, String lastLocalAttrHash)
+			throws IllegalStateException, IOException {
+		//Get the blockset of the file
+		List<String> blockset = file.fileblocks;
+
+		//And download them all to local
+		copyBlocksToLocal(blockset);
+
+		//Now that the blockset is downloaded, create/update the file metadata
+		LFile fileProps = new Gson().fromJson(file.toJson(), LFile.class);
+
+		try {
+			localRepo.putFileProps(fileProps, lastLocalFileHash, lastLocalAttrHash);
+		} catch (DataNotFoundException e) {
+			Log.e(TAG, "copyFileToLocal() failed! Blockset failed to copy!");
+			throw new RuntimeException(e);
+		}
 	}
 
 

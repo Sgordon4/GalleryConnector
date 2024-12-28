@@ -41,9 +41,9 @@ public class DomainOpWorker extends Worker {
 			//Note: Having something like both COPY_TO_LOCAL and COPY_TO_SERVER is technically valid
 			try {
 				if((operationsMap & DomainAPI.COPY_TO_LOCAL) > 0)
-					domainAPI.copyFileToLocal(fileUID);
+					domainAPI.createFileOnLocal(fileUID);
 				if((operationsMap & DomainAPI.COPY_TO_SERVER) > 0)
-					domainAPI.copyFileToServer(fileUID);
+					domainAPI.createFileOnServer(fileUID);
 			} catch (IllegalStateException e) {
 				Log.i(TAG, "File already exists at destination! Skipping copy operation.");
 				//Hashes don't match, but since we pass in null in the copy methods this means
