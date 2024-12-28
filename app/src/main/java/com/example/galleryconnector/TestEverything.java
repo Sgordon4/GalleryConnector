@@ -12,46 +12,72 @@ import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.journal.LJournal;
+import com.example.galleryconnector.repositories.server.ServerRepo;
 
 
 //import org.apache.commons.io.FileUtils;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.UnknownHostException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 public class TestEverything {
 
 	GalleryRepo grepo = GalleryRepo.getInstance();
+	LocalRepo lrepo = LocalRepo.getInstance();
+	ServerRepo srepo = ServerRepo.getInstance();
 	DomainAPI domainAPI = DomainAPI.getInstance();
 	UUID accountUID = UUID.fromString("b16fe0ba-df94-4bb6-ad03-aab7e47ca8c3");
 	UUID fileUID = UUID.fromString("d79bee5d-1666-4d18-ae29-1bfba6bf0564");
 	//UUID fileUID = UUID.fromString("d79bee5d-1666-4d18-ae29-1bfba6bf0568");	//Fake
 
-	Uri externalUri = Uri.parse("https://sample-videos.com/img/Sample-jpg-image-2mb.jpg");
+	Uri externalUri_1MB = Uri.parse("https://sample-videos.com/img/Sample-jpg-image-1mb.jpg");
+	Uri externalUri_2MB = Uri.parse("https://sample-videos.com/img/Sample-jpg-image-2mb.jpg");
 
 	Path tempFile = Paths.get(MyApplication.getAppContext().getDataDir().toString(), "temp", "testfile.txt");
 
 
 
 
+	public void testServerUpdate() {
+		//Make sure the file exists on local
+		if(!grepo.isFileLocal(fileUID))
+			importToLocal(externalUri_1MB);
+		assert grepo.isFileLocal(fileUID);
+
+		//Upload the file to server
+		try {
+			LFile localFile = lrepo.getFileProps(fileUID);
+			GFile file = GFile.fromLocalFile(localFile);
+
+			grepo.putFilePropsServer(file);
+
+		} catch (ConnectException e) {
+			System.out.println("ConnectException in testDomainMove");
+			throw new RuntimeException(e);
+		} catch (DataNotFoundException | FileNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+
 	public void testDomainMove() {
 		//Make sure the file exists on local but not on server
 		try {
+			if(!grepo.isFileLocal(fileUID))
+				importToLocal(externalUri_1MB);
 			assert grepo.isFileLocal(fileUID);
 
 			grepo.deleteFilePropsServer(fileUID);
 			assert !grepo.isFileServer(fileUID);
 
 		} catch (ConnectException e) {
+			System.out.println("ConnectException in testDomainMove");
 			throw new RuntimeException(e);
 		}
 
@@ -80,12 +106,12 @@ public class TestEverything {
 
 
 
-	public void importToLocal() {
+	public void importToLocal(Uri uri) {
 		GFile newFile = new GFile(fileUID, accountUID);
 
 		try {
 			System.out.println("Putting file contents into local");
-			newFile = grepo.putDataLocal(newFile, externalUri);				//WebURL
+			newFile = grepo.putDataLocal(newFile, uri);
 
 			System.out.println("Putting file props into local");
 			System.out.println(newFile);
@@ -100,12 +126,12 @@ public class TestEverything {
 
 
 	}
-	public void importToServer() {
+	public void importToServer(Uri uri) {
 		GFile newFile = new GFile(fileUID, accountUID);
 
 		try {
 			System.out.println("Putting file contents into server");
-			newFile = grepo.putDataServer(newFile, externalUri);				//WebURL
+			newFile = grepo.putDataServer(newFile, uri);
 
 			System.out.println("Putting file props into server");
 			grepo.putFilePropsServer(newFile);

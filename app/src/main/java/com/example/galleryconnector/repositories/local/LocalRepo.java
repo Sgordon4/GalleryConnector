@@ -120,7 +120,7 @@ public class LocalRepo {
 	//---------------------------------------------------------------------------------------------
 
 	public LAccount getAccountProps(@NonNull UUID accountUID) throws FileNotFoundException {
-		Log.i(TAG, String.format("GET ACCOUNT PROPS called with accountUID='%s'", accountUID));
+		Log.i(TAG, String.format("GET LOCAL ACCOUNT PROPS called with accountUID='%s'", accountUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		LAccount account = database.getAccountDao().loadByUID(accountUID);
@@ -129,7 +129,7 @@ public class LocalRepo {
 	}
 
 	public void putAccountProps(@NonNull LAccount accountProps) {
-		Log.i(TAG, String.format("PUT ACCOUNT PROPS called with accountUID='%s'", accountProps.accountuid));
+		Log.i(TAG, String.format("PUT LOCAL ACCOUNT PROPS called with accountUID='%s'", accountProps.accountuid));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		database.getAccountDao().put(accountProps);
@@ -144,7 +144,7 @@ public class LocalRepo {
 
 
 	public LFile getFileProps(UUID fileUID) throws FileNotFoundException {
-		Log.v(TAG, String.format("GET FILE PROPS called with fileUID='%s'", fileUID));
+		Log.v(TAG, String.format("GET LOCAL FILE PROPS called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		LFile file = database.getFileDao().loadByUID(fileUID);
@@ -155,7 +155,7 @@ public class LocalRepo {
 
 	public LFile putFileProps(@NonNull LFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash)
 			throws DataNotFoundException, IllegalStateException {
-		Log.i(TAG, String.format("PUT FILE PROPS called with fileUID='%s'", file.fileuid));
+		Log.i(TAG, String.format("PUT LOCAL FILE PROPS called with fileUID='%s'", file.fileuid));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 
@@ -192,7 +192,7 @@ public class LocalRepo {
 
 
 	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException, DataNotFoundException {
-		Log.i(TAG, String.format("GET FILE CONTENTS called with fileUID='%s'", fileUID));
+		Log.i(TAG, String.format("GET LOCAL FILE CONTENTS called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		LFile file = getFileProps(fileUID);
@@ -210,7 +210,7 @@ public class LocalRepo {
 
 
 	public LBlockHandler.BlockSet putData(@NonNull Uri source) throws IOException {
-		Log.i(TAG, String.format("PUT FILE CONTENTS (Uri) called with Uri='%s'", source));
+		Log.i(TAG, String.format("PUT LOCAL FILE CONTENTS (Uri) called with Uri='%s'", source));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		//Write the Uri to the system as a set of blocks
@@ -223,7 +223,7 @@ public class LocalRepo {
 
 
 	public LBlockHandler.BlockSet putData(@NonNull String contents) throws IOException {
-		Log.i(TAG, String.format("PUT FILE CONTENTS (String) called with size='%s'", contents.length()));
+		Log.i(TAG, String.format("PUT LOCAL FILE CONTENTS (String) called with size='%s'", contents.length()));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		//Write the String to the system as a set of blocks
@@ -232,7 +232,7 @@ public class LocalRepo {
 
 
 	public void deleteFileProps(@NonNull UUID fileUID) {
-		Log.i(TAG, String.format("DELETE FILE called with fileUID='%s'", fileUID));
+		Log.i(TAG, String.format("DELETE LOCAL FILE called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		database.getFileDao().delete(fileUID);
@@ -246,7 +246,7 @@ public class LocalRepo {
 	//---------------------------------------------------------------------------------------------
 
 	public LBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
-		Log.i(TAG, String.format("GET BLOCK PROPS called with blockHash='%s'", blockHash));
+		Log.i(TAG, String.format("GET LOCAL BLOCK PROPS called with blockHash='%s'", blockHash));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		return blockHandler.getBlockProps(blockHash);
@@ -263,7 +263,7 @@ public class LocalRepo {
 
 	@Nullable
 	public Uri getBlockContentsUri(@NonNull String blockHash) throws DataNotFoundException {
-		Log.i(TAG, String.format("\nGET BLOCK URI called with blockHash='"+blockHash+"'"));
+		Log.i(TAG, String.format("\nGET LOCAL BLOCK URI called with blockHash='"+blockHash+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		return blockHandler.getBlockUri(blockHash);
@@ -273,21 +273,21 @@ public class LocalRepo {
 
 	@Nullable	//Mostly used internally
 	public byte[] getBlockContents(@NonNull String blockHash) throws DataNotFoundException {
-		Log.i(TAG, String.format("\nGET BLOCK CONTENTS called with blockHash='"+blockHash+"'"));
+		Log.i(TAG, String.format("\nGET LOCAL BLOCK CONTENTS called with blockHash='"+blockHash+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		return blockHandler.readBlock(blockHash);
 	}
 
 	public LBlockHandler.BlockSet putBlockData(@NonNull byte[] contents) throws IOException {
-		Log.i(TAG, "\nPUT BLOCK CONTENTS BYTE called");
+		Log.i(TAG, "\nPUT LOCAL BLOCK CONTENTS BYTE called");
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		return blockHandler.writeBytesToBlocks(contents);
 	}
 
 	public LBlockHandler.BlockSet putBlockData(@NonNull Uri uri) throws IOException {
-		Log.i(TAG, "\nPUT BLOCK CONTENTS URI called");
+		Log.i(TAG, "\nPUT LOCAL BLOCK CONTENTS URI called");
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		return blockHandler.writeUriToBlocks(uri);
@@ -296,7 +296,7 @@ public class LocalRepo {
 
 
 	public void deleteBlock(@NonNull String blockHash) {
-		Log.i(TAG, String.format("\nDELETE BLOCK called with blockHash='"+blockHash+"'"));
+		Log.i(TAG, String.format("\nDELETE LOCAL BLOCK called with blockHash='"+blockHash+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		//Remove the database entry first to avoid race conditions
@@ -313,7 +313,7 @@ public class LocalRepo {
 
 	@NonNull
 	public List<LJournal> getJournalEntriesAfter(int journalID) {
-		Log.i(TAG, String.format("GET JOURNALS AFTER ID called with journalID='%s'", journalID));
+		Log.i(TAG, String.format("GET LOCAL JOURNALS AFTER ID called with journalID='%s'", journalID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 
@@ -328,7 +328,7 @@ public class LocalRepo {
 
 	@NonNull
 	public List<LJournal> getJournalEntriesForFile(@NonNull UUID fileUID) {
-		Log.i(TAG, String.format("GET JOURNALS FOR FILE called with fileUID='%s'", fileUID));
+		Log.i(TAG, String.format("GET LOCAL JOURNALS FOR FILE called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 

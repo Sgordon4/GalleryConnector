@@ -30,12 +30,14 @@ import okhttp3.Response;
 public class JournalConnector {
 	private final String baseServerUrl;
 	private final OkHttpClient client;
+	private final OkHttpClient longpollClient;
 	private static final String TAG = "Gal.SRepo.Journal";
 
 
-	public JournalConnector(String baseServerUrl, OkHttpClient client) {
+	public JournalConnector(String baseServerUrl, OkHttpClient client, OkHttpClient longpollClient) {
 		this.baseServerUrl = baseServerUrl;
 		this.client = client;
+		this.longpollClient = client;
 	}
 
 
@@ -101,7 +103,7 @@ public class JournalConnector {
 		String url = Paths.get(baseServerUrl, "journal", "longpoll", ""+journalID).toString();
 
 		Request request = new Request.Builder().url(url).build();
-		try (Response response = client.newCall(request).execute()) {
+		try (Response response = longpollClient.newCall(request).execute()) {
 			if (!response.isSuccessful())
 				throw new IOException("Unexpected code " + response.code());
 			if(response.body() == null)

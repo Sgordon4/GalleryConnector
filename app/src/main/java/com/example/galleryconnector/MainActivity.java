@@ -53,9 +53,10 @@ public class MainActivity extends AppCompatActivity {
 
 
 		Thread thread = new Thread(() -> {
-			everything.testDomainMove();
+			//everything.testDomainMove();
+			everything.testServerUpdate();
 		});
-		//thread.start();
+		thread.start();
 
 	}
 }
