@@ -71,6 +71,7 @@ public class LJournal {
 	@NonNull
 	@Override
 	public String toString() {
+		System.out.println("Journal Changetime is "+changetime);
 		JsonObject json = toJson();
 		return json.toString();
 	}

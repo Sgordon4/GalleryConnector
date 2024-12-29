@@ -11,6 +11,7 @@ import com.google.gson.JsonObject;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.time.Instant;
 import java.util.UUID;
 
 public class ImportExportApi {
@@ -43,6 +44,9 @@ public class ImportExportApi {
 		file.fileblocks = blockSet.blockList;
 		file.filesize = blockSet.fileSize;
 		file.filehash = blockSet.fileHash;
+
+		file.changetime = Instant.now().getEpochSecond();
+		file.modifytime = Instant.now().getEpochSecond();
 
 		//Write the new file entity to the database
 		localRepo.putFileProps(file, null, null);

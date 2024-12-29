@@ -28,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
 
 
 	TestEverything everything = new TestEverything();
+	TestRepoBasics testRepoBasics = new TestRepoBasics();
 
 	@Override
 	protected void onResume() {
@@ -46,7 +47,17 @@ public class MainActivity extends AppCompatActivity {
 		Thread thread = new Thread(() -> {
 			//everything.testServerUpdate();
 			//everything.testDomainMove();
-			everything.testCopyServerWhenExists();
+			//everything.testCopyServerWhenExists();
+
+			testRepoBasics.testLocalBasics();
+			System.out.println("---------------------------------------------------------");
+			System.out.println("---------------------------------------------------------");
+			System.out.println("---------------------------------------------------------");
+			System.out.println("---------------------------------------------------------");
+			System.out.println("---------------------------------------------------------");
+			System.out.println("---------------------------------------------------------");
+			System.out.println("---------------------------------------------------------");
+			testRepoBasics.testServerBasics();
 		});
 		thread.start();
 

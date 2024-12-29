@@ -251,6 +251,7 @@ public class LocalRepo {
 	}
 
 
+	//TODO When we get other infrastructure set up, just set delete prop
 	public void deleteFileProps(@NonNull UUID fileUID) {
 		Log.i(TAG, String.format("DELETE LOCAL FILE called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();

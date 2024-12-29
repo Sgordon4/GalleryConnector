@@ -1,6 +1,7 @@
 package com.example.galleryconnector.repositories.local;
 
 import android.content.Context;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.room.Database;
@@ -20,6 +21,10 @@ import com.example.galleryconnector.repositories.local.journal.LJournalDao;
 import com.example.galleryconnector.repositories.local.sync.LSyncDAO;
 import com.example.galleryconnector.repositories.local.sync.LSyncFile;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.Executors;
+
 
 @Database(entities = {LAccount.class, LFile.class, LJournal.class, LBlock.class, LSyncFile.class}, version = 1)
 @TypeConverters({LocalConverters.class})
@@ -38,41 +43,58 @@ public abstract class LocalDatabase extends RoomDatabase {
 		private static final String DB_NAME = "glocal.db";
 
 		public LocalDatabase newInstance(Context context) {
-			return Room.databaseBuilder(context, LocalDatabase.class, DB_NAME)
-					.addCallback(new Callback() {
-						@Override
-						public void onCreate(@NonNull SupportSQLiteDatabase db) {
-							super.onCreate(db);
+
+			Builder<LocalDatabase> dbBuilder = Room.databaseBuilder(context, LocalDatabase.class, DB_NAME);
 
 
-							//Journal triggers
+			dbBuilder.addCallback(new Callback() {
+				@Override
+				public void onCreate(@NonNull SupportSQLiteDatabase db) {
+					super.onCreate(db);
 
-							//When a file row is inserted or updated, add a record to the Journal.
-							//The journal inserts themselves are identical, there are just two triggers for insert and update respectively
-							db.execSQL("CREATE TRIGGER IF NOT EXISTS file_insert_to_journal AFTER INSERT ON file FOR EACH ROW "+
-									"BEGIN "+
-										"INSERT INTO journal (accountuid, fileuid, filehash, attrhash) " +
-										"VALUES (NEW.accountuid, NEW.fileuid, NEW.filehash, NEW.attrhash); "+
-									"END;");
-							db.execSQL("CREATE TRIGGER IF NOT EXISTS file_update_to_journal AFTER UPDATE OF filehash, attrhash, isdeleted " +
-									"ON file FOR EACH ROW "+
-									"WHEN (NEW.attrhash != OLD.attrhash) OR (NEW.filehash != OLD.filehash) "+
-									"OR (NEW.isdeleted == false AND OLD.isdeleted == true) "+
-									"BEGIN "+
-										"INSERT INTO journal (accountuid, fileuid, filehash, attrhash) " +
-										"VALUES (NEW.accountuid, NEW.fileuid, NEW.filehash, NEW.attrhash); "+
-									"END;");
+					//Journal triggers
+					//I don't actually think the DROP TRIGGER statements work... Are they POSTed?
+					//Gotta delete the whole DB to reset them
 
-							//Note: No DELETE trigger, since to 'delete' a file we actually set the isdeleted bit.
-							// Actual row deletion would be the result of admin work like scheduled cleanup or a file domain move
-							// (local -> server, vice versa).
+					//When a file row is inserted or updated, add a record to the Journal.
+					//The journal inserts themselves are identical, there are just two triggers for insert and update respectively
+					db.execSQL("DROP TRIGGER IF EXISTS file_insert_to_journal;");
+					db.execSQL("CREATE TRIGGER IF NOT EXISTS file_insert_to_journal AFTER INSERT ON file FOR EACH ROW " +
+							"BEGIN " +
+							"INSERT INTO journal (accountuid, fileuid, filehash, attrhash, changetime) " +
+							"VALUES (NEW.accountuid, NEW.fileuid,  NEW.filehash, NEW.attrhash, NEW.changetime); " +
+							"END;");
 
-							//TODO Maybe add block usecount triggers here, for when a file is inserted/updated/deleted
-							// Also include the SyncTable in that when we make it
+					db.execSQL("DROP TRIGGER IF EXISTS file_update_to_journal;");
+					db.execSQL("CREATE TRIGGER IF NOT EXISTS file_update_to_journal AFTER UPDATE OF filehash, attrhash, isdeleted " +
+							"ON file FOR EACH ROW " +
+							"WHEN (NEW.attrhash != OLD.attrhash) OR (NEW.filehash != OLD.filehash) " +
+							"OR (NEW.isdeleted == false AND OLD.isdeleted == true) " +
+							"BEGIN " +
+							"INSERT INTO journal (accountuid, fileuid, filehash, attrhash, changetime) " +
+							"VALUES (NEW.accountuid, NEW.fileuid, NEW.filehash, NEW.attrhash, NEW.changetime); " +
+							"END;");
 
 
-						}
-					}).build();
+					//Note: No DELETE trigger, since to 'delete' a file we actually set the isdeleted bit.
+					// Actual row deletion would be the result of admin work like scheduled cleanup or a file domain move
+					// (local -> server, vice versa).
+
+					//TODO Add block usecount triggers here, for when a file is inserted/updated/deleted
+					// Also include the SyncTable in that when we make it
+				}
+			});
+
+
+			//SQL Logging:
+			QueryCallback callback = (s, list) -> {
+				Log.v("Gal.SQLite", "---------------------------------------------------------");
+				Log.v("Gal.SQLite", s);
+				Log.v("Gal.SQLite", Arrays.toString(list.toArray()));
+			};
+			//dbBuilder.setQueryCallback(callback, Executors.newSingleThreadExecutor());
+
+			return dbBuilder.build();
 		}
 	}
 }

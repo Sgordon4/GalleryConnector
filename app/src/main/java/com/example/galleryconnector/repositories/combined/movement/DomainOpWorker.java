@@ -90,7 +90,7 @@ public class DomainOpWorker extends Worker {
 			} catch (InterruptedException ex) {
 				throw new RuntimeException(ex);
 			}
-			return Result.failure();	//Does this requeue in workers? I hope not lmao		TODO Check
+			return Result.failure();
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

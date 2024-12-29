@@ -181,7 +181,7 @@ public class SyncHandler {
 
 			//If there is no last sync point stored, we're just going to set things up to do last-writer-wins
 			if(lastSynced == null) {
-				if(localFile.modifytime > serverFile.modifytime)
+				if(localFile.changetime > serverFile.changetime)
 					syncReference = GFile.fromLocalFile(localFile);
 				else
 					syncReference = GFile.fromServerFile(serverFile);
@@ -279,7 +279,7 @@ public class SyncHandler {
 			// but I cannot be asked so we're doing last writer wins.
 			//TODO This needs to be upgraded
 
-			if(local.modifytime > server.modifytime)
+			if(local.changetime > server.changetime)
 				serverHasAttrChanges = false;
 			else
 				localHasAttrChanges = false;
