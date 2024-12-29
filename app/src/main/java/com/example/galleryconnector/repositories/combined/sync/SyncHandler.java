@@ -14,7 +14,6 @@ import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.combinedtypes.GJournal;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
@@ -22,15 +21,12 @@ import com.example.galleryconnector.repositories.local.journal.LJournal;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.example.galleryconnector.repositories.server.servertypes.SJournal;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -38,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 
 public class SyncHandler {
@@ -140,6 +135,7 @@ public class SyncHandler {
 		pendingSync.dequeue(fileuids);
 	}
 
+
 	//---------------------------------------------------------------------------------------------
 
 	//TODO We don't actually update or store these yet. Right now they're always 0 and do nothing.
@@ -162,26 +158,11 @@ public class SyncHandler {
 
 
 	//---------------------------------------------------------------------------------------------
-	//---------------------------------------------------------------------------------------------
-	//---------------------------------------------------------------------------------------------
-
-	//Bro HOW do we do this correctly? How do other people even do this correctly? Google?
-	//We can sync all of server to local np, but then syncing local to server is a pain
-	//What if server file is being updated, how do we get a word in.
-	//Realistically I can get away with a shitty implementation, but like wth.
 
 
-	/*
-	Note: This sync is shitty af. It works for our current purposes, but will need to be revised.
-	Right now, we disregard currently updating files when syncing l->s and s->l.
-	A possible solution is requiring a last hash when updating to be sure there were no very new changes.
-	If last has does not match, then require client to merge and then try syncing again.
-	Also, our merge rn is just last writer wins.
-	*/
-
-
-	public boolean trySync2(UUID fileUID) throws ConnectException, IllegalStateException {
-		Log.i(TAG, String.format("SYNC TO SERVER called with fileUID='%s'", fileUID));
+	@Nullable
+	public GFile trySync(UUID fileUID) throws ConnectException, IllegalStateException {
+		Log.i(TAG, String.format("TRY SYNC called with fileUID='%s'", fileUID));
 
 		try {
 			LFile localFile = localRepo.getFileProps(fileUID);
@@ -190,164 +171,57 @@ public class SyncHandler {
 			//If the latest hashes of both files match, nothing needs to be synced
 			if(Objects.equals(localFile.filehash, serverFile.filehash) &&
 				Objects.equals(localFile.attrhash, serverFile.attrhash))
-				return false;
-
-			//WAIT Don't do this here, do it below. Need to check if props need to merge or if can copy
-			//If attrHash doesn't match, but fileHash does, the file contents are the same but other props are different
-			//if(Objects.equals(localFile.filehash, serverFile.filehash))
-			//	trySyncProperties(localFile, serverFile);
-
-
-			//--------------------------------------------------
-
-			//If we are here, that means the fileHashes differ
-			//If one repo is simply out of date, we don't need to merge and can just send over the updates
-			//If both repos have changes, we unfortunately need to merge
-
-			GJournal latestSyncPoint = getLastSyncedJournal(fileUID);
-			if(latestSyncPoint == null)
-				throw new RuntimeException("No matching entries found for sync!");
-
-
-			boolean localHasAttrChanges = !Objects.equals(localFile.attrhash, latestSyncPoint.attrhash);
-			boolean serverHasAttrChanges = !Objects.equals(serverFile.attrhash, latestSyncPoint.attrhash);
-
-			boolean localHasFileChanges = !Objects.equals(localFile.filehash, latestSyncPoint.filehash);
-			boolean serverHasFileChanges = !Objects.equals(serverFile.filehash, latestSyncPoint.filehash);
-
-
-			//If only one repo has file content changes, we don't need to merge the file contents and can just copy
-			try {
-				if(localHasFileChanges && !serverHasFileChanges)
-					domainAPI.copyBlocksToServer(localFile.fileblocks);
-				else if(!localHasFileChanges && serverHasFileChanges)
-					domainAPI.copyBlocksToLocal(serverFile.fileblocks);
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-			//Otherwise we gotta merge... Womp womp.
+				return null;
 
 
 
-			//If both repos have attribute changes, we need to merge attributes
+			//If one or both of the hashes don't match, we need the last sync point to determine what to do next
+			LFile lastSynced = localRepo.getLastSyncedData(fileUID);
+			GFile syncReference;
 
-
-
-			//If only one repo has attribute changes, we can just copy those changes
-			try {
-				if(localHasAttrChanges && !serverHasAttrChanges)
-					domainAPI.copyFileToServer(localFile, null, serverFile.attrhash);
-				else if(!localHasAttrChanges && serverHasAttrChanges)
-					domainAPI.copyFileToLocal(serverFile, null, localFile.attrhash);
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-
-
-
-
-			/*
-
-
-
-
-
-			boolean localHasChanges = localIndex != localJournals.size()-1;
-			boolean serverHasChanges = serverIndex != serverJournals.size()-1;
-
-			//If both repos have changes, we need to merge...
-			if(localHasChanges && serverHasChanges) {
-				//I cannot be bothered, so I'm just going to do last writer wins for merging 	TODO Upgrade this
-				//Just modify the booleans to do the right copy below
-
-				Instant localInstant = Instant.ofEpochMilli(latestLocalJournal.changetime);
-				Instant serverInstant = Instant.ofEpochMilli(latestServerJournal.changetime);
-
-				//If the localRepo was updated most recently...
-				if(localInstant.isAfter(serverInstant))
-					serverHasChanges = false;		//Pretend the serverRepo doesn't have changes so that they're overwritten
+			//If there is no last sync point stored, we're just going to set things up to do last-writer-wins
+			if(lastSynced == null) {
+				if(localFile.modifytime > serverFile.modifytime)
+					syncReference = GFile.fromLocalFile(localFile);
 				else
-					localHasChanges = false;		//Pretend the localRepo doesn't have changes so that they're overwritten
+					syncReference = GFile.fromServerFile(serverFile);
+			}
+			else syncReference = GFile.fromLocalFile(lastSynced);
 
+
+
+			//Try to merge file contents and user attributes
+			mergeContents(localFile, serverFile, syncReference);
+			mergeAttributes(localFile, serverFile, syncReference);
+
+
+			//Note: If the first update goes through, but the second update fails, we have un problemita
+
+			//If local needs updating...
+			if(!Objects.equals(localFile.filehash, syncReference.filehash) ||
+				!Objects.equals(localFile.attrhash, syncReference.attrhash)) {
+				galleryRepo.putFilePropsLocal(syncReference, localFile.filehash, localFile.attrhash);
+			}
+			//If server needs updating...
+			if(!Objects.equals(serverFile.filehash, syncReference.filehash) ||
+				!Objects.equals(serverFile.attrhash, syncReference.attrhash)) {
+				galleryRepo.putFilePropsServer(syncReference, serverFile.filehash, serverFile.attrhash);
 			}
 
 
-			 */
+			//Since we have a new sync point, update the last sync point table
+			localRepo.putLastSyncedData(syncReference.toLocalFile());
 
-
+			//Data has been written, notify any observers and return true
+			galleryRepo.notify();
+			return syncReference;
 		}
 		catch (FileNotFoundException e) {
 			//If the file is missing from one or both repos, there is nothing to sync
-			return false;
-		}
-
-		throw new RuntimeException("Stub!");
-	}
-
-
-
-	//Find the last point these files were synced
-	@Nullable
-	private GJournal getLastSyncedJournal(@NonNull UUID fileUID) throws ConnectException, FileNotFoundException {
-		List<LJournal> localJournals = localRepo.database.getJournalDao().loadAllByFileUID(fileUID);
-		List<SJournal> serverJournals = serverRepo.getJournalEntriesForFile(fileUID);
-
-		if(localJournals.isEmpty() || serverJournals.isEmpty())
-			throw new FileNotFoundException();
-
-		//TODO Naive LCD implementation O(n^2). Improve later with a map and some fancy comparing.
-		//For each local journal
-		for(int i = localJournals.size()-1; i >= 0; i--) {
-			LJournal lJournal = localJournals.get(i);
-
-			//Look through each server journal to find a match
-			for(int j = serverJournals.size()-1; j >= 0; j--) {
-				SJournal sJournal = serverJournals.get(j);
-
-				//If one is found, return it
-				if(entriesMatch(lJournal, sJournal))
-					return new Gson().fromJson(lJournal.toJson(), GJournal.class);
-			}
-		}
-
-		return null;
-	}
-
-
-
-	private JsonObject mergeAttributes(JsonObject a, JsonObject b) {
-		throw new RuntimeException("Stub!");
-	}
-
-
-	private void merge(@NonNull UUID fileUID) {
-
-	}
-
-
-
-
-	//We're just going with a last writer wins for now			TODO Upgrade this later
-	private void trySyncProperties(@NonNull LFile localFile, @NonNull SFile serverFile)
-			throws ConnectException, IllegalStateException {
-
-		//Write whichever properties are most recent to their opposite repository
-		Instant localInstant = Instant.ofEpochMilli(localFile.changetime);
-		Instant serverInstant = Instant.ofEpochMilli(serverFile.changetime);
-
-		try {
-			//If local was updated more recently...
-			if(localInstant.isAfter(serverInstant))
-				domainAPI.copyFileToServer(localFile, null, serverFile.attrhash);
-			//Else, if server is more recent...
-			else
-				domainAPI.copyFileToLocal(serverFile, null, localFile.attrhash);
-
-		} catch (ConnectException | IllegalStateException e) {
+			return null;
+		} catch (ConnectException e) {
 			throw e;
 		} catch (DataNotFoundException e) {
-			String direction = localInstant.isAfter(serverInstant) ? "L -> S" : "S -> L";
-			Log.e(TAG, "trySyncProperties() "+direction+" failed! Blockset failed to copy!");
 			throw new RuntimeException(e);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -356,214 +230,79 @@ public class SyncHandler {
 
 
 
+	private GFile mergeContents(@NonNull LFile local, @NonNull SFile server, @NonNull GFile syncReference) throws IOException {
+		boolean localHasFileChanges = !Objects.equals(local.filehash, syncReference.filehash);
+		boolean serverHasFileChanges = !Objects.equals(server.filehash, syncReference.filehash);
 
+		//If both repos have file changes, we need to merge. Womp womp.
+		if(localHasFileChanges && serverHasFileChanges) {
+			//We have what we need to actually merge the files (A, B, and Original),
+			// but I cannot be asked so we're doing last writer wins.
+			//TODO This needs to be upgraded
 
-
-
-
-
-
-	//TODO If fail, add back to queue. Need to do some exception testing before that though.
-	//Returns true if data was written, false if not
-	public boolean trySync(UUID fileUID) throws ExecutionException, InterruptedException, IOException {
-		Log.i(TAG, String.format("SYNC TO SERVER called with fileUID='%s'", fileUID));
-
-		//Get props
-		//Check hashes
-		//Get contents
-		//Merge
-		//Write with hash included
-
-
-
-		List<LJournal> localJournals = localRepo.database.getJournalDao().loadAllByFileUID(fileUID);
-		List<SJournal> serverJournals = serverRepo.getJournalEntriesForFile(fileUID);
-
-		//If the file is missing from one or both repos, there is nothing to sync
-		if(localJournals.isEmpty() || serverJournals.isEmpty())
-			return false;
-
-
-		LJournal latestLocalJournal = localJournals.get(localJournals.size()-1);
-		SJournal latestServerJournal = serverJournals.get(serverJournals.size()-1);
-
-		//If the latest hashes of both files match, nothing needs to be synced
-		if(Objects.equals(latestLocalJournal.attrhash, latestServerJournal.attrhash))
-			return false;
-
-		//If attrHash doesn't match, but fileHash does, the file contents are the same but other props are different
-		else if(Objects.equals(latestLocalJournal.filehash, latestServerJournal.filehash)) {
-			//We're just going with a last writer wins for now TODO Upgrade this later
-
-			//TODO Add IllegalState errors
-			//Write whichever properties are most recent to their opposite repository
-			Instant localInstant = Instant.ofEpochMilli(latestLocalJournal.changetime);
-			Instant serverInstant = Instant.ofEpochMilli(latestServerJournal.changetime);
-			if(localInstant.isAfter(serverInstant)) {										//If local is more recent...
-				LFile localChanges = localRepo.getFileProps(fileUID);						//Get changes from local
-				assert localChanges != null;
-
-				galleryRepo.putFilePropsServer(GFile.fromLocalFile(localChanges));			//And upload them to the server
-			}
-			else {																			//Else, if server is more recent...
-				SFile serverChanges = serverRepo.getFileProps(fileUID);						//Get changes from server
-				assert serverChanges != null;
-
-				galleryRepo.putFilePropsLocal(GFile.fromServerFile(serverChanges));			//And upload them to local
-			}
-
-			//Assuming the update was successful, we're done here
-			return true;
-		}
-
-		//--------------------------------------------------
-
-		//If we are here, that means the fileHashes differ
-		//If one repo is simply out of date, we don't need to merge and can just send over the updates
-		//If both repos have changes, we unfortunately need to merge
-
-		//To determine how we need to sync, we need to find the last spot these files were synced
-		//TODO Naive LCD implementation O(n^2). Improve later with a map and some fancy comparing.
-		int localIndex = -1;
-		int serverIndex = -1;
-		for(int i = localJournals.size()-1; i >= 0; i--) {
-			LJournal lJournal = localJournals.get(i);
-
-			for(int j = serverJournals.size()-1; j >= 0; j--) {
-				SJournal sJournal = serverJournals.get(j);
-
-				if(entriesMatch(lJournal, sJournal)) {
-					localIndex = i;
-					serverIndex = j;
-					break;
-				}
-			}
-			if(localIndex != -1)
-				break;
-		}
-
-		if(localIndex == -1 /*|| serverIndex == -1*/)
-			throw new RuntimeException("No matching entries found for sync!");
-
-
-		boolean localHasChanges = localIndex != localJournals.size()-1;
-		boolean serverHasChanges = serverIndex != serverJournals.size()-1;
-
-
-
-		//If both repos have changes, we need to merge...
-		if(localHasChanges && serverHasChanges) {
-			//I cannot be bothered, so I'm just going to do last writer wins for merging 	TODO Upgrade this
-			//Just modify the booleans to do the right copy below
-
-			Instant localInstant = Instant.ofEpochMilli(latestLocalJournal.changetime);
-			Instant serverInstant = Instant.ofEpochMilli(latestServerJournal.changetime);
-
-			//If the localRepo was updated most recently...
-			if(localInstant.isAfter(serverInstant))
-				serverHasChanges = false;		//Pretend the serverRepo doesn't have changes so that they're overwritten
+			if(local.modifytime > server.modifytime)
+				serverHasFileChanges = false;
 			else
-				localHasChanges = false;		//Pretend the localRepo doesn't have changes so that they're overwritten
-
+				localHasFileChanges = false;
 		}
 
-
-
-		//TODO Test that removing a block from the repo mid-copy is handled
-
-		//If local is the only repo with changes...
-		if(localHasChanges && !serverHasChanges) {
-			//Get the file properties from the local database
-			LFile file = localRepo.getFileProps(fileUID);
-			if(file == null) throw new FileNotFoundException("File not found locally! fileuid="+fileUID);
-
-			//Get the blockset of the file
-			List<String> blockset = file.fileblocks;
-			//And send them all to the server
-			domainAPI.copyBlocksToServer(blockset);
-
-			//Now that the blockset is uploaded, put the file metadata to the server database
-			galleryRepo.putFilePropsServer(GFile.fromLocalFile(file), latestServerJournal.filehash, latestServerJournal.attrhash);
+		//If only local has file content changes, just copy those to server
+		if(localHasFileChanges && !serverHasFileChanges) {
+			domainAPI.copyBlocksToServer(local.fileblocks);
+			syncReference.fileblocks = local.fileblocks;
+			syncReference.filesize = local.filesize;
+			syncReference.filehash = local.filehash;
+			syncReference.changetime = local.changetime;
+			syncReference.modifytime = local.modifytime;
+		}
+		//If only server has file content changes, just copy those to local
+		else if(!localHasFileChanges && serverHasFileChanges) {
+			domainAPI.copyBlocksToLocal(server.fileblocks);
+			syncReference.fileblocks = server.fileblocks;
+			syncReference.filesize = server.filesize;
+			syncReference.filehash = server.filehash;
+			syncReference.changetime = server.changetime;
+			syncReference.modifytime = server.modifytime;
 		}
 
-		//Else, if server is the only repo with changes...
-		else if(!localHasChanges && serverHasChanges) {
-			//Get the file properties from the server database
-			SFile file = serverRepo.getFileProps(fileUID);
-			if(file == null) throw new FileNotFoundException("File not found in server! fileuid="+fileUID);
-
-			//Get the blockset of the file
-			List<String> blockset = file.fileblocks;
-			//And download them all to local
-			domainAPI.copyBlocksToLocal(blockset);
-
-			//Now that the blockset is uploaded, put the file metadata to the server database
-			galleryRepo.putFilePropsLocal(GFile.fromServerFile(file), latestLocalJournal.filehash, latestLocalJournal.attrhash);
-		}
-
-
-
-
-		/*
-		//Now that we have the last matching indices, figure out what to do to get things in sync
-
-		//If the first two items are matching, there's nothing to sync
-		if(localIndex == localJournals.size()-1 && serverIndex == serverJournals.size()-1) {
-			//No data has been written, return false
-			return false;
-		}
-		//In this case, only the server has updates, so we need to sync to local
-		else if(localIndex == localJournals.size()-1 && serverIndex < serverJournals.size()-1) {
-			domainAPI.copyFileToLocal(fileUID);
-			//Once we start sending prevHash, if this returns as a fail send it to merge
-		}
-		//In this case, only the local has updates, so we need to sync to server
-		else if(localIndex < localJournals.size()-1 && serverIndex == serverJournals.size()-1) {
-			domainAPI.copyFileToServer(fileUID);
-			//Once we start sending prevHash, if this returns as a fail send it to merge
-		}
-		//Otherwise, both have updates and we need to merge
-		else {
-			LJournal local = localJournals.get(localIndex);
-			SJournal server = serverJournals.get(serverIndex);
-
-			merge(local, server);
-		}
-		 */
-
-
-		//Data has been written, notify any observers and return true
-		galleryRepo.notify();
-		return true;
-	}
-
-	/*
-
-	//Merging is going to take a significant amount of effort, so for now we're doing last writer wins.
-	//Maybe we should just always copy from Server. Idk.
-	public void merge(LJournal local, SJournal server) throws IOException {
-		//TODO Don't know if these date conversions work from the different sql
-		// Might need to convert to epoch during sql gets
-		Instant localInstant = Instant.ofEpochMilli(local.changetime);
-		Instant serverInstant = Instant.ofEpochMilli(server.changetime);
-
-		if(localInstant.isAfter(serverInstant))
-			domainAPI.copyFileToServer(local.fileuid);
-		else
-			domainAPI.copyFileToLocal(server.fileuid);
-	}
-
-	 */
-
-
-	private boolean entriesMatch(LJournal local, SJournal server) {
-		GJournal localJournal = new Gson().fromJson(local.toJson(), GJournal.class);
-		GJournal serverJournal = new Gson().fromJson(server.toJson(), GJournal.class);
-		return localJournal.equals(serverJournal);
+		return syncReference;
 	}
 
 
-	//----------------------------------------------
+	private GFile mergeAttributes(@NonNull LFile local, @NonNull SFile server, @NonNull GFile syncReference) {
+		boolean localHasAttrChanges = !Objects.equals(local.attrhash, syncReference.attrhash);
+		boolean serverHasAttrChanges = !Objects.equals(server.attrhash, syncReference.attrhash);
+
+		//If both repos have user attribute changes, we need to merge. Womp womp.
+		if(localHasAttrChanges && serverHasAttrChanges) {
+			//We have what we need to actually merge the attributes (A, B, and Original),
+			// but I cannot be asked so we're doing last writer wins.
+			//TODO This needs to be upgraded
+
+			if(local.modifytime > server.modifytime)
+				serverHasAttrChanges = false;
+			else
+				localHasAttrChanges = false;
+		}
+
+		//If only local has user attribute changes, just copy those
+		if(localHasAttrChanges && !serverHasAttrChanges) {
+			syncReference.userattr = local.userattr;
+			syncReference.attrhash = local.attrhash;
+			syncReference.changetime = local.changetime;
+		}
+		//If only server has user attribute changes, just copy those
+		else if(!localHasAttrChanges && serverHasAttrChanges) {
+			syncReference.userattr = server.userattr;
+			syncReference.attrhash = server.attrhash;
+			syncReference.changetime = server.changetime;
+		}
+
+		return syncReference;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
 
 	//TODO Do we want this to be account specific? Probably not, may as well just sync everything we've got.
 	public void catchUpOnSyncing() {

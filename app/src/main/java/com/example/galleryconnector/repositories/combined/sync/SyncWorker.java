@@ -10,6 +10,7 @@ import androidx.work.WorkerParameters;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -37,12 +38,11 @@ public class SyncWorker extends Worker {
 
 		try {
 			syncHandler.trySync(fileUID);
-
-			//TODO If this fails for almost any reason, requeue it
-		} catch (ExecutionException | IOException | InterruptedException e) {
-			throw new RuntimeException(e);
 		}
-
+		//If the sync fails due to another file update or server connection issues, requeue it for later
+		catch (IllegalStateException | ConnectException e) {
+			syncHandler.enqueue(fileUID);
+		}
 
 		return Result.success();
 	}

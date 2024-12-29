@@ -86,6 +86,7 @@ public class GalleryRepo {
 	}
 
 
+	//TODO Use this with DomainAPI and SyncHandler's doSomething() methods
 	public boolean doesDeviceHaveInternet() {
 		ConnectivityManager connectivityManager = (ConnectivityManager)
 				MyApplication.getAppContext().getSystemService(Context.CONNECTIVITY_SERVICE);

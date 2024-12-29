@@ -19,6 +19,7 @@ import com.example.galleryconnector.repositories.local.block.LBlock;
 import com.example.galleryconnector.repositories.local.block.LBlockHandler;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.journal.LJournal;
+import com.example.galleryconnector.repositories.local.sync.LSyncFile;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -257,6 +258,23 @@ public class LocalRepo {
 		database.getFileDao().delete(fileUID);
 	}
 
+
+
+	//---------------------------------------------------------------------------------------------
+	// Last Sync
+	//---------------------------------------------------------------------------------------------
+
+	public LFile getLastSyncedData(@NonNull UUID fileUID) {
+		return database.getSyncDao().loadByUID(fileUID);
+	}
+
+	public void putLastSyncedData(@NonNull LFile file) {
+		database.getSyncDao().put(new LSyncFile(file));
+	}
+
+	public void deleteLastSyncedData(@NonNull UUID fileUID) {
+		database.getSyncDao().delete(fileUID);
+	}
 
 
 

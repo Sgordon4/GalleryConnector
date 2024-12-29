@@ -17,9 +17,11 @@ import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.file.LFileDAO;
 import com.example.galleryconnector.repositories.local.journal.LJournal;
 import com.example.galleryconnector.repositories.local.journal.LJournalDao;
+import com.example.galleryconnector.repositories.local.sync.LSyncDAO;
+import com.example.galleryconnector.repositories.local.sync.LSyncFile;
 
 
-@Database(entities = {LAccount.class, LFile.class, LJournal.class, LBlock.class}, version = 1)
+@Database(entities = {LAccount.class, LFile.class, LJournal.class, LBlock.class, LSyncFile.class}, version = 1)
 @TypeConverters({LocalConverters.class})
 public abstract class LocalDatabase extends RoomDatabase {
 
@@ -28,6 +30,7 @@ public abstract class LocalDatabase extends RoomDatabase {
 	public abstract LFileDAO getFileDao();
 	public abstract LJournalDao getJournalDao();
 	public abstract LBlockDao getBlockDao();
+	public abstract LSyncDAO getSyncDao();
 
 
 

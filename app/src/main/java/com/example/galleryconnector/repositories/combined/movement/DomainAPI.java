@@ -177,14 +177,10 @@ public class DomainAPI {
 	// API
 	//=============================================================================================
 
-	public void createFileOnServer(@NonNull UUID fileUID) throws IllegalStateException, IOException {
-		LFile file = localRepo.getFileProps(fileUID);
-		createFileOnServer(file);
+	public SFile createFileOnServer(@NonNull LFile file) throws IllegalStateException, IOException {
+		return copyFileToServer(file, "null", "null");
 	}
-	public void createFileOnServer(@NonNull LFile file) throws IllegalStateException, IOException {
-		copyFileToServer(file, "null", "null");
-	}
-	public void copyFileToServer(@NonNull LFile file, String lastServerFileHash, String lastServerAttrHash)
+	public SFile copyFileToServer(@NonNull LFile file, String lastServerFileHash, String lastServerAttrHash)
 			throws IllegalStateException, IOException {
 		//Get the blockset of the file
 		List<String> blockset = file.fileblocks;
@@ -196,7 +192,7 @@ public class DomainAPI {
 		SFile fileProps = new Gson().fromJson(file.toJson(), SFile.class);
 
 		try {
-			serverRepo.putFileProps(fileProps, lastServerFileHash, lastServerAttrHash);
+			return serverRepo.putFileProps(fileProps, lastServerFileHash, lastServerAttrHash);
 		} catch (DataNotFoundException e) {
 			Log.e(TAG, "copyFileToServer() failed! Blockset failed to copy!");
 			throw new RuntimeException(e);
@@ -204,15 +200,10 @@ public class DomainAPI {
 	}
 
 
-
-	public void createFileOnLocal(@NonNull UUID fileUID) throws IllegalStateException, IOException {
-		SFile file = serverRepo.getFileProps(fileUID);
-		createFileOnLocal(file);
+	public LFile createFileOnLocal(@NonNull SFile file) throws IllegalStateException, IOException {
+		return copyFileToLocal(file, "null", "null");
 	}
-	public void createFileOnLocal(@NonNull SFile file) throws IllegalStateException, IOException {
-		copyFileToLocal(file, "null", "null");
-	}
-	public void copyFileToLocal(@NonNull SFile file, String lastLocalFileHash, String lastLocalAttrHash)
+	public LFile copyFileToLocal(@NonNull SFile file, String lastLocalFileHash, String lastLocalAttrHash)
 			throws IllegalStateException, IOException {
 		//Get the blockset of the file
 		List<String> blockset = file.fileblocks;
@@ -224,7 +215,7 @@ public class DomainAPI {
 		LFile fileProps = new Gson().fromJson(file.toJson(), LFile.class);
 
 		try {
-			localRepo.putFileProps(fileProps, lastLocalFileHash, lastLocalAttrHash);
+			return localRepo.putFileProps(fileProps, lastLocalFileHash, lastLocalAttrHash);
 		} catch (DataNotFoundException e) {
 			Log.e(TAG, "copyFileToLocal() failed! Blockset failed to copy!");
 			throw new RuntimeException(e);
