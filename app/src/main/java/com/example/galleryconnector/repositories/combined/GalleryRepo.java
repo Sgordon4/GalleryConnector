@@ -217,14 +217,15 @@ public class GalleryRepo {
 	}
 
 	//TODO What do we want to do with these exceptions. I'm thinking just throw all of them, rather than catch.
-	public boolean putFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, DataNotFoundException, ConnectException {
+	public GFile putFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, DataNotFoundException, ConnectException {
 		return putFilePropsServer(gFile, null, null);
 	}
-	public boolean putFilePropsServer(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash)
+	public GFile putFilePropsServer(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash)
 			throws IllegalStateException, DataNotFoundException, ConnectException {
 		SFile file = gFile.toServerFile();
 		try {
-			serverRepo.putFileProps(file, prevFileHash, prevAttrHash);
+			SFile retFile = serverRepo.putFileProps(file, prevFileHash, prevAttrHash);
+			return GFile.fromServerFile(retFile);
 		} catch (IllegalStateException e) {
 			throw new IllegalStateException("PrevHashes do not match in putFileProps", e);
 		} catch (DataNotFoundException e) {
@@ -232,7 +233,6 @@ public class GalleryRepo {
 		} catch (ConnectException e) {
 			throw e;
 		}
-		return true;
 	}
 
 

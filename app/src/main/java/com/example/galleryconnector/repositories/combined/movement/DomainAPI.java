@@ -182,7 +182,7 @@ public class DomainAPI {
 		createFileOnServer(file);
 	}
 	public void createFileOnServer(@NonNull LFile file) throws IllegalStateException, IOException {
-		copyFileToServer(file, null, "null");
+		copyFileToServer(file, "null", "null");
 	}
 	public void copyFileToServer(@NonNull LFile file, String lastServerFileHash, String lastServerAttrHash)
 			throws IllegalStateException, IOException {
@@ -210,7 +210,7 @@ public class DomainAPI {
 		createFileOnLocal(file);
 	}
 	public void createFileOnLocal(@NonNull SFile file) throws IllegalStateException, IOException {
-		copyFileToLocal(file, null, "null");
+		copyFileToLocal(file, "null", "null");
 	}
 	public void copyFileToLocal(@NonNull SFile file, String lastLocalFileHash, String lastLocalAttrHash)
 			throws IllegalStateException, IOException {

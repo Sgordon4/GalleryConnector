@@ -38,17 +38,10 @@ public class LJournal {
 	@NonNull
 	public UUID accountuid;
 
-
-	@NonNull
-	@ColumnInfo(defaultValue = "[]")
-	public List<String> fileblocks;
 	@Nullable
 	public String filehash;
-
-
 	@Nullable
 	public String attrhash;
-
 
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
 	public Long changetime;
@@ -58,13 +51,11 @@ public class LJournal {
 	public LJournal(@NonNull UUID fileuid, @NonNull UUID accountuid) {
 		this.fileuid = fileuid;
 		this.accountuid = accountuid;
-		this.fileblocks = new ArrayList<>();
-		this.changetime = null;
+		this.changetime = Instant.now().toEpochMilli();
 	}
 	public LJournal(@NonNull LFile file) {
 		this.fileuid = file.fileuid;
 		this.accountuid = file.accountuid;
-		this.fileblocks = file.fileblocks;
 		this.filehash = file.filehash;
 		this.attrhash = file.attrhash;
 		this.changetime = file.changetime;
@@ -91,12 +82,12 @@ public class LJournal {
 		if (object == null || getClass() != object.getClass()) return false;
 		LJournal that = (LJournal) object;
 		return Objects.equals(fileuid, that.fileuid) && Objects.equals(accountuid, that.accountuid) &&
-				Objects.equals(fileblocks, that.fileblocks) && Objects.equals(filehash, that.filehash) &&
-				Objects.equals(attrhash, that.attrhash) && Objects.equals(changetime, that.changetime);
+				Objects.equals(filehash, that.filehash) && Objects.equals(attrhash, that.attrhash) &&
+				Objects.equals(changetime, that.changetime);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(fileuid, accountuid, fileblocks, filehash, attrhash, changetime);
+		return Objects.hash(fileuid, accountuid, filehash, attrhash, changetime);
 	}
 }

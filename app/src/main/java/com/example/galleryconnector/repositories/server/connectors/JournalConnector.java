@@ -1,28 +1,19 @@
 package com.example.galleryconnector.repositories.server.connectors;
 
-import android.util.Log;
-
 import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.nio.file.Paths;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -43,14 +34,6 @@ public class JournalConnector {
 	//---------------------------------------------------------------------------------------------
 	// Get
 	//---------------------------------------------------------------------------------------------
-
-	Gson gson = new GsonBuilder()
-			.registerTypeAdapter(Instant.class, (JsonDeserializer<Instant>) (json, typeOfT, context) ->
-					Instant.parse(json.getAsString()))
-			.registerTypeAdapter(Instant.class, (JsonSerializer<Instant>) (instant, type, jsonSerializationContext) ->
-					new JsonPrimitive(instant.toString()
-					))
-			.create();
 
 
 	//Get all journal entries after a given journalID
@@ -91,7 +74,7 @@ public class JournalConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return gson.fromJson(responseData, new TypeToken< List<SJournal> >(){}.getType());
+			return new Gson().fromJson(responseData, new TypeToken< List<SJournal> >(){}.getType());
 		}
 	}
 
@@ -111,7 +94,7 @@ public class JournalConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-			return gson.fromJson(responseData, new TypeToken< List<SJournal> >(){}.getType());
+			return new Gson().fromJson(responseData, new TypeToken< List<SJournal> >(){}.getType());
 		}
 	}
 }

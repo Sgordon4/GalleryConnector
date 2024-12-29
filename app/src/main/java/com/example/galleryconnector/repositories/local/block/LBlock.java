@@ -23,11 +23,16 @@ public class LBlock {
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
 	public Long createtime;
 
+	@ColumnInfo(defaultValue = "0")
+	public int usecount;
+
+
 
 	public LBlock(@NonNull String blockhash, int blocksize) {
 		this.blockhash = blockhash;
 		this.blocksize = blocksize;
 		this.createtime = Instant.now().toEpochMilli();
+		this.usecount = 0;
 	}
 
 

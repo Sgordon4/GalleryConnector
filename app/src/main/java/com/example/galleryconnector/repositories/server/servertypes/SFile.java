@@ -38,13 +38,15 @@ public class SFile {
 	public boolean isdeleted;
 
 	@NonNull
-	public JsonObject userattr;
-
-	@NonNull
 	public List<String> fileblocks;
 	public int filesize;
-	@NonNull
+	@Nullable
 	public String filehash;
+
+	@NonNull
+	public JsonObject userattr;
+	@Nullable
+	public String attrhash;
 
 	@NonNull
 	public Long changetime;	//Last time the file properties (database row) were changed
@@ -52,9 +54,6 @@ public class SFile {
 	public Long accesstime;	//Last time the file contents were accessed
 	@NonNull
 	public Long createtime;
-
-	@Nullable
-	public String attrhash;
 
 
 	public SFile(@NonNull UUID accountuid) {
@@ -67,10 +66,9 @@ public class SFile {
 		this.isdir = false;
 		this.islink = false;
 		this.isdeleted = false;
-		this.userattr = new JsonObject();
 		this.fileblocks = new ArrayList<>();
 		this.filesize = 0;
-		this.filehash = "";
+		this.userattr = new JsonObject();
 		this.changetime = Instant.now().toEpochMilli();
 		this.modifytime = null;
 		this.accesstime = null;
@@ -79,6 +77,7 @@ public class SFile {
 
 
 
+	/*
 	public String hashAttributes() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(this.fileuid);
@@ -86,10 +85,10 @@ public class SFile {
 		sb.append(this.isdir);
 		sb.append(this.islink);
 		sb.append(this.isdeleted);
-		sb.append(this.userattr);
 		sb.append(this.fileblocks);
 		sb.append(this.filesize);
 		sb.append(this.filehash);
+		sb.append(this.userattr);
 		//sb.append(this.changetime);
 		//sb.append(this.modifytime);
 		//sb.append(this.accesstime);
@@ -115,6 +114,7 @@ public class SFile {
 		}
 		return new String(hexChars, StandardCharsets.UTF_8);
 	}
+	 */
 
 
 
@@ -153,7 +153,7 @@ public class SFile {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, userattr,
-				fileblocks, filesize, filehash, changetime, modifytime, accesstime, createtime, attrhash);
+		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, fileblocks, filesize, filehash,
+				userattr, attrhash, changetime, modifytime, accesstime, createtime);
 	}
 }

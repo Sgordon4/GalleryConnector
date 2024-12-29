@@ -23,6 +23,9 @@ import com.example.galleryconnector.repositories.local.journal.LJournal;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -181,12 +184,28 @@ public class LocalRepo {
 
 		//Now that we've confirmed all blocks exist, create/update the file metadata:
 
-		//Hash the file attributes
-		file.hashAttributes();
+		//Hash the user attributes
+		try {
+			byte[] hash = MessageDigest.getInstance("SHA-1").digest(file.userattr.toString().getBytes());
+			file.attrhash = bytesToHex(hash);
+		} catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
 
 		//Create/update the file
 		database.getFileDao().put(file);
 		return file;
+	}
+	//https://stackoverflow.com/a/9855338
+	private static final byte[] HEX_ARRAY = "0123456789ABCDEF".getBytes(StandardCharsets.US_ASCII);
+	private static String bytesToHex(@NonNull byte[] bytes) {
+		byte[] hexChars = new byte[bytes.length * 2];
+		for (int j = 0; j < bytes.length; j++) {
+			int v = bytes[j] & 0xFF;
+			hexChars[j * 2] = HEX_ARRAY[v >>> 4];
+			hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
+		}
+		return new String(hexChars, StandardCharsets.UTF_8);
 	}
 
 

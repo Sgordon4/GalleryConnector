@@ -40,16 +40,17 @@ public class LFile {
 
 	@NonNull
 	@ColumnInfo(defaultValue = "{}")
-	public JsonObject userattr;
-
-	@NonNull
-	@ColumnInfo(defaultValue = "{}")
 	public List<String> fileblocks;
 	@ColumnInfo(defaultValue = "0")
 	public int filesize;
-	@NonNull
-	@ColumnInfo(defaultValue = "")
+	@Nullable
 	public String filehash;
+
+	@NonNull
+	@ColumnInfo(defaultValue = "{}")
+	public JsonObject userattr;
+	@Nullable
+	public String attrhash;
 
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
 	public Long changetime;	//Last time the file properties (database row) were changed
@@ -58,8 +59,6 @@ public class LFile {
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
 	public Long createtime;
 
-	@Nullable
-	public String attrhash;
 
 
 	@Ignore
@@ -73,10 +72,9 @@ public class LFile {
 		this.isdir = false;
 		this.islink = false;
 		this.isdeleted = false;
-		this.userattr = new JsonObject();
 		this.fileblocks = new ArrayList<>();
 		this.filesize = 0;
-		this.filehash = "";
+		this.userattr = new JsonObject();
 		this.changetime = Instant.now().toEpochMilli();
 		this.modifytime = null;
 		this.accesstime = null;
@@ -86,6 +84,7 @@ public class LFile {
 
 
 
+	/*
 	public String hashAttributes() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(this.fileuid);
@@ -122,7 +121,7 @@ public class LFile {
 		}
 		return new String(hexChars, StandardCharsets.UTF_8);
 	}
-
+	 */
 
 
 	//We want to exclude some fields with default values from the JSON output
@@ -176,7 +175,7 @@ public class LFile {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, userattr,
-				fileblocks, filesize, filehash, changetime, modifytime, accesstime, createtime, attrhash);
+		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, fileblocks, filesize, filehash,
+				userattr, attrhash, changetime, modifytime, accesstime, createtime);
 	}
 }

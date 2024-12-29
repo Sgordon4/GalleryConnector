@@ -173,7 +173,7 @@ public class ServerRepo {
 	}
 
 
-	public void putFileProps(@NonNull SFile fileProps, @Nullable String prevFileHash, @Nullable String prevAttrHash)
+	public SFile putFileProps(@NonNull SFile fileProps, @Nullable String prevFileHash, @Nullable String prevAttrHash)
 			throws DataNotFoundException, IllegalStateException, ConnectException {
 		Log.i(TAG, String.format("PUT SERVER FILE called with fileUID='%s'", fileProps.fileuid));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
@@ -198,9 +198,8 @@ public class ServerRepo {
 		//Now that we've confirmed all blocks exist, create/update the file metadata
 		try {
 			Log.i(TAG, "All blocks exist, uploading file properties");
-			fileProps.hashAttributes();
 			Log.d(TAG, fileProps.toString());
-			fileConn.upsert(fileProps, prevFileHash, prevAttrHash);
+			return fileConn.upsert(fileProps, prevFileHash, prevAttrHash);
 		} catch (IllegalStateException e) {
 			throw e;
 		} catch (ConnectException e) {

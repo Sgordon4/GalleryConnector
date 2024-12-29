@@ -41,25 +41,31 @@ public abstract class LocalDatabase extends RoomDatabase {
 						public void onCreate(@NonNull SupportSQLiteDatabase db) {
 							super.onCreate(db);
 
+
 							//Journal triggers
 
 							//When a file row is inserted or updated, add a record to the Journal.
 							//The journal inserts themselves are identical, there are just two triggers for insert and update respectively
 							db.execSQL("CREATE TRIGGER IF NOT EXISTS file_insert_to_journal AFTER INSERT ON file FOR EACH ROW "+
 									"BEGIN "+
-										"INSERT INTO journal (accountuid, fileuid, fileblocks, filehash, attrhash) " +
-										"VALUES (NEW.accountuid, NEW.fileuid, NEW.fileblocks, NEW.filehash, NEW.attrhash); "+
+										"INSERT INTO journal (accountuid, fileuid, filehash, attrhash) " +
+										"VALUES (NEW.accountuid, NEW.fileuid, NEW.filehash, NEW.attrhash); "+
 									"END;");
-							db.execSQL("CREATE TRIGGER IF NOT EXISTS file_update_to_journal AFTER UPDATE OF attrhash " +
+							db.execSQL("CREATE TRIGGER IF NOT EXISTS file_update_to_journal AFTER UPDATE OF filehash, attrhash, isdeleted " +
 									"ON file FOR EACH ROW "+
+									"WHEN (NEW.attrhash != OLD.attrhash) OR (NEW.filehash != OLD.filehash) "+
+									"OR (NEW.isdeleted == false AND OLD.isdeleted == true) "+
 									"BEGIN "+
-										"INSERT INTO journal (accountuid, fileuid, fileblocks, filehash, attrhash) " +
-										"VALUES (NEW.accountuid, NEW.fileuid, NEW.fileblocks, NEW.filehash, NEW.attrhash); "+
+										"INSERT INTO journal (accountuid, fileuid, filehash, attrhash) " +
+										"VALUES (NEW.accountuid, NEW.fileuid, NEW.filehash, NEW.attrhash); "+
 									"END;");
 
 							//Note: No DELETE trigger, since to 'delete' a file we actually set the isdeleted bit.
 							// Actual row deletion would be the result of admin work like scheduled cleanup or a file domain move
 							// (local -> server, vice versa).
+
+							//TODO Maybe add block usecount triggers here, for when a file is inserted/updated/deleted
+							// Also include the SyncTable in that when we make it
 
 
 						}

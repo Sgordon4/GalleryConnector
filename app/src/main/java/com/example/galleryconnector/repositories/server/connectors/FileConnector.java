@@ -1,27 +1,16 @@
 package com.example.galleryconnector.repositories.server.connectors;
 
-import android.util.Log;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializer;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Paths;
-import java.text.DateFormat;
-import java.time.Instant;
-import java.util.Date;
-import java.util.Objects;
 import java.util.UUID;
 
 import okhttp3.FormBody;
@@ -44,19 +33,18 @@ public class FileConnector {
 			"isdir",
 			"islink",
 			"isdeleted",
-			"ishidden",
-			"userattr",
 
 			"fileblocks",
 			"filesize",
 			"filehash",
 
+			"userattr",
+			"attrhash",
+
 			"changetime",
 			"modifytime",
 			"accesstime",
-			"createtime",
-
-			"attrhash"
+			"createtime"
 	};
 
 
@@ -106,7 +94,7 @@ public class FileConnector {
 
 
 	//Create or update a file entry in the database
-	public boolean upsert(@NonNull SFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash)
+	public SFile upsert(@NonNull SFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash)
 			throws IllegalStateException, IOException {
 		//Log.i(TAG, "\nUPSERT FILE called");
 		String base = Paths.get(baseServerUrl, "files", "upsert").toString();
@@ -143,9 +131,8 @@ public class FileConnector {
 			if(response.body() == null)
 				throw new IOException("Response body is null");
 
-			return true;
-			//String responseData = response.body().string();
-			//return new Gson().fromJson(responseData, SFile.class);
+			String responseData = response.body().string();
+			return new Gson().fromJson(responseData, SFile.class);
 		}
 	}
 	
@@ -154,7 +141,7 @@ public class FileConnector {
 	// Delete
 	//---------------------------------------------------------------------------------------------
 
-	public boolean delete(@NonNull UUID fileUID) throws FileNotFoundException, IOException {
+	public void delete(@NonNull UUID fileUID) throws FileNotFoundException, IOException {
 		//Log.i(TAG, String.format("\nDELETE FILE called with fileUID='"+fileUID+"'"));
 		String url = Paths.get(baseServerUrl, "files", fileUID.toString()).toString();
 
@@ -168,7 +155,6 @@ public class FileConnector {
 			if(response.body() == null)
 				throw new IOException("Response body is null");
 
-			return true;
 			//String responseData = response.body().string();
 			//return new Gson().fromJson(responseData, SFile.class);
 		}

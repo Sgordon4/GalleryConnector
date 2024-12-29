@@ -7,10 +7,6 @@ import androidx.annotation.NonNull;
 import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.server.servertypes.SBlock;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.IOException;
@@ -19,7 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 

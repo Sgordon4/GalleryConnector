@@ -29,21 +29,20 @@ public class GFile {
 	public boolean isdeleted;
 
 	@NonNull
-	public JsonObject userattr;
-
-	@NonNull
 	public List<String> fileblocks;
 	public int filesize;
-	@NonNull
+	@Nullable
 	public String filehash;
+
+	@NonNull
+	public JsonObject userattr;
+	@Nullable
+	public String attrhash;
 
 	public Long changetime;	//Last time the file properties (database row) were changed
 	public Long modifytime;	//Last time the file contents were modified
 	public Long accesstime;	//Last time the file contents were accessed
-	public Long createtime;
-
-	@Nullable
-	public String attrhash;
+	public Long createtime; //Create time :)
 
 
 	public GFile(@NonNull UUID accountuid) {
@@ -56,10 +55,9 @@ public class GFile {
 		this.isdir = false;
 		this.islink = false;
 		this.isdeleted = false;
-		this.userattr = new JsonObject();
 		this.fileblocks = new ArrayList<>();
 		this.filesize = 0;
-		this.filehash = "";
+		this.userattr = new JsonObject();
 		this.changetime = Instant.now().toEpochMilli();
 		this.modifytime = null;
 		this.accesstime = null;
@@ -120,29 +118,28 @@ public class GFile {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, userattr,
-				fileblocks, filesize, filehash, changetime, modifytime, accesstime, createtime, attrhash);
+		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, fileblocks, filesize, filehash,
+				userattr, attrhash, changetime, modifytime, accesstime, createtime);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 
 
-	//Using Gson has had some undesirable effects concerning timestamps, so I'm adding these instead
 	public static GFile fromLocalFile(@NonNull LFile local) {
 		GFile gFile = new GFile(local.fileuid, local.accountuid);
 		gFile.isdir = local.isdir;
 		gFile.islink = local.islink;
 		gFile.isdeleted = local.isdeleted;
-		gFile.userattr = local.userattr;
 		gFile.fileblocks = local.fileblocks;
 		gFile.filesize = local.filesize;
 		gFile.filehash = local.filehash;
+		gFile.userattr = local.userattr;
+		gFile.attrhash = local.attrhash;
 		gFile.changetime = local.changetime;
 		gFile.modifytime = local.modifytime;
 		gFile.accesstime = local.accesstime;
 		gFile.createtime = local.createtime;
-		gFile.attrhash = local.attrhash;
 
 		return gFile;
 	}
@@ -152,15 +149,15 @@ public class GFile {
 		gFile.isdir = server.isdir;
 		gFile.islink = server.islink;
 		gFile.isdeleted = server.isdeleted;
-		gFile.userattr = server.userattr;
 		gFile.fileblocks = server.fileblocks;
 		gFile.filesize = server.filesize;
 		gFile.filehash = server.filehash;
+		gFile.userattr = server.userattr;
+		gFile.attrhash = server.attrhash;
 		gFile.changetime = server.changetime;
 		gFile.modifytime = server.modifytime;
 		gFile.accesstime = server.accesstime;
 		gFile.createtime = server.createtime;
-		gFile.attrhash = server.attrhash;
 
 		return gFile;
 	}
@@ -171,15 +168,15 @@ public class GFile {
 		local.isdir = isdir;
 		local.islink = islink;
 		local.isdeleted = isdeleted;
-		local.userattr = userattr;
 		local.fileblocks = fileblocks;
 		local.filesize = filesize;
 		local.filehash = filehash;
+		local.userattr = userattr;
+		local.attrhash = attrhash;
 		local.changetime = changetime;
 		local.modifytime = modifytime;
 		local.accesstime = accesstime;
 		local.createtime = createtime;
-		local.attrhash = attrhash;
 
 		return local;
 	}
@@ -189,15 +186,15 @@ public class GFile {
 		server.isdir = isdir;
 		server.islink = islink;
 		server.isdeleted = isdeleted;
-		server.userattr = userattr;
 		server.fileblocks = fileblocks;
 		server.filesize = filesize;
 		server.filehash = filehash;
+		server.userattr = userattr;
+		server.attrhash = attrhash;
 		server.changetime = changetime;
 		server.modifytime = modifytime;
 		server.accesstime = accesstime;
 		server.createtime = createtime;
-		server.attrhash = attrhash;
 
 		return server;
 	}
