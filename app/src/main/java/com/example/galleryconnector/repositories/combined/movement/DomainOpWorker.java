@@ -51,6 +51,7 @@ public class DomainOpWorker extends Worker {
 			//Note: Having something like both COPY_TO_LOCAL and COPY_TO_SERVER is technically valid
 			try {
 				if((operationsMap & DomainAPI.COPY_TO_LOCAL) > 0) {
+					Log.v(TAG, "DomWorker copying file to local. FileUID: " + fileUID);
 					SFile file = serverRepo.getFileProps(fileUID);
 					LFile newFile = domainAPI.createFileOnLocal(file);
 
@@ -59,6 +60,7 @@ public class DomainOpWorker extends Worker {
 					localRepo.putLastSyncedData(newFile);
 				}
 				if((operationsMap & DomainAPI.COPY_TO_SERVER) > 0) {
+					Log.v(TAG, "DomWorker copying file to server. FileUID: " + fileUID);
 					LFile file = localRepo.getFileProps(fileUID);
 					SFile newFile = domainAPI.createFileOnServer(file);
 
@@ -74,10 +76,12 @@ public class DomainOpWorker extends Worker {
 
 
 			if((operationsMap & DomainAPI.REMOVE_FROM_LOCAL) > 0) {
+				Log.v(TAG, "DomWorker removing file from local. FileUID: " + fileUID);
 				domainAPI.removeFileFromLocal(fileUID);
 				localRepo.deleteLastSyncedData(fileUID);
 			}
 			if((operationsMap & DomainAPI.REMOVE_FROM_SERVER) > 0) {
+				Log.v(TAG, "DomWorker removing file from server. FileUID: " + fileUID);
 				domainAPI.removeFileFromServer(fileUID);
 				localRepo.deleteLastSyncedData(fileUID);
 			}
@@ -86,6 +90,7 @@ public class DomainOpWorker extends Worker {
 		//If this fails due to server connection issues, requeue it for later
 		catch (ConnectException e) {
 			try {
+				Log.w(TAG, "DomWorker requeueing due to connection issues!");
 				domainAPI.enqueue(fileUID, operationsMap);
 			} catch (InterruptedException ex) {
 				throw new RuntimeException(ex);

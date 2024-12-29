@@ -1,4 +1,4 @@
-package com.example.galleryconnector;
+package com.example.galleryconnector.shittytests;
 
 import android.net.Uri;
 

@@ -1,5 +1,8 @@
 package com.example.galleryconnector.repositories.combined.sync;
 
+
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -40,12 +43,12 @@ public class SyncHandler {
 	private static final String TAG = "Gal.SRepo.Sync";
 
 	//TODO Figure out how to persist these two (SharedPreferences? DataStore?)
+	private final SharedPreferences sharedPrefs;
 	private int lastSyncLocalID;
 	private int lastSyncServerID;
 
 	private final PersistedMapQueue<UUID, Nullable> pendingSync;
 
-	private final GalleryRepo galleryRepo;
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
 
@@ -60,15 +63,21 @@ public class SyncHandler {
 		private static final SyncHandler INSTANCE = new SyncHandler();
 	}
 	private SyncHandler() {
-		galleryRepo = GalleryRepo.getInstance();
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
 
 		domainAPI = DomainAPI.getInstance();
 
 
-		lastSyncLocalID = 31;
-		lastSyncServerID = 2;
+		sharedPrefs = MyApplication.getAppContext()
+				.getSharedPreferences("gallery.syncPointers", Context.MODE_PRIVATE);
+		lastSyncLocalID = sharedPrefs.getInt("lastSyncLocal", 0);
+		lastSyncServerID = sharedPrefs.getInt("lastSyncServer", 0);
+
+		System.out.println("----------------------------------------------------------");
+		System.out.println("Sync pointers:");
+		System.out.println("lastSyncLocalID: "+lastSyncLocalID);
+		System.out.println("lastSyncServerID: "+lastSyncServerID);
 
 
 		String appDataDir = MyApplication.getAppContext().getApplicationInfo().dataDir;
@@ -80,12 +89,9 @@ public class SyncHandler {
 			@Override
 			public Nullable parseVal(String valString) { return null; }
 		};
-
-
-		//Catch up on synchronizations we've missed while the app has been closed
-		//Will only run once since this class is a singleton
-		catchUpOnSyncing();
 	}
+
+
 
 
 	//---------------------------------------------------------------------------------------------
@@ -97,6 +103,8 @@ public class SyncHandler {
 
 		//Get the next N fileUIDs that need syncing
 		List<Map.Entry<UUID, Nullable>> filesToSync = pendingSync.pop(times);
+		System.out.println("SyncHandler doing something "+filesToSync.size()+" times...");
+
 
 		//For each item...
 		for(Map.Entry<UUID, Nullable> entry : filesToSync) {
@@ -135,6 +143,10 @@ public class SyncHandler {
 		pendingSync.dequeue(fileuids);
 	}
 
+	public void clearQueuedItems() {
+		pendingSync.clear();
+	}
+
 
 	//---------------------------------------------------------------------------------------------
 
@@ -143,10 +155,18 @@ public class SyncHandler {
 	public void updateLastSyncLocal(int id) {
 		if(id > lastSyncLocalID)	//Gets rid of race conditions when several file updates come in at once. We just want the largest ID.
 			lastSyncLocalID = id;
+
+		SharedPreferences.Editor editor = sharedPrefs.edit();
+		editor.putInt("lastSyncLocal", lastSyncLocalID);
+		editor.apply();
 	}
 	public void updateLastSyncServer(int id) {
 		if(id > lastSyncServerID)
 			lastSyncServerID = id;
+
+		SharedPreferences.Editor editor = sharedPrefs.edit();
+		editor.putInt("lastSyncServer", lastSyncServerID);
+		editor.apply();
 	}
 
 	public int getLastSyncLocal() {
@@ -200,12 +220,12 @@ public class SyncHandler {
 			//If local needs updating...
 			if(!Objects.equals(localFile.filehash, syncReference.filehash) ||
 				!Objects.equals(localFile.attrhash, syncReference.attrhash)) {
-				galleryRepo.putFilePropsLocal(syncReference, localFile.filehash, localFile.attrhash);
+				localRepo.putFileProps(syncReference.toLocalFile(), localFile.filehash, localFile.attrhash);
 			}
 			//If server needs updating...
 			if(!Objects.equals(serverFile.filehash, syncReference.filehash) ||
 				!Objects.equals(serverFile.attrhash, syncReference.attrhash)) {
-				galleryRepo.putFilePropsServer(syncReference, serverFile.filehash, serverFile.attrhash);
+				serverRepo.putFileProps(syncReference.toServerFile(), serverFile.filehash, serverFile.attrhash);
 			}
 
 
@@ -213,7 +233,7 @@ public class SyncHandler {
 			localRepo.putLastSyncedData(syncReference.toLocalFile());
 
 			//Data has been written, notify any observers and return true
-			galleryRepo.notify();
+			GalleryRepo.getInstance().notifyObservers(syncReference);
 			return syncReference;
 		}
 		catch (FileNotFoundException e) {
@@ -305,6 +325,7 @@ public class SyncHandler {
 	//---------------------------------------------------------------------------------------------
 
 	//TODO Do we want this to be account specific? Probably not, may as well just sync everything we've got.
+	//Catch up on synchronizations we've missed while the app has been closed
 	public void catchUpOnSyncing() {
 		Thread thread = new Thread(() -> {
 			//Get all new journal entries we've missed
@@ -320,20 +341,31 @@ public class SyncHandler {
 			//We just want the fileUIDs of the new journal entries
 			HashSet<UUID> fileUIDs = new HashSet<>();
 
+			int maxLocalID = lastSyncLocalID;
 			for(LJournal journal : localJournals) {
 				if(journal == null) continue;
 				fileUIDs.add(journal.fileuid);
+
+				maxLocalID = Math.max(maxLocalID, journal.journalid);
 			}
+			int maxServerID = lastSyncServerID;
 			for(SJournal journal : serverJournals) {
 				if(journal == null) continue;
-				UUID uuid = journal.fileuid;
-				fileUIDs.add(uuid);
+				fileUIDs.add(journal.fileuid);
+
+				maxServerID = Math.max(maxServerID, journal.journalid);
 			}
 
+			Log.i(TAG, "SyncHandler catchup found "+fileUIDs.size()+" new files to sync.");
 
 			//Queue all fileUIDs for sync
 			List<UUID> fileUIDsList = new ArrayList<>(fileUIDs);
 			enqueue(fileUIDsList);
+
+
+			updateLastSyncLocal(maxLocalID);
+			updateLastSyncServer(maxServerID);
+
 		});
 		thread.start();
 	}

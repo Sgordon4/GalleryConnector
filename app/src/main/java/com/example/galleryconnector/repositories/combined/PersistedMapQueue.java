@@ -123,6 +123,20 @@ public abstract class PersistedMapQueue<K, V> {
 	}
 
 
+	public void clear() {
+		try {
+			lock.lock();
+			pendingItems.clear();
+			persistQueue();
+
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		} finally {
+			lock.unlock();
+		}
+	}
+
+
 	//---------------------------------------------------------------------------------------------
 
 	//Note: These methods should be used alongside a lock

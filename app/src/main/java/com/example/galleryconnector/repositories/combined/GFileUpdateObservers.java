@@ -26,14 +26,17 @@ public class GFileUpdateObservers {
 	private final List<GFileObservable> listeners;
 	private final SyncHandler syncHandler;
 
-	public GFileUpdateObservers(@NonNull LocalRepo lRepo, @NonNull ServerRepo sRepo) {
+	public GFileUpdateObservers() {
 		listeners = new ArrayList<>();
 		this.syncHandler = SyncHandler.getInstance();
+	}
 
+	public void attachListeners(@NonNull LocalRepo lRepo, @NonNull ServerRepo sRepo) {
 		int localJournalStartID = syncHandler.getLastSyncLocal();
 		int serverJournalStartID = syncHandler.getLastSyncServer();
 
 		UUID currentLoggedInAccount = UUID.randomUUID();	//Doesn't actually do anything atm
+
 
 		attachToLocal(lRepo, localJournalStartID, currentLoggedInAccount);
 		attachToServer(sRepo, serverJournalStartID, currentLoggedInAccount);
@@ -59,7 +62,7 @@ public class GFileUpdateObservers {
 		Log.i(TAG, "Local file with journalID '"+journalID+"' updated! File: "+file.fileuid);
 
 		//Notify the observers of the update
-		notifyObservers(journalID, file);
+		notifyObservers(file);
 	}
 
 	//Perhaps on getting an update from server, compare to local (cheap) to prevent unnecessary update notifications
@@ -74,7 +77,7 @@ public class GFileUpdateObservers {
 		System.out.println("Server file with journalID '"+journalID+"' updated! File: "+file.fileuid);
 
 		//Notify the observers of the update
-		notifyObservers(journalID, file);
+		notifyObservers(file);
 	}
 
 
@@ -115,14 +118,14 @@ public class GFileUpdateObservers {
 
 
 
-	public void notifyObservers(int journalID, GFile file) {
+	public void notifyObservers(GFile file) {
 		for (GFileObservable listener : listeners) {
-			listener.onFileUpdate(journalID, file);
+			listener.onFileUpdate(file);
 		}
 	}
 
 
 	public interface GFileObservable {
-		void onFileUpdate(int journalID, GFile file);
+		void onFileUpdate(GFile file);
 	}
 }

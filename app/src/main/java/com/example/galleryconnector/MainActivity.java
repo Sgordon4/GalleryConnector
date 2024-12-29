@@ -9,6 +9,12 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
+import com.example.galleryconnector.shittytests.TestDomainOperations;
+import com.example.galleryconnector.shittytests.TestEverything;
+import com.example.galleryconnector.shittytests.TestRepoBasics;
+import com.example.galleryconnector.shittytests.TestSyncOperations;
+
+import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
 	GalleryRepo gRepo;
@@ -29,6 +35,8 @@ public class MainActivity extends AppCompatActivity {
 
 	TestEverything everything = new TestEverything();
 	TestRepoBasics testRepoBasics = new TestRepoBasics();
+	TestDomainOperations testDomainOps = new TestDomainOperations();
+	TestSyncOperations testSyncOps = new TestSyncOperations();
 
 	@Override
 	protected void onResume() {
@@ -49,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
 			//everything.testDomainMove();
 			//everything.testCopyServerWhenExists();
 
+			/*
 			testRepoBasics.testLocalBasics();
 			System.out.println("---------------------------------------------------------");
 			System.out.println("---------------------------------------------------------");
@@ -58,6 +67,16 @@ public class MainActivity extends AppCompatActivity {
 			System.out.println("---------------------------------------------------------");
 			System.out.println("---------------------------------------------------------");
 			testRepoBasics.testServerBasics();
+			 */
+
+			//testDomainOps.testDomainMoves();
+
+			try {
+				testSyncOps.testSync();
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+
 		});
 		thread.start();
 

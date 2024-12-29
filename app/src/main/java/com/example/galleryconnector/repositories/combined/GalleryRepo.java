@@ -21,6 +21,7 @@ import com.example.galleryconnector.repositories.combined.combinedtypes.GBlock;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 import com.example.galleryconnector.repositories.combined.movement.ImportExportWorker;
+import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.account.LAccount;
 import com.example.galleryconnector.repositories.local.block.LBlock;
@@ -38,6 +39,7 @@ import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.time.Instant;
 import java.util.UUID;
 
 public class GalleryRepo {
@@ -49,6 +51,7 @@ public class GalleryRepo {
 	private final ServerRepo serverRepo;
 
 	private final DomainAPI domainAPI;
+	private final SyncHandler syncHandler;
 
 	private GFileUpdateObservers observers;
 
@@ -70,10 +73,14 @@ public class GalleryRepo {
 		serverRepo = ServerRepo.getInstance();
 
 		domainAPI = DomainAPI.getInstance();
+		syncHandler = SyncHandler.getInstance();
+
+		observers = new GFileUpdateObservers();
 	}
 
-	public void initializeListeners() {
-		observers = new GFileUpdateObservers(localRepo, serverRepo);
+	public void initializeSyncing() {
+		syncHandler.catchUpOnSyncing();
+		observers.attachListeners(localRepo, serverRepo);
 	}
 
 	//---------------------------------------------------------------------------------------------
@@ -85,6 +92,9 @@ public class GalleryRepo {
 		observers.removeObserver(observer);
 	}
 
+	public void notifyObservers(GFile file) {
+		observers.notifyObservers(file);
+	}
 
 	//TODO Use this with DomainAPI and SyncHandler's doSomething() methods
 	public boolean doesDeviceHaveInternet() {
@@ -205,13 +215,14 @@ public class GalleryRepo {
 	}
 
 
-	public void putFilePropsLocal(@NonNull GFile gFile) throws DataNotFoundException {
-		putFilePropsLocal(gFile, null, null);
+	public GFile putFilePropsLocal(@NonNull GFile gFile) throws DataNotFoundException {
+		return putFilePropsLocal(gFile, null, null);
 	}
-	public void putFilePropsLocal(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash) throws DataNotFoundException {
+	public GFile putFilePropsLocal(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash) throws DataNotFoundException {
 		LFile file = gFile.toLocalFile();
 		try {
-			localRepo.putFileProps(file, prevFileHash, prevAttrHash);
+			LFile retFile = localRepo.putFileProps(file, prevFileHash, prevAttrHash);
+			return GFile.fromLocalFile(retFile);
 		} catch (DataNotFoundException e) {
 			throw new DataNotFoundException("Cannot put props, Local blockset is missing data!", e);
 		}
@@ -247,6 +258,9 @@ public class GalleryRepo {
 			file.fileblocks = blockSet.blockList;
 			file.filesize = blockSet.fileSize;
 			file.filehash = blockSet.fileHash;
+
+			file.changetime = Instant.now().getEpochSecond();
+			file.modifytime = Instant.now().getEpochSecond();
 			return file;
 		} catch (UnknownHostException e) {
 			System.out.println("BAD SOURCE BAD SOURCE	(or no internet idk)");
@@ -264,6 +278,10 @@ public class GalleryRepo {
 			file.fileblocks = blockSet.blockList;
 			file.filesize = blockSet.fileSize;
 			file.filehash = blockSet.fileHash;
+
+			file.changetime = Instant.now().getEpochSecond();
+			file.modifytime = Instant.now().getEpochSecond();
+
 			return file;
 		} catch (UnknownHostException e) {
 			System.out.println("BAD SOURCE BAD SOURCE	(or no internet idk)");
