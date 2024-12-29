@@ -69,10 +69,10 @@ public class SFile {
 		this.fileblocks = new ArrayList<>();
 		this.filesize = 0;
 		this.userattr = new JsonObject();
-		this.changetime = Instant.now().toEpochMilli();
+		this.changetime = Instant.now().getEpochSecond();
 		this.modifytime = null;
 		this.accesstime = null;
-		this.createtime = Instant.now().toEpochMilli();
+		this.createtime = Instant.now().getEpochSecond();
 	}
 
 

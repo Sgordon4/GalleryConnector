@@ -47,7 +47,7 @@ public class SAccount {
 
 		this.logintime = null;
 		this.changetime = null;
-		this.createtime = Instant.now().toEpochMilli();
+		this.createtime = Instant.now().getEpochSecond();
 	}
 
 

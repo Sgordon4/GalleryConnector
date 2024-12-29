@@ -51,7 +51,7 @@ public class LJournal {
 	public LJournal(@NonNull UUID fileuid, @NonNull UUID accountuid) {
 		this.fileuid = fileuid;
 		this.accountuid = accountuid;
-		this.changetime = Instant.now().toEpochMilli();
+		this.changetime = Instant.now().getEpochSecond();
 	}
 	public LJournal(@NonNull LFile file) {
 		this.fileuid = file.fileuid;

@@ -31,7 +31,7 @@ public class LBlock {
 	public LBlock(@NonNull String blockhash, int blocksize) {
 		this.blockhash = blockhash;
 		this.blocksize = blocksize;
-		this.createtime = Instant.now().toEpochMilli();
+		this.createtime = Instant.now().getEpochSecond();
 		this.usecount = 0;
 	}
 

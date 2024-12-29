@@ -188,7 +188,8 @@ public class SyncHandler {
 			SFile serverFile = serverRepo.getFileProps(fileUID);
 
 			//If the latest hashes of both files match, nothing needs to be synced
-			if(Objects.equals(localFile.attrhash, serverFile.attrhash))
+			if(Objects.equals(localFile.filehash, serverFile.filehash) &&
+				Objects.equals(localFile.attrhash, serverFile.attrhash))
 				return false;
 
 			//WAIT Don't do this here, do it below. Need to check if props need to merge or if can copy
@@ -245,6 +246,9 @@ public class SyncHandler {
 
 
 
+			/*
+
+
 
 
 
@@ -268,6 +272,8 @@ public class SyncHandler {
 			}
 
 
+			 */
+
 
 		}
 		catch (FileNotFoundException e) {
@@ -275,7 +281,7 @@ public class SyncHandler {
 			return false;
 		}
 
-
+		throw new RuntimeException("Stub!");
 	}
 
 
@@ -310,7 +316,7 @@ public class SyncHandler {
 
 
 	private JsonObject mergeAttributes(JsonObject a, JsonObject b) {
-
+		throw new RuntimeException("Stub!");
 	}
 
 

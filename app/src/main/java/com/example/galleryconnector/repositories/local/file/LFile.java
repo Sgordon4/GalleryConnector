@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -75,10 +76,10 @@ public class LFile {
 		this.fileblocks = new ArrayList<>();
 		this.filesize = 0;
 		this.userattr = new JsonObject();
-		this.changetime = Instant.now().toEpochMilli();
+		this.changetime = Instant.now().getEpochSecond();
 		this.modifytime = null;
 		this.accesstime = null;
-		this.createtime = Instant.now().toEpochMilli();
+		this.createtime = Instant.now().getEpochSecond();
 
 	}
 

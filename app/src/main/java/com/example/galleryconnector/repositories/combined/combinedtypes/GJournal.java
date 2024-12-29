@@ -32,7 +32,7 @@ public class GJournal {
 	public GJournal(@NonNull UUID fileuid, @NonNull UUID accountuid) {
 		this.fileuid = fileuid;
 		this.accountuid = accountuid;
-		this.changetime = Instant.now().toEpochMilli();
+		this.changetime = Instant.now().getEpochSecond();
 	}
 	public GJournal(@NonNull GFile file) {
 		this.fileuid = file.fileuid;

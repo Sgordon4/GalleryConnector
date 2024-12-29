@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import com.example.galleryconnector.repositories.local.file.LFile;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -23,5 +24,19 @@ public class NonInstrumentedTest {
 		entity.isdir = true;
 		System.out.println(entity.toJson());
 		System.out.println(entity);
+	}
+
+
+	@Test
+	public void testInstantTruncate() {
+		Instant now = Instant.now();
+		System.out.println(now);
+		System.out.println(now.toEpochMilli());
+
+		Instant truncated = now.truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+		System.out.println(truncated);
+		System.out.println(truncated.toEpochMilli());
+		System.out.println(truncated.toEpochMilli()/1000);
+		System.out.println(now.getEpochSecond());
 	}
 }

@@ -33,7 +33,7 @@ public class SJournal {
 	public SJournal(@NonNull UUID fileuid, @NonNull UUID accountuid) {
 		this.fileuid = fileuid;
 		this.accountuid = accountuid;
-		this.changetime = Instant.now().toEpochMilli();
+		this.changetime = Instant.now().getEpochSecond();
 	}
 	public SJournal(@NonNull SFile file) {
 		this.fileuid = file.fileuid;

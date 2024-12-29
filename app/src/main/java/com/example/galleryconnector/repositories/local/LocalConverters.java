@@ -104,9 +104,9 @@ public class LocalConverters {
 		System.out.println("Instant");
 		System.out.println(instant);
 		System.out.println("To");
-		System.out.println((instant == null) ? null : String.valueOf(instant.toEpochMilli()));
+		System.out.println((instant == null) ? null : String.valueOf(instant.getEpochSecond()));
 		System.out.println();
-		return (instant == null) ? null :  String.valueOf(instant.toEpochMilli());
+		return (instant == null) ? null :  String.valueOf(instant.getEpochSecond());
 	}
 
 	//---------------------------------------------------------------------------------------------
