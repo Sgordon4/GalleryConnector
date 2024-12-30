@@ -67,6 +67,14 @@ public class DomainOpWorker extends Worker {
 			}
 
 
+
+			if(((operationsMap & DomainAPI.REMOVE_FROM_LOCAL) > 0) &&
+					((operationsMap & DomainAPI.REMOVE_FROM_SERVER) > 0)) {
+				Log.w(TAG, "DomWorker instructed to remove from *BOTH* local and server. " +
+						"FileUID: "+fileUID+"::"+operationsMap);
+			}
+
+
 			if((operationsMap & DomainAPI.REMOVE_FROM_LOCAL) > 0) {
 				Log.v(TAG, "DomWorker removing file from local. FileUID: " + fileUID);
 				domainAPI.removeFileFromLocal(fileUID);
