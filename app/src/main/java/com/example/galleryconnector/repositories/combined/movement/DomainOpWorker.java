@@ -54,19 +54,11 @@ public class DomainOpWorker extends Worker {
 					Log.v(TAG, "DomWorker copying file to local. FileUID: " + fileUID);
 					SFile file = serverRepo.getFileProps(fileUID);
 					LFile newFile = domainAPI.createFileOnLocal(file);
-
-					//If no illegalStateException was thrown, that means the file was just CREATED in local
-					//It is now the latest sync point
-					localRepo.putLastSyncedData(newFile);
 				}
 				if((operationsMap & DomainAPI.COPY_TO_SERVER) > 0) {
 					Log.v(TAG, "DomWorker copying file to server. FileUID: " + fileUID);
 					LFile file = localRepo.getFileProps(fileUID);
 					SFile newFile = domainAPI.createFileOnServer(file);
-
-					//If no illegalStateException was thrown, that means the file was just CREATED in server
-					//It is now the latest sync point
-					localRepo.putLastSyncedData(file);
 				}
 			} catch (IllegalStateException e) {
 				Log.i(TAG, "File already exists at destination! Skipping copy operation.");
@@ -78,12 +70,10 @@ public class DomainOpWorker extends Worker {
 			if((operationsMap & DomainAPI.REMOVE_FROM_LOCAL) > 0) {
 				Log.v(TAG, "DomWorker removing file from local. FileUID: " + fileUID);
 				domainAPI.removeFileFromLocal(fileUID);
-				localRepo.deleteLastSyncedData(fileUID);
 			}
 			if((operationsMap & DomainAPI.REMOVE_FROM_SERVER) > 0) {
 				Log.v(TAG, "DomWorker removing file from server. FileUID: " + fileUID);
 				domainAPI.removeFileFromServer(fileUID);
-				localRepo.deleteLastSyncedData(fileUID);
 			}
 
 		}

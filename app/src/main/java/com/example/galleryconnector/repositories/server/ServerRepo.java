@@ -197,8 +197,6 @@ public class ServerRepo {
 
 		//Now that we've confirmed all blocks exist, create/update the file metadata
 		try {
-			Log.i(TAG, "All blocks exist, uploading file properties");
-			Log.d(TAG, fileProps.toString());
 			return fileConn.upsert(fileProps, prevFileHash, prevAttrHash);
 		} catch (IllegalStateException e) {
 			throw e;
@@ -320,7 +318,7 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 
 	public SBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException, ConnectException {
-		Log.i(TAG, String.format("GET SERVER BLOCK PROPS called with blockHash='%s'", blockHash));
+		Log.v(TAG, String.format("GET SERVER BLOCK PROPS called with blockHash='%s'", blockHash));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		SBlock block;
@@ -351,7 +349,7 @@ public class ServerRepo {
 
 	@Nullable
 	public Uri getBlockContentsUri(@NonNull String blockHash) throws DataNotFoundException, ConnectException {
-		Log.i(TAG, String.format("\nGET SERVER BLOCK URI called with blockHash='"+blockHash+"'"));
+		Log.v(TAG, String.format("\nGET SERVER BLOCK URI called with blockHash='"+blockHash+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		try {

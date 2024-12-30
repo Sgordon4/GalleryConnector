@@ -84,22 +84,22 @@ public class TestSyncOperations {
 		System.out.println("4444444444444444444444444444444444444444444444444444444444444444");
 		System.out.println("----------------------------------------------------------------");
 
-		//Put the file back in local, but with changes this time
+
+		//Put the file back in local
+		domainAPI.copyFileToLocal(file.toServerFile(), "null", "null");
+
+		//And make some changes to the file
 		file.userattr.addProperty("TESTATTR", "TESTVALUE");
 		file.changetime = Instant.now().getEpochSecond();
-		file = grepo.putFilePropsLocal(file, "null", "null");
+		file = grepo.putFilePropsLocal(file, file.filehash, file.attrhash);
 		assert grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
 		//And try to sync. This should sync data L -> S
 		syncHandler.trySync(fileUID);
 
-		System.out.println("Listing files");
-		System.out.println(file);
-
 		//Check that data was synced
 		LFile lFile = lrepo.getFileProps(fileUID);
-		System.out.println(lFile);
 		assert Objects.equals(file.filehash, lFile.filehash);
 		assert Objects.equals(file.attrhash, lFile.attrhash);
 

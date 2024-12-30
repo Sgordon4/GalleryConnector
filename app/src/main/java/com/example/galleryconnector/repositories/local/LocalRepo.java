@@ -284,7 +284,7 @@ public class LocalRepo {
 	//---------------------------------------------------------------------------------------------
 
 	public LBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
-		Log.i(TAG, String.format("GET LOCAL BLOCK PROPS called with blockHash='%s'", blockHash));
+		Log.v(TAG, String.format("GET LOCAL BLOCK PROPS called with blockHash='%s'", blockHash));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		return blockHandler.getBlockProps(blockHash);
@@ -301,7 +301,7 @@ public class LocalRepo {
 
 	@Nullable
 	public Uri getBlockContentsUri(@NonNull String blockHash) throws DataNotFoundException {
-		Log.i(TAG, String.format("\nGET LOCAL BLOCK URI called with blockHash='"+blockHash+"'"));
+		Log.v(TAG, String.format("\nGET LOCAL BLOCK URI called with blockHash='"+blockHash+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		return blockHandler.getBlockUri(blockHash);

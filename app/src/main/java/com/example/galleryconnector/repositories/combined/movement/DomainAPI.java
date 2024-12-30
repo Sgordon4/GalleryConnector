@@ -11,6 +11,7 @@ import androidx.work.WorkRequest;
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.combined.PersistedMapQueue;
+import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.server.ServerRepo;
@@ -24,6 +25,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -189,14 +191,26 @@ public class DomainAPI {
 		copyBlocksToServer(blockset);
 
 		//Now that the blockset is uploaded, create/update the file metadata
-		SFile fileProps = new Gson().fromJson(file.toJson(), SFile.class);
+		SFile fileProps = GFile.fromLocalFile(file).toServerFile();
 
+		//And attempt to put the changes to the server
 		try {
-			return serverRepo.putFileProps(fileProps, lastServerFileHash, lastServerAttrHash);
+			fileProps = serverRepo.putFileProps(fileProps, lastServerFileHash, lastServerAttrHash);
 		} catch (DataNotFoundException e) {
 			Log.e(TAG, "copyFileToServer() failed! Blockset failed to copy!");
 			throw new RuntimeException(e);
 		}
+
+
+		//If this method was called with "null" hashes (not actually null),
+		// it was used to try to create a file for the first time
+		if(Objects.equals(lastServerFileHash, "null") && Objects.equals(lastServerAttrHash, "null")) {
+			//If no illegalStateException was thrown, that means the file was just CREATED in server.
+			//It is now the latest sync point
+			localRepo.putLastSyncedData(GFile.fromServerFile(fileProps).toLocalFile());
+		}
+
+		return fileProps;
 	}
 
 
@@ -212,14 +226,26 @@ public class DomainAPI {
 		copyBlocksToLocal(blockset);
 
 		//Now that the blockset is downloaded, create/update the file metadata
-		LFile fileProps = new Gson().fromJson(file.toJson(), LFile.class);
+		LFile fileProps = GFile.fromServerFile(file).toLocalFile();
 
+		//And attempt to put the changes to local
 		try {
-			return localRepo.putFileProps(fileProps, lastLocalFileHash, lastLocalAttrHash);
+			fileProps = localRepo.putFileProps(fileProps, lastLocalFileHash, lastLocalAttrHash);
 		} catch (DataNotFoundException e) {
 			Log.e(TAG, "copyFileToLocal() failed! Blockset failed to copy!");
 			throw new RuntimeException(e);
 		}
+
+
+		//If this method was called with "null" hashes (not actually null),
+		// it was used to try to create a file for the first time
+		if(Objects.equals(lastLocalFileHash, "null") && Objects.equals(lastLocalAttrHash, "null")) {
+			//If no illegalStateException was thrown, that means the file was just CREATED in server.
+			//It is now the latest sync point
+			localRepo.putLastSyncedData(fileProps);
+		}
+
+		return fileProps;
 	}
 
 
@@ -275,12 +301,14 @@ public class DomainAPI {
 
 
 	public boolean removeFileFromLocal(@NonNull UUID fileuid) {
-		localRepo.database.getFileDao().delete(fileuid);
+		localRepo.deleteFileProps(fileuid);
+		localRepo.deleteLastSyncedData(fileuid);
 		return true;
 	}
 
 	public boolean removeFileFromServer(@NonNull UUID fileuid) throws IOException {
-		serverRepo.fileConn.delete(fileuid);
+		serverRepo.deleteFileProps(fileuid);
+		localRepo.deleteLastSyncedData(fileuid);
 		return true;
 	}
 }

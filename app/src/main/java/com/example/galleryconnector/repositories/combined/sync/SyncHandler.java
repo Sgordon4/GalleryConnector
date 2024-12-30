@@ -42,7 +42,6 @@ import java.util.UUID;
 public class SyncHandler {
 	private static final String TAG = "Gal.SRepo.Sync";
 
-	//TODO Figure out how to persist these two (SharedPreferences? DataStore?)
 	private final SharedPreferences sharedPrefs;
 	private int lastSyncLocalID;
 	private int lastSyncServerID;
@@ -53,6 +52,8 @@ public class SyncHandler {
 	private final ServerRepo serverRepo;
 
 	private final DomainAPI domainAPI;
+
+	private final boolean debug = false;
 
 
 
@@ -74,10 +75,10 @@ public class SyncHandler {
 		lastSyncLocalID = sharedPrefs.getInt("lastSyncLocal", 0);
 		lastSyncServerID = sharedPrefs.getInt("lastSyncServer", 0);
 
-		System.out.println("----------------------------------------------------------");
-		System.out.println("Sync pointers:");
-		System.out.println("lastSyncLocalID: "+lastSyncLocalID);
-		System.out.println("lastSyncServerID: "+lastSyncServerID);
+		if(debug) Log.d(TAG, "SyncHandler created -----------------------------------");
+		if(debug) Log.d(TAG, "Sync pointers:");
+		if(debug) Log.d(TAG, "lastSyncLocalID: "+lastSyncLocalID);
+		if(debug) Log.d(TAG, "lastSyncServerID: "+lastSyncServerID);
 
 
 		String appDataDir = MyApplication.getAppContext().getApplicationInfo().dataDir;
@@ -103,7 +104,7 @@ public class SyncHandler {
 
 		//Get the next N fileUIDs that need syncing
 		List<Map.Entry<UUID, Nullable>> filesToSync = pendingSync.pop(times);
-		System.out.println("SyncHandler doing something "+filesToSync.size()+" times...");
+		Log.i(TAG, "SyncHandler doing something "+filesToSync.size()+" times...");
 
 
 		//For each item...
@@ -153,7 +154,8 @@ public class SyncHandler {
 	//TODO We don't actually update or store these yet. Right now they're always 0 and do nothing.
 	//TODO Also, this doesn't exactly work with multiple accounts atm
 	public void updateLastSyncLocal(int id) {
-		if(id > lastSyncLocalID)	//Gets rid of race conditions when several file updates come in at once. We just want the largest ID.
+		//Gets rid of race conditions when several file updates come in at once. We just want the largest ID.
+		if(id > lastSyncLocalID)
 			lastSyncLocalID = id;
 
 		SharedPreferences.Editor editor = sharedPrefs.edit();
@@ -190,8 +192,10 @@ public class SyncHandler {
 
 			//If the latest hashes of both files match, nothing needs to be synced
 			if(Objects.equals(localFile.filehash, serverFile.filehash) &&
-				Objects.equals(localFile.attrhash, serverFile.attrhash))
+				Objects.equals(localFile.attrhash, serverFile.attrhash)) {
+				if(debug) Log.d(TAG, "File hashes match, no sync needed. FileUID: "+fileUID);
 				return null;
+			}
 
 
 
@@ -201,12 +205,19 @@ public class SyncHandler {
 
 			//If there is no last sync point stored, we're just going to set things up to do last-writer-wins
 			if(lastSynced == null) {
-				if(localFile.changetime > serverFile.changetime)
-					syncReference = GFile.fromLocalFile(localFile);
-				else
+				if(localFile.changetime > serverFile.changetime) {
+					Log.w(TAG, "No sync point stored, pretending server is synced");
 					syncReference = GFile.fromServerFile(serverFile);
+				}
+				else {
+					Log.w(TAG, "No sync point stored, pretending local is synced");
+					syncReference = GFile.fromLocalFile(localFile);
+				}
 			}
-			else syncReference = GFile.fromLocalFile(lastSynced);
+			else {
+				if(debug) Log.i(TAG, "Sync point retrieved");
+				syncReference = GFile.fromLocalFile(lastSynced);
+			}
 
 
 
@@ -220,16 +231,19 @@ public class SyncHandler {
 			//If local needs updating...
 			if(!Objects.equals(localFile.filehash, syncReference.filehash) ||
 				!Objects.equals(localFile.attrhash, syncReference.attrhash)) {
+				if(debug) Log.d(TAG, "Local needs updating");
 				localRepo.putFileProps(syncReference.toLocalFile(), localFile.filehash, localFile.attrhash);
 			}
 			//If server needs updating...
 			if(!Objects.equals(serverFile.filehash, syncReference.filehash) ||
 				!Objects.equals(serverFile.attrhash, syncReference.attrhash)) {
+				if(debug) Log.d(TAG, "Server needs updating");
 				serverRepo.putFileProps(syncReference.toServerFile(), serverFile.filehash, serverFile.attrhash);
 			}
 
 
 			//Since we have a new sync point, update the last sync point table
+			if(debug) Log.d(TAG, "Writing sync point");
 			localRepo.putLastSyncedData(syncReference.toLocalFile());
 
 			//Data has been written, notify any observers and return true
@@ -256,6 +270,7 @@ public class SyncHandler {
 
 		//If both repos have file changes, we need to merge. Womp womp.
 		if(localHasFileChanges && serverHasFileChanges) {
+			Log.i(TAG, "Both repos have file content changes, merging (last writer wins). FileUID: "+local.fileuid);
 			//We have what we need to actually merge the files (A, B, and Original),
 			// but I cannot be asked so we're doing last writer wins.
 			//TODO This needs to be upgraded
@@ -268,6 +283,7 @@ public class SyncHandler {
 
 		//If only local has file content changes, just copy those to server
 		if(localHasFileChanges && !serverHasFileChanges) {
+			if(debug) Log.d(TAG, "Only local has file content changes, copying blocks to server. FileUID: "+local.fileuid);
 			domainAPI.copyBlocksToServer(local.fileblocks);
 			syncReference.fileblocks = local.fileblocks;
 			syncReference.filesize = local.filesize;
@@ -277,6 +293,7 @@ public class SyncHandler {
 		}
 		//If only server has file content changes, just copy those to local
 		else if(!localHasFileChanges && serverHasFileChanges) {
+			if(debug) Log.d(TAG, "Only server has file content changes, copying blocks to local. FileUID: "+server.fileuid);
 			domainAPI.copyBlocksToLocal(server.fileblocks);
 			syncReference.fileblocks = server.fileblocks;
 			syncReference.filesize = server.filesize;
@@ -295,6 +312,7 @@ public class SyncHandler {
 
 		//If both repos have user attribute changes, we need to merge. Womp womp.
 		if(localHasAttrChanges && serverHasAttrChanges) {
+			Log.i(TAG, "Both repos have user attribute changes, merging (last writer wins). FileUID: "+local.fileuid);
 			//We have what we need to actually merge the attributes (A, B, and Original),
 			// but I cannot be asked so we're doing last writer wins.
 			//TODO This needs to be upgraded
@@ -307,12 +325,14 @@ public class SyncHandler {
 
 		//If only local has user attribute changes, just copy those
 		if(localHasAttrChanges && !serverHasAttrChanges) {
+			if(debug) Log.d(TAG, "Only local has user attribute changes. FileUID: "+local.fileuid);
 			syncReference.userattr = local.userattr;
 			syncReference.attrhash = local.attrhash;
 			syncReference.changetime = local.changetime;
 		}
 		//If only server has user attribute changes, just copy those
 		else if(!localHasAttrChanges && serverHasAttrChanges) {
+			if(debug) Log.d(TAG, "Only server has user attribute changes. FileUID: "+server.fileuid);
 			syncReference.userattr = server.userattr;
 			syncReference.attrhash = server.attrhash;
 			syncReference.changetime = server.changetime;

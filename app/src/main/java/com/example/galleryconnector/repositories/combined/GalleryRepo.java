@@ -45,7 +45,6 @@ import java.util.UUID;
 public class GalleryRepo {
 
 	private static final String TAG = "Gal.GRepo";
-	//private final ListeningExecutorService executor;
 
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
@@ -57,9 +56,6 @@ public class GalleryRepo {
 
 
 
-	//TODO Make sure LRepo and SRepo attrHash hashing is the same
-
-
 	public static GalleryRepo getInstance() {
 		return SingletonHelper.INSTANCE;
 	}
@@ -67,8 +63,6 @@ public class GalleryRepo {
 		private static final GalleryRepo INSTANCE = new GalleryRepo();
 	}
 	private GalleryRepo() {
-		//executor = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(10));
-
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
 
@@ -215,6 +209,9 @@ public class GalleryRepo {
 	}
 
 
+	//TODO Private these, and just give a "putFileProps" option that figures out where to put things and errors if out of date
+	// Maybe not private them idk
+
 	public GFile putFilePropsLocal(@NonNull GFile gFile) throws DataNotFoundException {
 		return putFilePropsLocal(gFile, null, null);
 	}
@@ -228,7 +225,6 @@ public class GalleryRepo {
 		}
 	}
 
-	//TODO What do we want to do with these exceptions. I'm thinking just throw all of them, rather than catch.
 	public GFile putFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, DataNotFoundException, ConnectException {
 		return putFilePropsServer(gFile, null, null);
 	}
