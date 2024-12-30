@@ -44,10 +44,17 @@ public class SyncWorker extends Worker {
 			else
 				Log.w(TAG, "SyncWorker was successful!");
 		}
-		//If the sync fails due to another file update or server connection issues, requeue it for later
-		catch (IllegalStateException | ConnectException e) {
+		//If the sync fails due to another update happening before we could finish the sync, requeue it for later
+		catch (IllegalStateException e) {
+			Log.w(TAG, "SyncWorker requeueing due to conflicting update!");
+			syncHandler.enqueue(fileUID);
+			return Result.failure();
+		}
+		//If the sync fails due to server connection issues, requeue it for later
+		catch (ConnectException e) {
 			Log.w(TAG, "SyncWorker requeueing due to connection issues!");
 			syncHandler.enqueue(fileUID);
+			return Result.failure();
 		}
 
 		return Result.success();

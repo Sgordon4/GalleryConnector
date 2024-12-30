@@ -72,7 +72,11 @@ public class MainActivity extends AppCompatActivity {
 			//testDomainOps.testDomainMoves();
 
 			try {
-				testSyncOps.testSync();
+				//testSyncOps.testSync();
+
+				//testSyncOps.testWorkerLocalChange();
+				//testSyncOps.testWorkerServerChange();
+				testSyncOps.testWorkerBothChange();
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}

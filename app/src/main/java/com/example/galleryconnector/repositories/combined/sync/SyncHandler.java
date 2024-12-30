@@ -53,7 +53,7 @@ public class SyncHandler {
 
 	private final DomainAPI domainAPI;
 
-	private final boolean debug = false;
+	private final boolean debug = true;
 
 
 

@@ -33,6 +33,96 @@ public class TestSyncOperations {
 
 
 
+
+	public void testWorkerLocalChange() throws IOException {
+		UUID fileUID = UUID.randomUUID();
+		GFile local = new GFile(fileUID, accountUID);
+
+		//Start with a file in local
+		local = grepo.putDataLocal(local, externalUri_1MB);
+		local = grepo.putFilePropsLocal(local, "null", "null");
+
+		//And copy it to server
+		GFile server = GFile.fromServerFile(domainAPI.createFileOnServer(local.toLocalFile()));
+
+
+		//Now make changes to only local
+		local.userattr.addProperty("LocalOnly", "LocalData");
+		local.changetime = Instant.now().getEpochSecond();
+		local = grepo.putFilePropsLocal(local, local.filehash, local.attrhash);
+
+
+		syncHandler.clearQueuedItems();
+		syncHandler.enqueue(fileUID);
+		syncHandler.doSomething(20);
+	}
+
+	public void testWorkerServerChange() throws IOException {
+		UUID fileUID = UUID.randomUUID();
+		GFile local = new GFile(fileUID, accountUID);
+
+		//Start with a file in local
+		local = grepo.putDataLocal(local, externalUri_1MB);
+		local = grepo.putFilePropsLocal(local, "null", "null");
+
+		//And copy it to server
+		GFile server = GFile.fromServerFile(domainAPI.createFileOnServer(local.toLocalFile()));
+
+
+		//Now make changes to only server
+		server.userattr.addProperty("ServerOnly", "ServerData");
+		server.changetime = Instant.now().getEpochSecond();
+		server = grepo.putFilePropsServer(server, server.filehash, server.attrhash);
+
+
+		syncHandler.clearQueuedItems();
+		syncHandler.enqueue(fileUID);
+		syncHandler.doSomething(20);
+	}
+
+	public void testWorkerBothChange() throws IOException {
+		UUID fileUID = UUID.randomUUID();
+		GFile local = new GFile(fileUID, accountUID);
+
+		//Start with a file in local
+		local = grepo.putDataLocal(local, externalUri_1MB);
+		local = grepo.putFilePropsLocal(local, "null", "null");
+
+		//And copy it to server
+		GFile server = GFile.fromServerFile(domainAPI.createFileOnServer(local.toLocalFile()));
+
+
+		//Now make changes to both
+		local.userattr.addProperty("BOTH_Local", "LocalData");
+		local.changetime = Instant.now().getEpochSecond();
+		local = grepo.putFilePropsLocal(local, local.filehash, local.attrhash);
+
+		server.userattr.addProperty("BOTH_Server", "ServerData");
+		//server.changetime = Instant.now().getEpochSecond();
+		server = grepo.putFilePropsServer(server, server.filehash, server.attrhash);
+
+		System.out.println(local);
+		System.out.println(server);
+
+		try {
+			System.out.println("--------------------------------------------");
+			System.out.println("--------------------------------------------");
+			System.out.println("--------------------------------------------");
+			Thread.sleep(3000);
+		} catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+
+
+		syncHandler.clearQueuedItems();
+		syncHandler.enqueue(fileUID);
+		syncHandler.doSomething(20);
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+
+
 	public void testSync() throws IOException {
 		UUID fileUID = UUID.randomUUID();
 		GFile file = new GFile(fileUID, accountUID);
