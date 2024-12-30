@@ -12,6 +12,7 @@ import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.UUID;
@@ -48,22 +49,32 @@ public class DomainOpWorker extends Worker {
 
 
 		try {
-			//Note: Having something like both COPY_TO_LOCAL and COPY_TO_SERVER is technically valid
+			//Note: Having something like both COPY_TO_LOCAL and COPY_TO_SERVER is technically valid.
+			// This is fine because the worker won't send any blocks over since they already exist,
+			// and then attempt to create the file props, which will fail as they already exist.
 			try {
 				if((operationsMap & DomainAPI.COPY_TO_LOCAL) > 0) {
 					Log.v(TAG, "DomWorker copying file to local. FileUID: " + fileUID);
-					SFile file = serverRepo.getFileProps(fileUID);
-					LFile newFile = domainAPI.createFileOnLocal(file);
+					try {
+						SFile file = serverRepo.getFileProps(fileUID);
+						LFile newFile = domainAPI.createFileOnLocal(file);
+					} catch (FileNotFoundException e) {
+						Log.d(TAG, "File not found on server. Skipping COPY_TO_LOCAL operation.");
+					}
 				}
 				if((operationsMap & DomainAPI.COPY_TO_SERVER) > 0) {
 					Log.v(TAG, "DomWorker copying file to server. FileUID: " + fileUID);
-					LFile file = localRepo.getFileProps(fileUID);
-					SFile newFile = domainAPI.createFileOnServer(file);
+					try {
+						LFile file = localRepo.getFileProps(fileUID);
+						SFile newFile = domainAPI.createFileOnServer(file);
+					} catch (FileNotFoundException e) {
+						Log.d(TAG, "File not found on local. Skipping COPY_TO_SERVER operation.");
+					}
 				}
 			} catch (IllegalStateException e) {
-				Log.i(TAG, "File already exists at destination! Skipping copy operation.");
-				//Hashes don't match, but since we pass in null in the copy methods this means
-				// the file already exists at its destination. Job done.
+				Log.i(TAG, "File already exists in both repos! Skipping copy operations.");
+				//Hashes don't match, but since createFileOn... uses "null" for each hash, it failing
+				// means the file already exists at its destination. Job done.
 			}
 
 

@@ -174,6 +174,11 @@ public class DomainAPI {
 	}
 
 
+	public void clearQueuedItems() {
+		pendingOperations.clear();
+	}
+
+
 
 	//=============================================================================================
 	// API
@@ -306,7 +311,7 @@ public class DomainAPI {
 		return true;
 	}
 
-	public boolean removeFileFromServer(@NonNull UUID fileuid) throws IOException {
+	public boolean removeFileFromServer(@NonNull UUID fileuid) throws ConnectException {
 		serverRepo.deleteFileProps(fileuid);
 		localRepo.deleteLastSyncedData(fileuid);
 		return true;

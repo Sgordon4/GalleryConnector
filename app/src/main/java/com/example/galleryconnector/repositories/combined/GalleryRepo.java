@@ -37,7 +37,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
-import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.UUID;
@@ -212,6 +211,9 @@ public class GalleryRepo {
 	//TODO Private these, and just give a "putFileProps" option that figures out where to put things and errors if out of date
 	// Maybe not private them idk
 
+	public GFile createFilePropsLocal(@NonNull GFile gFile) throws IllegalStateException, DataNotFoundException, ConnectException {
+		return putFilePropsLocal(gFile, "null", "null");
+	}
 	public GFile putFilePropsLocal(@NonNull GFile gFile) throws DataNotFoundException {
 		return putFilePropsLocal(gFile, null, null);
 	}
@@ -225,6 +227,9 @@ public class GalleryRepo {
 		}
 	}
 
+	public GFile createFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, DataNotFoundException, ConnectException {
+		return putFilePropsServer(gFile, "null", "null");
+	}
 	public GFile putFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, DataNotFoundException, ConnectException {
 		return putFilePropsServer(gFile, null, null);
 	}
@@ -472,14 +477,14 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	public void copyFileToLocal(@NonNull UUID fileuid) {
+	public void queueCopyFileToLocal(@NonNull UUID fileuid) {
 		try {
 			domainAPI.enqueue(fileuid, DomainAPI.COPY_TO_LOCAL);
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}
 	}
-	public void copyFileToServer(@NonNull UUID fileuid) {
+	public void queueCopyFileToServer(@NonNull UUID fileuid) {
 		try {
 			domainAPI.enqueue(fileuid, DomainAPI.COPY_TO_SERVER);
 		} catch (InterruptedException e) {
@@ -488,14 +493,14 @@ public class GalleryRepo {
 	}
 
 
-	public void removeFileFromLocal(@NonNull UUID fileuid) {
+	public void queueRemoveFileFromLocal(@NonNull UUID fileuid) {
 		try {
 			domainAPI.enqueue(fileuid, DomainAPI.REMOVE_FROM_LOCAL);
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
 		}
 	}
-	public void removeFileFromServer(@NonNull UUID fileuid) {
+	public void queueRemoveFileFromServer(@NonNull UUID fileuid) {
 		try {
 			domainAPI.enqueue(fileuid, DomainAPI.REMOVE_FROM_SERVER);
 		} catch (InterruptedException e) {

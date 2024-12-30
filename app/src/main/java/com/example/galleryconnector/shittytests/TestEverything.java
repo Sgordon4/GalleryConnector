@@ -83,7 +83,7 @@ public class TestEverything {
 		}
 
 		//Try to copy the file to server
-		grepo.copyFileToServer(fileUID);
+		grepo.queueCopyFileToServer(fileUID);
 		domainAPI.doSomething(1);
 	}
 
@@ -100,17 +100,17 @@ public class TestEverything {
 		}
 
 		//Try to copy the file to server, where it already exists
-		grepo.copyFileToServer(fileUID);
+		grepo.queueCopyFileToServer(fileUID);
 		domainAPI.doSomething(1);
 	}
 
 
 	public void copyToLocal() {
-		grepo.copyFileToLocal(fileUID);
+		grepo.queueCopyFileToLocal(fileUID);
 		domainAPI.doSomething(1);
 	}
 	public void copyToServer() {
-		grepo.copyFileToServer(fileUID);
+		grepo.queueCopyFileToServer(fileUID);
 		domainAPI.doSomething(1);
 	}
 

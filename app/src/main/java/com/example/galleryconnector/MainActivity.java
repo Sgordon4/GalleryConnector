@@ -69,8 +69,31 @@ public class MainActivity extends AppCompatActivity {
 			testRepoBasics.testServerBasics();
 			 */
 
-			//testDomainOps.testDomainMoves();
 
+			/*
+			try {
+				//testDomainOps.testWorkerCopyToServer();
+				//testDomainOps.testWorkerCopyToLocal();
+
+				//testDomainOps.testWorkerCopyToBoth_StartingLocal();
+				//testDomainOps.testWorkerCopyToBoth_StartingServer();
+
+				//testDomainOps.testWorkerMoveToServer();
+				//testDomainOps.testWorkerMoveToLocal();
+
+				//testDomainOps.testWorkerOppositeOpDoesNothing_fromLocal();
+				//testDomainOps.testWorkerOppositeOpDoesNothing_fromServer();
+
+				//testDomainOps.testWorkerRemoveBoth_Both();
+				//testDomainOps.testWorkerRemoveBoth_Local();
+				testDomainOps.testWorkerRemoveBoth_Server();
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			 */
+
+
+			/*
 			try {
 				//testSyncOps.testSync();
 
@@ -80,6 +103,7 @@ public class MainActivity extends AppCompatActivity {
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
+			 */
 
 		});
 		thread.start();
