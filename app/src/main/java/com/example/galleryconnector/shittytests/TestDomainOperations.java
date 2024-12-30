@@ -5,7 +5,7 @@ import android.net.Uri;
 import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
+import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
 
 import java.io.IOException;
 import java.net.UnknownHostException;

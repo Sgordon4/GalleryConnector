@@ -17,7 +17,7 @@ import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
+import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.journal.LJournal;
@@ -151,8 +151,7 @@ public class SyncHandler {
 
 	//---------------------------------------------------------------------------------------------
 
-	//TODO We don't actually update or store these yet. Right now they're always 0 and do nothing.
-	//TODO Also, this doesn't exactly work with multiple accounts atm
+	//TODO This is not set up to work with multiple accounts atm. Need to store it as a Map(UUID, Integer).
 	public void updateLastSyncLocal(int id) {
 		//Gets rid of race conditions when several file updates come in at once. We just want the largest ID.
 		if(id > lastSyncLocalID)
@@ -344,7 +343,7 @@ public class SyncHandler {
 
 	//---------------------------------------------------------------------------------------------
 
-	//TODO Do we want this to be account specific? Probably not, may as well just sync everything we've got.
+	//TODO This should provide an account when grabbing Server-side journals
 	//Catch up on synchronizations we've missed while the app has been closed
 	public void catchUpOnSyncing() {
 		Thread thread = new Thread(() -> {

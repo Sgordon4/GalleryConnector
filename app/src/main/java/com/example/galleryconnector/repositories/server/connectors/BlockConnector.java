@@ -146,10 +146,6 @@ public class BlockConnector {
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
 		}
-		//Log.i(TAG, String.format("\nUPLOAD BLOCK called with blockHash='"+blockHash+"'"));
-
-
-		//TODO Check if block exists in the server first
 
 
 		//Get the url we need to upload the block to

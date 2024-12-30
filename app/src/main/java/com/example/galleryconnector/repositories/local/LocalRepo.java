@@ -317,6 +317,7 @@ public class LocalRepo {
 		return blockHandler.readBlock(blockHash);
 	}
 
+	//Note: For efficiency, check if the block already exists before using this
 	public LBlockHandler.BlockSet putBlockData(@NonNull byte[] contents) throws IOException {
 		Log.i(TAG, "\nPUT LOCAL BLOCK CONTENTS BYTE called");
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();

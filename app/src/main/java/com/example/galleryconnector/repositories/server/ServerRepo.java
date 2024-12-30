@@ -10,7 +10,6 @@ import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
 import com.example.galleryconnector.repositories.combined.DataNotFoundException;
-import com.example.galleryconnector.repositories.local.block.LBlockHandler;
 import com.example.galleryconnector.repositories.server.connectors.AccountConnector;
 import com.example.galleryconnector.repositories.server.connectors.FileConnector;
 import com.example.galleryconnector.repositories.server.connectors.JournalConnector;
@@ -46,10 +45,6 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 
-//TODO Eventually change most/all of the serverRepo.blockConn or fileConn or whatever to just the SRepo method
-
-//TODO Do extensive response code testing inside each of the connectors, handling things with the
-// appropriate exceptions or empty arrays or whatever
 
 public class ServerRepo {
 	private static final String baseServerUrl = "http://10.0.2.2:3306";
@@ -65,13 +60,11 @@ public class ServerRepo {
 	private final ServerFileObservers observers;
 
 
-	//TODO Perhaps pass along a timeout, maybe just for longpoll?
-
 	public ServerRepo() {
 		client = new OkHttpClient().newBuilder()
 				.addInterceptor(new LogInterceptor())
 				.followRedirects(true)
-				.connectTimeout(5, TimeUnit.SECONDS)	//TODO Temporary timeout, prob increase later
+				.connectTimeout(5, TimeUnit.SECONDS)
 				.readTimeout(30, TimeUnit.SECONDS)		//Long timeout for longpolling
 				.writeTimeout(5, TimeUnit.SECONDS)
 				.followSslRedirects(true)
@@ -222,7 +215,7 @@ public class ServerRepo {
 		List<InputStream> blockStreams = new ArrayList<>();
 		for(String block : blockList) {
 			try {
-				Uri blockUri = getBlockContentsUri(block); //TODO Might be null if block doesn't exist
+				Uri blockUri = getBlockContentsUri(block);
 				blockStreams.add(new URL(blockUri.toString()).openStream());
 			} catch (ConnectException e) {
 				throw e;
@@ -268,7 +261,7 @@ public class ServerRepo {
 
 
 				//Write the block to the system
-				String hashString = putBlockContents(block);
+				String hashString = putBlockData(block);
 
 				//Add to the blockSet
 				blockSet.blockList.add(hashString);
@@ -347,7 +340,6 @@ public class ServerRepo {
 	}
 
 
-	@Nullable
 	public Uri getBlockContentsUri(@NonNull String blockHash) throws DataNotFoundException, ConnectException {
 		Log.v(TAG, String.format("\nGET SERVER BLOCK URI called with blockHash='"+blockHash+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
@@ -383,7 +375,8 @@ public class ServerRepo {
 	}
 
 
-	public String putBlockContents(@NonNull byte[] blockData) throws ConnectException, IOException {
+	//Note: For efficiency, check if the block already exists before using this
+	public String putBlockData(@NonNull byte[] blockData) throws ConnectException, IOException {
 		Log.i(TAG, "\nPUT SERVER BLOCK CONTENTS BYTE called");
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 

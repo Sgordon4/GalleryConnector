@@ -58,7 +58,7 @@ public class FileConnector {
 	// Get
 	//---------------------------------------------------------------------------------------------
 
-	//TODO No endpoint for this one yet. I'll probably just keep using (getProps() != null).
+	//Instead of making an endpoint for this one, we're just checking if getProps() throws a FileNotFound exception
 	public Boolean exists(@NonNull UUID fileUID) {
 		throw new RuntimeException("Stub");
 	}
@@ -78,10 +78,6 @@ public class FileConnector {
 				throw new IOException("Response body is null");
 
 			String responseData = response.body().string();
-
-			//TODO Remove this logging
-			//JsonObject responseJson = JsonParser.parseString(responseData).getAsJsonObject();
-			//Log.d(TAG, "Response: "+responseJson.toString());
 
 			return new Gson().fromJson(responseData.trim(), SFile.class);
 		}

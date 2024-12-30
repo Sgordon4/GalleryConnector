@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined.movement;
+package com.example.galleryconnector.extra;
 
 import android.content.Context;
 import android.net.Uri;

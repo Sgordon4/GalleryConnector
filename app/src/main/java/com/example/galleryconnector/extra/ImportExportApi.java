@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined.movement;
+package com.example.galleryconnector.extra;
 
 import android.net.Uri;
 
@@ -10,7 +10,6 @@ import com.example.galleryconnector.repositories.local.file.LFile;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
-import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -57,11 +56,8 @@ public class ImportExportApi {
 		//TODO Add the new file to parent's ordering
 
 
-		//TODO As a property of each dir (inside the dir file), make note of the preferred domain (l, l+s, s).
-		// This would just be set manually or when moving the dir around I guess. idk about this one.
-		// We want the new file to follow the parent's example for which repositories to sit in
-		// Until that system is in place, we'll just leave it local
-		//MovementHandler.getInstance().domainAPI.queueOperation();
+		//Take note of the directory's preferred domain (l, l+s, or s). Then, queue this new file for that.
+
 
 
 		return file;

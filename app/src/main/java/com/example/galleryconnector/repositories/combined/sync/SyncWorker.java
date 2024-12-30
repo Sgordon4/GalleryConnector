@@ -8,12 +8,9 @@ import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
 
-import java.io.IOException;
 import java.net.ConnectException;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 
 public class SyncWorker extends Worker {

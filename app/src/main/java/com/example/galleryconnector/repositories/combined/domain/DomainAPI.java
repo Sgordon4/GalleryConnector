@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined.movement;
+package com.example.galleryconnector.repositories.combined.domain;
 
 import android.util.Log;
 
@@ -16,9 +16,7 @@ import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
-import com.google.gson.Gson;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.nio.file.Path;
@@ -296,7 +294,7 @@ public class DomainAPI {
 				byte[] blockData = localRepo.getBlockContents(block);
 
 				//And upload the data to the server
-				serverRepo.putBlockContents(blockData);
+				serverRepo.putBlockData(blockData);
 			}
 		} while(!missingBlocks.isEmpty());
 	}

@@ -19,8 +19,8 @@ import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GAccount;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GBlock;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.movement.DomainAPI;
-import com.example.galleryconnector.repositories.combined.movement.ImportExportWorker;
+import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
+import com.example.galleryconnector.extra.ImportExportWorker;
 import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.account.LAccount;
@@ -89,7 +89,7 @@ public class GalleryRepo {
 		observers.notifyObservers(file);
 	}
 
-	//TODO Use this with DomainAPI and SyncHandler's doSomething() methods
+	//TODO Use this with DomainAPI and SyncHandler's doSomething() methods. Also fix this up, doesn't work.
 	public boolean doesDeviceHaveInternet() {
 		ConnectivityManager connectivityManager = (ConnectivityManager)
 				MyApplication.getAppContext().getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -124,10 +124,6 @@ public class GalleryRepo {
 		try {
 			SAccount server = serverRepo.getAccountProps(accountuid);
 			return new Gson().fromJson(server.toJson(), GAccount.class);
-
-			//TODO If the account exists on server but not on local, we may want to copy it to local.
-			// Not always though, so it shouldn't be done *here*
-			// TBH that can probably just be done by Putting props to both every time
 		} catch (FileNotFoundException e) {
 			//Do nothing
 		}
@@ -179,8 +175,7 @@ public class GalleryRepo {
 	}
 
 
-	//TODO Should we grab blocks from local if possible, and server if not?
-	// That might just overcomplicate things since blocks for a file are probably all together anyway.
+
 	public InputStream getFileContents(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
 		//Try to get the file data from local. If it exists, return that.
 		try {
@@ -390,7 +385,7 @@ public class GalleryRepo {
 	}
 
 	public boolean putBlockContentsServer(@NonNull byte[] data) throws IOException {
-		serverRepo.putBlockContents(data);
+		serverRepo.putBlockData(data);
 		return true;
 	}
 
