@@ -59,12 +59,13 @@ public class TestMultipart {
 
 	public void completeMultipart() throws IOException {
 		String fileName = "TestMultipart";
-		UUID uploadID = UUID.fromString("01000194-1cc3-cd1b-2841-c4ecb45e1602");
+		UUID uploadID = UUID.fromString("01000194-1d35-e7f0-988c-61ba48c3a3af");
 
 		List<BlockConnector.ETag> etags = new ArrayList<>();
-		etags.add(new BlockConnector.ETag(1, "C2BC86A8E2619049F5660A2EB5872AF6BE017688AB86D3063F7E6B10EC3EF6B1"));
-		etags.add(new BlockConnector.ETag(2, "60B8E667D206012055A1404FD0EA3EB65A1DCF3F615CFAD9887FB28366AECC1A"));
-		etags.add(new BlockConnector.ETag(3, "2AC9E6D1B1C1BD1731D1300C999902D29550A827026259D2607BD4553645F1C2"));
+		//etags.add(new BlockConnector.ETag(1, "b737c07a1a455fc4527a54dfe2889610"));
+		etags.add(new BlockConnector.ETag(2, "cc873ea530964a3e54138bfb6784eb7f"));
+		//etags.add(new BlockConnector.ETag(3, "02ca0c292520e3a8fba614f695296440"));
+		//etags.add(new BlockConnector.ETag(4, "857c4552f21938655b4cc41f0a6b8952"));
 
 
 		blockConnector.completeMultipart(fileName, uploadID, etags);
@@ -93,6 +94,7 @@ public class TestMultipart {
 		Pair<UUID, List<Uri>> multiparts = blockConnector.initializeMultipart(fileName, numParts);
 		System.out.println("Multiparts recieved");
 		UUID uploadID = multiparts.first;
+		System.out.println("UploadID: '"+uploadID+"'");
 		List<Uri> uris = multiparts.second;
 
 
@@ -124,7 +126,9 @@ public class TestMultipart {
 		}
 		System.out.println("Uploads complete");
 		System.out.println("Etags: ");
-		System.out.println(Arrays.toString(etags.toArray()));
+		for(BlockConnector.ETag etag : etags) {
+			System.out.println(etag.PartNumber+":"+etag.ETag);
+		}
 
 
 

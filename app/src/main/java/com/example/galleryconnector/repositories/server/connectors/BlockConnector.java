@@ -269,6 +269,7 @@ public class BlockConnector {
 			this.ETag = ETag;
 		}
 	}
+	//All ETags must be sent, or missing ones will be left out when the file is compiled on the server
 	public void completeMultipart(@NonNull String fileName, @NonNull UUID uploadID, @NonNull List<ETag> etags) throws IOException {
 		Log.i(TAG, "Completing multipart upload for "+fileName);
 
