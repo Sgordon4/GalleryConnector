@@ -11,6 +11,7 @@ import androidx.core.view.WindowInsetsCompat;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.shittytests.TestDomainOperations;
 import com.example.galleryconnector.shittytests.TestEverything;
+import com.example.galleryconnector.shittytests.TestMultipart;
 import com.example.galleryconnector.shittytests.TestRepoBasics;
 import com.example.galleryconnector.shittytests.TestSyncOperations;
 
@@ -37,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
 	TestRepoBasics testRepoBasics = new TestRepoBasics();
 	TestDomainOperations testDomainOps = new TestDomainOperations();
 	TestSyncOperations testSyncOps = new TestSyncOperations();
+	TestMultipart multipart = new TestMultipart();
 
 	@Override
 	protected void onResume() {
@@ -53,6 +55,15 @@ public class MainActivity extends AppCompatActivity {
 
 
 		Thread thread = new Thread(() -> {
+			try {
+				//multipart.createAndDeleteMultipart();
+				multipart.uploadToMultipart();
+				//multipart.completeMultipart();
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+
+
 			//everything.testServerUpdate();
 			//everything.testDomainMove();
 			//everything.testCopyServerWhenExists();

@@ -1,14 +1,22 @@
 package com.example.galleryconnector.repositories.server.connectors;
 
+import android.net.Uri;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.repositories.combined.DataNotFoundException;
 import com.example.galleryconnector.repositories.server.servertypes.SBlock;
+import com.example.galleryconnector.repositories.server.servertypes.SFile;
+import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +25,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import okhttp3.FormBody;
 import okhttp3.HttpUrl;
@@ -164,7 +174,7 @@ public class BlockConnector {
 
 
 	//Upload the block itself to the presigned url
-	private void uploadToUrl(@NonNull byte[] bytes, @NonNull String url) throws IOException {
+	public void uploadToUrl(@NonNull byte[] bytes, @NonNull String url) throws IOException {
 		Log.i(TAG, "UPLOADING BLOCK...");
 
 		Request upload = new Request.Builder()
@@ -196,6 +206,110 @@ public class BlockConnector {
 				throw new IOException("Unexpected code " + response.code());
 		}
 	}
+
+
+	//---------------------------------------------------------------------------------------------
+	// Multipart Upload
+	//---------------------------------------------------------------------------------------------
+
+	public Pair<UUID, List<Uri>> initializeMultipart(@NonNull String fileName, int numParts) throws IOException {
+		if(numParts < 2) throw new IllegalArgumentException("NumParts must be > 2!");
+		Log.i(TAG, "Initializing multipart upload with "+numParts+" parts for "+fileName);
+
+		String url = Paths.get(baseServerUrl, "multipart", fileName, numParts+"").toString();
+
+		Request request = new Request.Builder().url(url).build();
+		try (Response response = client.newCall(request).execute()) {
+			if (!response.isSuccessful())
+				throw new IOException("Unexpected code " + response.code());
+			if(response.body() == null)
+				throw new IOException("Response body is null");
+
+			String responseData = response.body().string();
+			JsonObject responseObj = new Gson().fromJson(responseData, JsonObject.class);
+
+
+			UUID uploadID = UUID.fromString( responseObj.get("uploadID").getAsString() );
+
+			JsonArray uploadURLs = responseObj.getAsJsonArray("partURLs");
+			List<Uri> urls = uploadURLs.asList().stream()
+					.map(JsonElement::getAsString).map(Uri::parse)
+					.collect(Collectors.toList());
+
+
+			return new Pair<>(uploadID, urls);
+		}
+	}
+
+
+	public String uploadToMultipartUrl(@NonNull byte[] bytes, @NonNull String url) throws IOException {
+		Log.i(TAG, "UPLOADING TO URL...");
+
+		Request upload = new Request.Builder()
+				.url(url)
+				.put(RequestBody.create(bytes, MediaType.parse("application/octet-stream")))
+				.build();
+
+		try (Response response = client.newCall(upload).execute()) {
+			if (!response.isSuccessful())
+				throw new IOException("Unexpected code " + response.code());
+			if(response.body() == null)
+				throw new IOException("Response body is null");
+
+			return response.headers().get("ETag");
+		}
+	}
+
+
+	public static class ETag {
+		public final int PartNumber;
+		public final String ETag;
+		public ETag(int PartNumber, String ETag) {
+			this.PartNumber = PartNumber;
+			this.ETag = ETag;
+		}
+	}
+	public void completeMultipart(@NonNull String fileName, @NonNull UUID uploadID, @NonNull List<ETag> etags) throws IOException {
+		Log.i(TAG, "Completing multipart upload for "+fileName);
+
+		String url = Paths.get(baseServerUrl, "multipart", fileName, uploadID.toString()).toString();
+
+
+		FormBody.Builder builder = new FormBody.Builder();
+		builder.add("ETags", new Gson().toJson(etags));
+		RequestBody body = builder.build();
+
+
+
+		Request request = new Request.Builder().url(url).put(body).build();
+		try (Response response = client.newCall(request).execute()) {
+			if (!response.isSuccessful())
+				throw new IOException("Unexpected code " + response.code());
+			if(response.body() == null)
+				throw new IOException("Response body is null");
+
+			System.out.println("Complete multipart complete");
+			String responseData = response.body().string();
+			System.out.println(responseData);
+		}
+	}
+
+
+	public void deleteMultipart(@NonNull String fileName, @NonNull UUID uploadID) throws IOException {
+		Log.i(TAG, "Deleting multipart upload with uploadID="+uploadID+" for "+fileName);
+		String url = Paths.get(baseServerUrl, "multipart", fileName, uploadID.toString()).toString();
+
+		Request request = new Request.Builder().url(url).delete().build();
+		try (Response response = client.newCall(request).execute()) {
+			if(response.code() == 404)
+				throw new FileNotFoundException("Multipart not found! ID: '"+uploadID+"'");
+			if (!response.isSuccessful())
+				throw new IOException("Unexpected code " + response.code());
+			if(response.body() == null)
+				throw new IOException("Response body is null");
+		}
+	}
+
 
 
 	//---------------------------------------------------------------------------------------------
