@@ -12,8 +12,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.example.galleryconnector.repositories.local.account.LAccount;
 import com.example.galleryconnector.repositories.local.account.LAccountDAO;
-import com.example.galleryconnector.repositories.local.block.LBlock;
-import com.example.galleryconnector.repositories.local.block.LBlockDao;
+import com.example.galleryconnector.repositories.local.content.LContent;
+import com.example.galleryconnector.repositories.local.content.LContentDao;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.file.LFileDAO;
 import com.example.galleryconnector.repositories.local.journal.LJournal;
@@ -22,11 +22,9 @@ import com.example.galleryconnector.repositories.local.sync.LSyncDAO;
 import com.example.galleryconnector.repositories.local.sync.LSyncFile;
 
 import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.Executors;
 
 
-@Database(entities = {LAccount.class, LFile.class, LJournal.class, LBlock.class, LSyncFile.class}, version = 1)
+@Database(entities = {LAccount.class, LFile.class, LJournal.class, LContent.class, LSyncFile.class}, version = 1)
 @TypeConverters({LocalConverters.class})
 public abstract class LocalDatabase extends RoomDatabase {
 
@@ -34,7 +32,7 @@ public abstract class LocalDatabase extends RoomDatabase {
 	public abstract LAccountDAO getAccountDao();
 	public abstract LFileDAO getFileDao();
 	public abstract LJournalDao getJournalDao();
-	public abstract LBlockDao getBlockDao();
+	public abstract LContentDao getContentDao();
 	public abstract LSyncDAO getSyncDao();
 
 
@@ -80,7 +78,7 @@ public abstract class LocalDatabase extends RoomDatabase {
 					// Actual row deletion would be the result of admin work like scheduled cleanup or a file domain move
 					// (local -> server, vice versa).
 
-					//TODO Add block usecount triggers here, for when a file is inserted/updated/deleted
+					//TODO Add content usecount triggers here, for when a file is inserted/updated/deleted
 					// Also include the SyncTable in that when we make it
 				}
 			});

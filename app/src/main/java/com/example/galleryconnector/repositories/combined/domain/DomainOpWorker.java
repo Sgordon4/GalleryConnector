@@ -50,8 +50,8 @@ public class DomainOpWorker extends Worker {
 
 		try {
 			//Note: Having something like both COPY_TO_LOCAL and COPY_TO_SERVER is technically valid.
-			// This is fine because the worker won't send any blocks over since they already exist,
-			// and then attempt to create the file props, which will fail as they already exist.
+			// This is fine because the worker won't send any content over since it already exists,
+			// and will then attempt to create the file props, which will fail as they already exist.
 			try {
 				if((operationsMap & DomainAPI.COPY_TO_LOCAL) > 0) {
 					Log.v(TAG, "DomWorker copying file to local. FileUID: " + fileUID);

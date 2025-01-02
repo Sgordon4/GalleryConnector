@@ -4,40 +4,36 @@ import android.net.Uri;
 import android.os.Looper;
 import android.os.NetworkOnMainThreadException;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
-import com.example.galleryconnector.repositories.combined.DataNotFoundException;
+import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.server.connectors.AccountConnector;
+import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 import com.example.galleryconnector.repositories.server.connectors.FileConnector;
 import com.example.galleryconnector.repositories.server.connectors.JournalConnector;
-import com.example.galleryconnector.repositories.server.connectors.BlockConnector;
 import com.example.galleryconnector.repositories.server.servertypes.SAccount;
-import com.example.galleryconnector.repositories.server.servertypes.SBlock;
+import com.example.galleryconnector.repositories.server.servertypes.SContent;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
+import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.ConnectException;
-import java.net.MalformedURLException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.net.URL;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
@@ -54,7 +50,7 @@ public class ServerRepo {
 
 	public final AccountConnector accountConn;
 	public final FileConnector fileConn;
-	public final BlockConnector blockConn;
+	public final ContentConnector contentConn;
 	public final JournalConnector journalConn;
 
 	private final ServerFileObservers observers;
@@ -72,7 +68,7 @@ public class ServerRepo {
 
 		accountConn = new AccountConnector(baseServerUrl, client);
 		fileConn = new FileConnector(baseServerUrl, client);
-		blockConn = new BlockConnector(baseServerUrl, client);
+		contentConn = new ContentConnector(baseServerUrl, client);
 		journalConn = new JournalConnector(baseServerUrl, client);
 
 		observers = new ServerFileObservers();
@@ -105,6 +101,7 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 	// Account
 	//---------------------------------------------------------------------------------------------
+
 
 	public SAccount getAccountProps(@NonNull UUID accountUID) throws FileNotFoundException, ConnectException {
 		Log.i(TAG, String.format("GET SERVER ACCOUNT PROPS called with accountUID='%s'", accountUID));
@@ -147,6 +144,7 @@ public class ServerRepo {
 	//---------------------------------------------------------------------------------------------
 
 
+	@NonNull
 	public SFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
 		Log.v(TAG, String.format("GET SERVER FILE PROPS called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
@@ -160,35 +158,30 @@ public class ServerRepo {
 		} catch (SocketTimeoutException | SocketException e) {
 			throw new ConnectException();
 		} catch (IOException e) {
-			e.printStackTrace();
 			throw new RuntimeException();
 		}
 	}
 
 
 	public SFile putFileProps(@NonNull SFile fileProps, @Nullable String prevFileHash, @Nullable String prevAttrHash)
-			throws DataNotFoundException, IllegalStateException, ConnectException {
-		Log.i(TAG, String.format("PUT SERVER FILE called with fileUID='%s'", fileProps.fileuid));
+			throws ContentsNotFoundException, IllegalStateException, ConnectException {
+		Log.i(TAG, String.format("PUT SERVER FILE PROPS called with fileUID='%s'", fileProps.fileuid));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 
-		//Check if the block repo is missing any blocks from the blockset
-		List<String> missingBlocks = fileProps.fileblocks.stream()
-				.filter( b -> {
-					try {
-						return !getBlockPropsExist(b);
-					} catch (ConnectException e) {
-						throw new RuntimeException(e);
-					}
-				})
-				.collect(Collectors.toList());
-
-		//If any are missing, we can't commit the file changes
-		if(!missingBlocks.isEmpty())
-			throw new DataNotFoundException("Cannot put props, system is missing "+missingBlocks.size()+" blocks!");
+		//Check if the server is missing the file contents. If so, we can't commit the file changes
+		if(fileProps.filehash != null) {
+			try {
+				contentConn.getProps(fileProps.filehash);
+			} catch (ContentsNotFoundException e) {
+				throw new ContentsNotFoundException("Cannot put props, system is missing file contents!");
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
 
 
-		//Now that we've confirmed all blocks exist, create/update the file metadata
+		//Now that we've confirmed the contents exist, create/update the file metadata
 		try {
 			return fileConn.upsert(fileProps, prevFileHash, prevAttrHash);
 		} catch (IllegalStateException e) {
@@ -201,90 +194,6 @@ public class ServerRepo {
 			throw new RuntimeException(e);
 		}
 	}
-
-
-
-	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException, DataNotFoundException, ConnectException {
-		Log.i(TAG, String.format("GET SERVER FILE CONTENTS called with fileUID='%s'", fileUID));
-		if(isOnMainThread()) throw new NetworkOnMainThreadException();
-
-		SFile file = getFileProps(fileUID);
-		List<String> blockList = file.fileblocks;
-
-		//Turn each block into an InputStream
-		List<InputStream> blockStreams = new ArrayList<>();
-		for(String block : blockList) {
-			try {
-				Uri blockUri = getBlockContentsUri(block);
-				blockStreams.add(new URL(blockUri.toString()).openStream());
-			} catch (ConnectException e) {
-				throw e;
-			} catch (SocketTimeoutException | SocketException e) {
-				throw new ConnectException();
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}
-		}
-
-		return new ConcatenatedInputStream(blockStreams);
-	}
-
-
-
-	public static class BlockSet {
-		public List<String> blockList = new ArrayList<>();
-		public int fileSize = 0;
-		public String fileHash = "";
-	}
-
-	//Helper method
-	//Given a Uri, parse its contents into an evenly chunked set of blocks and write them to disk
-	//Find the fileSize and SHA-256 fileHash while we do so.
-	public BlockSet putData(@NonNull Uri source) throws IOException {
-		Log.i(TAG, String.format("PUT SERVER FILE CONTENTS (Uri) called with Uri='%s'", source));
-		if(isOnMainThread()) throw new NetworkOnMainThreadException();
-
-		BlockSet blockSet = new BlockSet();
-
-
-		try (InputStream is = new URL(source.toString()).openStream();
-			 DigestInputStream dis = new DigestInputStream(is, MessageDigest.getInstance("SHA-256"))) {
-
-			byte[] block;
-			do {
-				Log.d(TAG, "Reading...");
-				block = dis.readNBytes(BlockConnector.CHUNK_SIZE);
-				Log.d(TAG, "Read "+block.length);
-
-				if(block.length == 0)   //Don't put empty blocks in the blocklist
-					continue;
-
-
-				//Write the block to the system
-				String hashString = putBlockData(block);
-
-				//Add to the blockSet
-				blockSet.blockList.add(hashString);
-				blockSet.fileSize += block.length;
-
-			} while (block.length >= BlockConnector.CHUNK_SIZE);
-
-
-			//Get the SHA-256 hash of the entire file
-			blockSet.fileHash = BlockConnector.bytesToHex( dis.getMessageDigest().digest() );
-			Log.d(TAG, "File has "+blockSet.blockList.size()+" blocks, with a size of "+blockSet.fileSize+".");
-
-		} catch (MalformedURLException e) {
-			throw new RuntimeException(e);
-		} catch (NoSuchAlgorithmException e) {	//Should never happen
-			throw new RuntimeException(e);
-		} catch (SocketTimeoutException | SocketException e) {
-			throw new ConnectException();
-		}
-
-		return blockSet;
-	}
-
 
 
 	public void deleteFileProps(@NonNull UUID fileUID) throws ConnectException {
@@ -305,16 +214,16 @@ public class ServerRepo {
 	}
 
 
-
 	//---------------------------------------------------------------------------------------------
 	// Block
 	//---------------------------------------------------------------------------------------------
 
-	public SBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException, ConnectException {
+	/*
+	public SContent getBlockProps(@NonNull String blockHash) throws FileNotFoundException, ConnectException {
 		Log.v(TAG, String.format("GET SERVER BLOCK PROPS called with blockHash='%s'", blockHash));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		SBlock block;
+		SContent block;
 		try {
 			block = blockConn.getProps(blockHash);
 		} catch (ConnectException e) {
@@ -338,15 +247,24 @@ public class ServerRepo {
 			throw new ConnectException();
 		}
 	}
+	 */
 
 
-	public Uri getBlockContentsUri(@NonNull String blockHash) throws DataNotFoundException, ConnectException {
-		Log.v(TAG, String.format("\nGET SERVER BLOCK URI called with blockHash='"+blockHash+"'"));
+	//---------------------------------------------------------------------------------------------
+	// Contents
+	//---------------------------------------------------------------------------------------------
+
+	public Uri getContentDownloadUri(@NonNull String name) throws ContentsNotFoundException, ConnectException {
+		Log.v(TAG, String.format("\nGET SERVER CONTENT URI called with name='"+name+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		try {
-			return Uri.parse(blockConn.getUrl(blockHash));
-		} catch (DataNotFoundException e) {
+			//Throws a ContentsNotFound exception if the block properties don't exist
+			contentConn.getProps(name);
+
+			//Now that we know the properties exist, return the content uri
+			return Uri.parse(contentConn.getDownloadUrl(name));
+		} catch (ContentsNotFoundException e) {
 			throw e;
 		} catch (ConnectException e) {
 			throw e;
@@ -356,31 +274,77 @@ public class ServerRepo {
 			throw new RuntimeException(e);
 		}
 	}
-	@Nullable
-	public byte[] getBlockContents(@NonNull String blockHash) throws DataNotFoundException, ConnectException {
-		Log.i(TAG, String.format("GET SERVER BLOCK DATA called with blockHash='%s'", blockHash));
-		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
+
+
+	//No delete method, we want that to be done by automatic jobs on the server, not here
+
+
+
+	//Helper method
+	//Source file must be on-disk
+	//Returns the filesize of the provided source
+	//WARNING: DOES NOT UPDATE FILE PROPERTIES
+	public SContent uploadData(@NonNull String name, @NonNull File source) throws FileNotFoundException {
+		Log.i(TAG, "\nPUT SERVER CONTENTS called with source='"+source.getPath()+"'");
+
+		if (!source.exists()) throw new FileNotFoundException("Source file not found! Path: '"+source.getPath()+"'");
+		int filesize = (int) source.length();
 
 		try {
-			return blockConn.readBlock(blockHash);
-		} catch (DataNotFoundException e) {
-			throw e;
-		} catch (ConnectException e) {
-			throw e;
-		} catch (SocketTimeoutException | SocketException e) {
-			throw new ConnectException();
+			//If the file is small enough, upload it to one url
+			if(filesize <= ContentConnector.MIN_PART_SIZE) {
+				Log.i(TAG, "Source is <= 5MB, uploading directly.");
+				String uploadUrl = contentConn.getUploadUrl(name);
+
+				byte[] buffer = new byte[filesize];
+				try (BufferedInputStream in = new BufferedInputStream( Files.newInputStream(source.toPath()) )) {
+					int bytesRead = in.read(buffer);
+					String ETag = contentConn.uploadToUrl(buffer, uploadUrl);
+				}
+				Log.i(TAG, "Direct upload complete!");
+			}
+			//Otherwise, we need to multipart upload
+			else {
+				Log.i(TAG, "Source is > 5MB, uploading via multipart.");
+
+				//Get the individual components needed for a multipart upload
+				Pair<UUID, List<Uri>> multipart = contentConn.initializeMultipart(name, filesize);
+				UUID uploadID = multipart.first;
+				List<Uri> uris = multipart.second;
+
+
+				//Upload the file in parts to each url, receiving an ETag for each one
+				List<ContentConnector.ETag> ETags = new ArrayList<>();
+				try (BufferedInputStream in = new BufferedInputStream( Files.newInputStream(source.toPath()) )) {
+					//WARNING: For if this code is converted to parallel, each loop uses 5MB of memory for the buffer
+					for(int i = 0; i < uris.size(); i++) {
+						int remaining = filesize - (ContentConnector.MIN_PART_SIZE * i);
+						int partSize = Math.min(ContentConnector.MIN_PART_SIZE, remaining);
+
+						byte[] buffer = new byte[partSize];
+						int bytesRead = in.read(buffer);
+
+						String uri = uris.get(i).toString();
+						String ETag = contentConn.uploadToUrl(buffer, uri);
+
+						ETags.add(new ContentConnector.ETag(i+1, ETag));
+					}
+				}
+
+
+				//Confirm the multipart upload is completed, passing the information we've gathered thus far
+				contentConn.completeMultipart(name, uploadID, ETags);
+				Log.i(TAG, "Multipart upload complete!");
+			}
+
+
+			//Now that the data has been written, create a new entry in the content table
+			return contentConn.putProps(name, filesize);
+
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-
-	//Note: For efficiency, check if the block already exists before using this
-	public String putBlockData(@NonNull byte[] blockData) throws ConnectException, IOException {
-		Log.i(TAG, "\nPUT SERVER BLOCK CONTENTS BYTE called");
-		if(isOnMainThread()) throw new NetworkOnMainThreadException();
-
-		return blockConn.uploadData(blockData);
 	}
 
 

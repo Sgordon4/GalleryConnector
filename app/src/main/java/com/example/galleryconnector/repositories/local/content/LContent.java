@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.local.block;
+package com.example.galleryconnector.repositories.local.content;
 
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
@@ -11,14 +11,14 @@ import com.google.gson.JsonObject;
 
 import java.time.Instant;
 
-@Entity(tableName = "block")
-public class LBlock {
+@Entity(tableName = "content")
+public class LContent {
 	@PrimaryKey
 	@NonNull
-	public String blockhash;
+	public String name;
 
 	@ColumnInfo(defaultValue = "0")
-	public int blocksize;
+	public int size;
 
 	@ColumnInfo(defaultValue = "CURRENT_TIMESTAMP")
 	public Long createtime;
@@ -28,9 +28,9 @@ public class LBlock {
 
 
 
-	public LBlock(@NonNull String blockhash, int blocksize) {
-		this.blockhash = blockhash;
-		this.blocksize = blocksize;
+	public LContent(@NonNull String name, int size) {
+		this.name = name;
+		this.size = size;
 		this.createtime = Instant.now().getEpochSecond();
 		this.usecount = 0;
 	}

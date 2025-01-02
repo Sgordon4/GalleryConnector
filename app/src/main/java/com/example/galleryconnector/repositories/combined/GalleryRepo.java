@@ -5,7 +5,6 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.Uri;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -17,28 +16,27 @@ import androidx.work.WorkManager;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GAccount;
-import com.example.galleryconnector.repositories.combined.combinedtypes.GBlock;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
 import com.example.galleryconnector.extra.ImportExportWorker;
 import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.account.LAccount;
-import com.example.galleryconnector.repositories.local.block.LBlock;
-import com.example.galleryconnector.repositories.local.block.LBlockHandler;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.server.ServerRepo;
+import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 import com.example.galleryconnector.repositories.server.servertypes.SAccount;
-import com.example.galleryconnector.repositories.server.servertypes.SBlock;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.google.gson.Gson;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.ConnectException;
-import java.net.UnknownHostException;
-import java.time.Instant;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 public class GalleryRepo {
@@ -147,7 +145,7 @@ public class GalleryRepo {
 
 
 	//---------------------------------------------------------------------------------------------
-	// File
+	// File Props
 	//---------------------------------------------------------------------------------------------
 
 
@@ -176,128 +174,6 @@ public class GalleryRepo {
 
 
 
-	public InputStream getFileContents(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
-		//Try to get the file data from local. If it exists, return that.
-		try {
-			return localRepo.getFileContents(fileUID);
-		}
-		catch (FileNotFoundException e) {
-			//Do nothing
-		} catch (DataNotFoundException e) {
-			Log.e(TAG, "Local blockset is missing data!");
-			throw new RuntimeException(e);
-		}
-
-		//If the file doesn't exist locally, try to get it from the server.
-		try {
-			return serverRepo.getFileContents(fileUID);
-		} catch (FileNotFoundException e) {
-			//Do nothing
-		} catch (DataNotFoundException e) {
-			Log.e(TAG, "Server blockset is missing data!");
-			throw new RuntimeException(e);
-		}
-
-		//If the file doesn't exist in either, throw an exception
-		throw new FileNotFoundException(String.format("File not found with fileUID='%s'", fileUID));
-	}
-
-
-	//TODO Private these, and just give a "putFileProps" option that figures out where to put things and errors if out of date
-	// Maybe not private them idk
-
-	public GFile createFilePropsLocal(@NonNull GFile gFile) throws IllegalStateException, DataNotFoundException, ConnectException {
-		return putFilePropsLocal(gFile, "null", "null");
-	}
-	public GFile putFilePropsLocal(@NonNull GFile gFile) throws DataNotFoundException {
-		return putFilePropsLocal(gFile, null, null);
-	}
-	public GFile putFilePropsLocal(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash) throws DataNotFoundException {
-		LFile file = gFile.toLocalFile();
-		try {
-			LFile retFile = localRepo.putFileProps(file, prevFileHash, prevAttrHash);
-			return GFile.fromLocalFile(retFile);
-		} catch (DataNotFoundException e) {
-			throw new DataNotFoundException("Cannot put props, Local blockset is missing data!", e);
-		}
-	}
-
-	public GFile createFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, DataNotFoundException, ConnectException {
-		return putFilePropsServer(gFile, "null", "null");
-	}
-	public GFile putFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, DataNotFoundException, ConnectException {
-		return putFilePropsServer(gFile, null, null);
-	}
-	public GFile putFilePropsServer(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash)
-			throws IllegalStateException, DataNotFoundException, ConnectException {
-		SFile file = gFile.toServerFile();
-		try {
-			SFile retFile = serverRepo.putFileProps(file, prevFileHash, prevAttrHash);
-			return GFile.fromServerFile(retFile);
-		} catch (IllegalStateException e) {
-			throw new IllegalStateException("PrevHashes do not match in putFileProps", e);
-		} catch (DataNotFoundException e) {
-			throw new DataNotFoundException("Cannot put props, Server blockset is missing data!", e);
-		} catch (ConnectException e) {
-			throw e;
-		}
-	}
-
-
-
-	//DOES NOT UPDATE FILE PROPERTIES
-	public GFile putDataLocal(@NonNull GFile file, @NonNull Uri source) throws UnknownHostException {
-		try {
-			LBlockHandler.BlockSet blockSet = localRepo.putData(source);
-
-			//Update the given file properties with the new blockset data
-			file.fileblocks = blockSet.blockList;
-			file.filesize = blockSet.fileSize;
-			file.filehash = blockSet.fileHash;
-
-			file.changetime = Instant.now().getEpochSecond();
-			file.modifytime = Instant.now().getEpochSecond();
-			return file;
-		} catch (UnknownHostException e) {
-			System.out.println("BAD SOURCE BAD SOURCE	(or no internet idk)");
-			throw e;
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
-	//DOES NOT UPDATE FILE PROPERTIES
-	public GFile putDataServer(@NonNull GFile file, @NonNull Uri source) throws UnknownHostException, ConnectException {
-		try {
-			ServerRepo.BlockSet blockSet = serverRepo.putData(source);
-
-			//Update the given file properties with the new blockset data
-			file.fileblocks = blockSet.blockList;
-			file.filesize = blockSet.fileSize;
-			file.filehash = blockSet.fileHash;
-
-			file.changetime = Instant.now().getEpochSecond();
-			file.modifytime = Instant.now().getEpochSecond();
-
-			return file;
-		} catch (UnknownHostException e) {
-			System.out.println("BAD SOURCE BAD SOURCE	(or no internet idk)");
-			throw e;
-		} catch (ConnectException e) {
-			throw e;
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-
-	public void deleteFilePropsLocal(@NonNull UUID fileUID) {
-		localRepo.deleteFileProps(fileUID);
-	}
-	public void deleteFilePropsServer(@NonNull UUID fileUID) throws ConnectException {
-		serverRepo.deleteFileProps(fileUID);
-	}
-
-
 	//TODO Considering caching the UUIDs of the files on server to help speed this up
 	// Or at least for another similar method.
 
@@ -321,12 +197,112 @@ public class GalleryRepo {
 
 
 
+	//TODO Private these, and just give a "putFileProps" option that figures out where to put things and errors if out of date
+	// Maybe not private them idk
 
-	private enum location {	//May not want BOTH
-		LOCAL, SERVER, NONE, BOTH
+	public GFile createFilePropsLocal(@NonNull GFile gFile) throws IllegalStateException, ContentsNotFoundException, ConnectException {
+		return putFilePropsLocal(gFile, "null", "null");
 	}
-	private void findClosestRepo(@NonNull UUID fileUID) {
+	public GFile putFilePropsLocal(@NonNull GFile gFile) throws ContentsNotFoundException {
+		return putFilePropsLocal(gFile, null, null);
+	}
+	public GFile putFilePropsLocal(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash) throws ContentsNotFoundException {
+		LFile file = gFile.toLocalFile();
+		try {
+			LFile retFile = localRepo.putFileProps(file, prevFileHash, prevAttrHash);
+			return GFile.fromLocalFile(retFile);
+		} catch (ContentsNotFoundException e) {
+			throw new ContentsNotFoundException("Cannot put props, Local is missing content!", e);
+		}
+	}
 
+	public GFile createFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, ContentsNotFoundException, ConnectException {
+		return putFilePropsServer(gFile, "null", "null");
+	}
+	public GFile putFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, ContentsNotFoundException, ConnectException {
+		return putFilePropsServer(gFile, null, null);
+	}
+	public GFile putFilePropsServer(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash)
+			throws IllegalStateException, ContentsNotFoundException, ConnectException {
+		SFile file = gFile.toServerFile();
+		try {
+			SFile retFile = serverRepo.putFileProps(file, prevFileHash, prevAttrHash);
+			return GFile.fromServerFile(retFile);
+		} catch (IllegalStateException e) {
+			throw new IllegalStateException("PrevHashes do not match in putFileProps", e);
+		} catch (ContentsNotFoundException e) {
+			throw new ContentsNotFoundException("Cannot put props, Server is missing content!", e);
+		} catch (ConnectException e) {
+			throw e;
+		}
+	}
+
+
+
+	public void deleteFilePropsLocal(@NonNull UUID fileUID) {
+		localRepo.deleteFileProps(fileUID);
+	}
+	public void deleteFilePropsServer(@NonNull UUID fileUID) throws ConnectException {
+		serverRepo.deleteFileProps(fileUID);
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	// File Contents
+	//---------------------------------------------------------------------------------------------
+
+
+	public Uri getContentUri(@NonNull String name) throws ContentsNotFoundException, ConnectException {
+		//Try to get the file contents from local. If they exist, return that.
+		try {
+			return localRepo.getContentUri(name);
+		}
+		catch (ContentsNotFoundException e) {
+			//Do nothing
+		}
+
+		//If the contents don't exist locally, try to get it from the server.
+		try {
+			return serverRepo.getContentDownloadUri(name);
+		} catch (ContentsNotFoundException e) {
+			//Do nothing
+		}
+
+		//If the contents don't exist in either, throw an exception
+		throw new ContentsNotFoundException(String.format("Contents not found with name='%s'", name));
+	}
+
+
+	//Note for future me, UnknownHostException can be thrown for web sources, not in this method though
+	//System.out.println("BAD SOURCE BAD SOURCE	(or no internet idk)");
+
+	//Helper method
+	//WARNING: DOES NOT UPDATE FILE PROPERTIES ON LOCAL
+	public int putContentsLocal(@NonNull String name, @NonNull Uri source) throws FileNotFoundException {
+		return localRepo.writeContents(name, source).size;
+	}
+	//Helper method
+	//WARNING: DOES NOT UPDATE FILE PROPERTIES ON SERVER
+	//WARNING: Source file must be on-disk
+	public int putContentsServer(@NonNull String name, @NonNull File source) throws FileNotFoundException {
+		return serverRepo.uploadData(name, source).size;
+	}
+
+
+	private String calculateFileHash(@NonNull File file) {
+		try (FileInputStream fis = new FileInputStream(file.getPath());
+			 DigestInputStream dis = new DigestInputStream(fis, MessageDigest.getInstance("SHA-256"))) {
+
+			byte[] buffer = new byte[8192];
+			while (dis.read(buffer) != -1) {
+				//Reading through the file updates the digest
+			}
+
+			return ContentConnector.bytesToHex( dis.getMessageDigest().digest() );
+
+		} catch (IOException | NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 
@@ -334,12 +310,13 @@ public class GalleryRepo {
 	// Block
 	//---------------------------------------------------------------------------------------------
 
+	/*
 	@Nullable
-	public GBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException, ConnectException {
+	public GContent getBlockProps(@NonNull String blockHash) throws FileNotFoundException, ConnectException {
 		//Try to get the block data from local. If it exists, return that.
 		try {
-			LBlock local = localRepo.getBlockProps(blockHash);
-			return new Gson().fromJson(local.toJson(), GBlock.class);
+			LContent local = localRepo.getBlockProps(blockHash);
+			return new Gson().fromJson(local.toJson(), GContent.class);
 		}
 		catch (FileNotFoundException e) {
 			//Do nothing
@@ -347,8 +324,8 @@ public class GalleryRepo {
 
 		//If the block doesn't exist locally, try to get it from the server.
 		try {
-			SBlock server = serverRepo.getBlockProps(blockHash);
-			return new Gson().fromJson(server.toJson(), GBlock.class);
+			SContent server = serverRepo.getBlockProps(blockHash);
+			return new Gson().fromJson(server.toJson(), GContent.class);
 		} catch (FileNotFoundException e) {
 			//Do nothing
 		}
@@ -356,41 +333,32 @@ public class GalleryRepo {
 		//If the file doesn't exist in either, throw an exception
 		throw new FileNotFoundException(String.format("Block not found with blockHash='%s'", blockHash));
 	}
+	 */
 
-
+	/*
 	public byte[] getBlockContents(@NonNull String blockHash) throws FileNotFoundException, ConnectException {
 		//Try to get the block data from local. If it exists, return that.
 		try {
 			return localRepo.getBlockContents(blockHash);
-		} catch (DataNotFoundException e) {
+		} catch (ContentsNotFoundException e) {
 			//Do nothing
 		}
 
 		//If the block doesn't exist locally, try to get it from the server.
 		try {
 			return serverRepo.getBlockContents(blockHash);
-		} catch (DataNotFoundException e) {
+		} catch (ContentsNotFoundException e) {
 			//Do nothing
 		}
 
 		//If the block doesn't exist in either, throw an exception
 		throw new FileNotFoundException(String.format("Block not found with blockHash='%s'", blockHash));
 	}
+	 */
 
 
 
-	public boolean putBlockContentsLocal(@NonNull byte[] data) throws IOException {
-		localRepo.putBlockData(data);
-		return true;
-	}
-
-	public boolean putBlockContentsServer(@NonNull byte[] data) throws IOException {
-		serverRepo.putBlockData(data);
-		return true;
-	}
-
-
-
+	/*
 	public boolean isBlockLocal(@NonNull String blockHash) {
 		try {
 			localRepo.getBlockProps(blockHash);
@@ -410,6 +378,7 @@ public class GalleryRepo {
 			throw e;
 		}
 	}
+	 */
 
 
 

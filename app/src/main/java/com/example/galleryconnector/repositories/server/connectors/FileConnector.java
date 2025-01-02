@@ -34,7 +34,6 @@ public class FileConnector {
 			"islink",
 			"isdeleted",
 
-			"fileblocks",
 			"filesize",
 			"filehash",
 
@@ -63,6 +62,7 @@ public class FileConnector {
 		throw new RuntimeException("Stub");
 	}
 
+	@NonNull
 	public SFile getProps(@NonNull UUID fileUID) throws FileNotFoundException, IOException {
 		//Log.i(TAG, String.format("\nGET FILE called with fileUID='"+fileUID+"'"));
 		String url = Paths.get(baseServerUrl, "files", fileUID.toString()).toString();
@@ -93,7 +93,7 @@ public class FileConnector {
 	public SFile upsert(@NonNull SFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash)
 			throws IllegalStateException, IOException {
 		//Log.i(TAG, "\nUPSERT FILE called");
-		String base = Paths.get(baseServerUrl, "files", "upsert").toString();
+		String base = Paths.get(baseServerUrl, "files").toString();
 
 		//Alongside the usual url, send fileHash and attrHash as query params if applicable
 		HttpUrl.Builder httpBuilder = HttpUrl.parse(base).newBuilder();

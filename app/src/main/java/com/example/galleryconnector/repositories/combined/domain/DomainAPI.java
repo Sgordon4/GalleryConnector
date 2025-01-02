@@ -1,22 +1,27 @@
 package com.example.galleryconnector.repositories.combined.domain;
 
+import android.net.Uri;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.work.Data;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.DataNotFoundException;
+import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.local.LocalRepo;
+import com.example.galleryconnector.repositories.local.content.LContent;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.server.ServerRepo;
+import com.example.galleryconnector.repositories.server.servertypes.SContent;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.nio.file.Path;
@@ -25,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 
 public class DomainAPI {
@@ -187,20 +191,22 @@ public class DomainAPI {
 	}
 	public SFile copyFileToServer(@NonNull LFile file, String lastServerFileHash, String lastServerAttrHash)
 			throws IllegalStateException, IOException {
-		//Get the blockset of the file
-		List<String> blockset = file.fileblocks;
+		//Get the hash of the file
+		String fileHash = file.filehash;
 
-		//And upload them all to the server
-		copyBlocksToServer(blockset);
+		//If it exists, copy that content to the server
+		if(fileHash != null)
+			copyContentToServer(fileHash);
 
-		//Now that the blockset is uploaded, create/update the file metadata
+
+		//Now that the content is uploaded, create/update the file metadata
 		SFile fileProps = GFile.fromLocalFile(file).toServerFile();
 
 		//And attempt to put the changes to the server
 		try {
 			fileProps = serverRepo.putFileProps(fileProps, lastServerFileHash, lastServerAttrHash);
-		} catch (DataNotFoundException e) {
-			Log.e(TAG, "copyFileToServer() failed! Blockset failed to copy!");
+		} catch (ContentsNotFoundException e) {
+			Log.e(TAG, "copyFileToServer() failed! Content failed to copy!");
 			throw new RuntimeException(e);
 		}
 
@@ -222,20 +228,22 @@ public class DomainAPI {
 	}
 	public LFile copyFileToLocal(@NonNull SFile file, String lastLocalFileHash, String lastLocalAttrHash)
 			throws IllegalStateException, IOException {
-		//Get the blockset of the file
-		List<String> blockset = file.fileblocks;
+		//Get the hash of the file
+		String fileHash = file.filehash;
 
-		//And download them all to local
-		copyBlocksToLocal(blockset);
+		//If it exists, copy that content to local
+		if(fileHash != null)
+			copyContentsToLocal(fileHash);
 
-		//Now that the blockset is downloaded, create/update the file metadata
+
+		//Now that the content is downloaded, create/update the file metadata
 		LFile fileProps = GFile.fromServerFile(file).toLocalFile();
 
 		//And attempt to put the changes to local
 		try {
 			fileProps = localRepo.putFileProps(fileProps, lastLocalFileHash, lastLocalAttrHash);
-		} catch (DataNotFoundException e) {
-			Log.e(TAG, "copyFileToLocal() failed! Blockset failed to copy!");
+		} catch (ContentsNotFoundException e) {
+			Log.e(TAG, "copyFileToLocal() failed! Content failed to copy!");
 			throw new RuntimeException(e);
 		}
 
@@ -255,48 +263,36 @@ public class DomainAPI {
 	//---------------------------------------------------
 
 
-	public void copyBlocksToLocal(@NonNull List<String> blockset) throws IOException {
-		List<String> missingBlocks;
-		do {
-			//Find if local is missing any blocks from the server file's blockset
-			missingBlocks = blockset.stream()
-					.filter( b -> !localRepo.getBlockPropsExist(b) )
-					.collect(Collectors.toList());
+	@Nullable
+	public LContent copyContentsToLocal(@Nullable String fileHash) throws IOException {
+		if(fileHash == null) return null;
 
-			//For each block that local is missing...	//TODO Parallelize these sorts of things
-			for(String block : missingBlocks) {
-				//Read the block data from server block storage
-				byte[] blockData = serverRepo.getBlockContents(block);
-
-				//And write the data to local
-				localRepo.putBlockData(blockData);
-			}
-		} while(!missingBlocks.isEmpty());
+		try {
+			//Check if the content already exists on local
+			return localRepo.contentHandler.getProps(fileHash);
+		}
+		catch (ContentsNotFoundException e) {
+			//If it does not, download it
+			Uri serverContentUri = serverRepo.getContentDownloadUri(fileHash);
+			return localRepo.writeContents(fileHash, serverContentUri);
+		}
 	}
 
-	public void copyBlocksToServer(@NonNull List<String> blockset) throws IOException {
-		List<String> missingBlocks;
-		do {
-			//Find if the server is missing any blocks from the local file's blockset
-			missingBlocks = blockset.stream()
-					.filter( b -> {
-						try {
-							return !serverRepo.getBlockPropsExist(b);
-						} catch (ConnectException e) {
-							throw new RuntimeException(e);
-						}
-					})
-					.collect(Collectors.toList());
+	public SContent copyContentToServer(@Nullable String fileHash) throws IOException {
+		if(fileHash == null) return null;
 
-			//For each block the server is missing...
-			for(String block : missingBlocks) {
-				//Read the block data from local block storage
-				byte[] blockData = localRepo.getBlockContents(block);
+		try {
+			//Check if the content already exists on the server
+			return serverRepo.contentConn.getProps(fileHash);
+		}
+		catch (ContentsNotFoundException e) {
+			//If it does not, upload it
+			Uri localContentUri = localRepo.getContentUri(fileHash);
+			File localFile = new File(localContentUri.toString());
 
-				//And upload the data to the server
-				serverRepo.putBlockData(blockData);
-			}
-		} while(!missingBlocks.isEmpty());
+			//Returns filesize
+			return serverRepo.uploadData(fileHash, localFile);
+		}
 	}
 
 

@@ -5,7 +5,8 @@ import android.net.Uri;
 import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.repositories.local.LocalRepo;
-import com.example.galleryconnector.repositories.local.block.LBlockHandler;
+import com.example.galleryconnector.repositories.local.content.LContent;
+import com.example.galleryconnector.repositories.local.content.LContentHandler;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.google.gson.JsonObject;
 
@@ -32,17 +33,14 @@ public class ImportExportApi {
 
 	//Import a file to the local system from a uri.
 	//Upon a successful import, the file will be moved between local/server based on its parent.
-	public LFile importFileToLocal(@NonNull UUID accountuid, @NonNull UUID parent, @NonNull Uri source) throws IOException {
+	public LFile importFileToLocal(@NonNull UUID accountuid, @NonNull UUID parent, @NonNull String fileHash, @NonNull Uri source) throws IOException {
+		//Import the content to the local repository
+		LContent contentProps = localRepo.writeContents(fileHash, source);
 
-		//Import the blockset to the local repository
-		LBlockHandler.BlockSet blockSet = localRepo.putBlockData(source);
-
-
-		//Make a brand new file entity, and update its block info
+		//Make a brand new file entity, and update its content info
 		LFile file = new LFile(accountuid);
-		file.fileblocks = blockSet.blockList;
-		file.filesize = blockSet.fileSize;
-		file.filehash = blockSet.fileHash;
+		file.filehash = contentProps.name;
+		file.filesize = contentProps.size;
 
 		file.changetime = Instant.now().getEpochSecond();
 		file.modifytime = Instant.now().getEpochSecond();

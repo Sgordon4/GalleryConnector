@@ -13,7 +13,7 @@ import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.DataNotFoundException;
+import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
@@ -53,7 +53,7 @@ public class SyncHandler {
 
 	private final DomainAPI domainAPI;
 
-	private final boolean debug = false;
+	private final boolean debug = true;
 
 
 
@@ -251,10 +251,11 @@ public class SyncHandler {
 		}
 		catch (FileNotFoundException e) {
 			//If the file is missing from one or both repos, there is nothing to sync
+			if(debug) Log.d(TAG, "At least one of the repos is missing the file, no sync needed. FileUID: "+fileUID);
 			return null;
 		} catch (ConnectException e) {
 			throw e;
-		} catch (DataNotFoundException e) {
+		} catch (ContentsNotFoundException e) {
 			throw new RuntimeException(e);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -282,9 +283,8 @@ public class SyncHandler {
 
 		//If only local has file content changes, just copy those to server
 		if(localHasFileChanges && !serverHasFileChanges) {
-			if(debug) Log.d(TAG, "Only local has file content changes, copying blocks to server. FileUID: "+local.fileuid);
-			domainAPI.copyBlocksToServer(local.fileblocks);
-			syncReference.fileblocks = local.fileblocks;
+			if(debug) Log.d(TAG, "Only local has file content changes, copying content to server. FileUID: "+local.fileuid);
+			domainAPI.copyContentToServer(local.filehash);
 			syncReference.filesize = local.filesize;
 			syncReference.filehash = local.filehash;
 			syncReference.changetime = local.changetime;
@@ -292,9 +292,8 @@ public class SyncHandler {
 		}
 		//If only server has file content changes, just copy those to local
 		else if(!localHasFileChanges && serverHasFileChanges) {
-			if(debug) Log.d(TAG, "Only server has file content changes, copying blocks to local. FileUID: "+server.fileuid);
-			domainAPI.copyBlocksToLocal(server.fileblocks);
-			syncReference.fileblocks = server.fileblocks;
+			if(debug) Log.d(TAG, "Only server has file content changes, copying content to local. FileUID: "+server.fileuid);
+			domainAPI.copyContentsToLocal(server.filehash);
 			syncReference.filesize = server.filesize;
 			syncReference.filehash = server.filehash;
 			syncReference.changetime = server.changetime;

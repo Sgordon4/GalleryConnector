@@ -2,17 +2,29 @@ package com.example.galleryconnector.shittytests;
 
 import android.net.Uri;
 
-import com.example.galleryconnector.repositories.combined.DataNotFoundException;
+import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.local.LocalRepo;
-import com.example.galleryconnector.repositories.local.block.LBlockHandler;
+import com.example.galleryconnector.repositories.local.content.LContent;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.journal.LJournal;
 import com.example.galleryconnector.repositories.server.ServerRepo;
+import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
+import com.example.galleryconnector.repositories.server.servertypes.SContent;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 
+import java.io.BufferedInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -24,34 +36,35 @@ public class TestRepoBasics {
 	UUID accountUID = UUID.fromString("b16fe0ba-df94-4bb6-ad03-aab7e47ca8c3");
 
 	Uri externalUri_1MB = Uri.parse("https://sample-videos.com/img/Sample-jpg-image-1mb.jpg");
+	Path tempFileSmall = Paths.get(MyApplication.getAppContext().getDataDir().toString(), "temp", "smallFile.txt");
 
 
 
 	public void testLocalBasics() {
 		try {
-			//Put the blocks in to start
-			LBlockHandler.BlockSet blockSet = lrepo.putData(externalUri_1MB);
+			//Put the data in to start
+			String fileHash = importToTempFile();
+			LContent contentProps = lrepo.writeContents(fileHash, Uri.fromFile(tempFileSmall.toFile()));
 
 			UUID fileUID = UUID.randomUUID();
 
-			//Make a new file with the blockset data
+			//Make a new file with the data properties
 			LFile newFile = new LFile(fileUID, accountUID);
-			newFile.fileblocks = blockSet.blockList;
-			newFile.filesize = blockSet.fileSize;
-			newFile.filehash = blockSet.fileHash;
+			newFile.filehash = contentProps.name;
+			newFile.filesize = contentProps.size;
 
 			newFile.changetime = Instant.now().getEpochSecond();
 			newFile.modifytime = Instant.now().getEpochSecond();
 
 
-			//Add something to muck things up
-			newFile.fileblocks.add("FAKE");
+			//Change the filehash to one that doesn't exist
+			newFile.filehash = "FAKE";
 
 			try {
 				lrepo.putFileProps(newFile, "null", "null");
-			} catch (DataNotFoundException e) {
-				System.out.println("System successfully rejected the post because of the missing block");
-				newFile.fileblocks.remove("FAKE");
+			} catch (ContentsNotFoundException e) {
+				System.out.println("System successfully rejected the post because of the missing content");
+				newFile.filehash = fileHash;
 			}
 			lrepo.putFileProps(newFile, "null", "null");
 
@@ -90,29 +103,29 @@ public class TestRepoBasics {
 
 	public void testServerBasics() {
 		try {
-			//Put the blocks in to start
-			ServerRepo.BlockSet blockSet = srepo.putData(externalUri_1MB);
+			//Put the data in to start
+			String fileHash = importToTempFile();
+			SContent contentProps = srepo.uploadData(fileHash, tempFileSmall.toFile());
 
 			UUID fileUID = UUID.randomUUID();
 
-			//Make a new file with the blockset data
+			//Make a new file with the file properties
 			SFile newFile = new SFile(fileUID, accountUID);
-			newFile.fileblocks = blockSet.blockList;
-			newFile.filesize = blockSet.fileSize;
-			newFile.filehash = blockSet.fileHash;
+			newFile.filehash = contentProps.name;
+			newFile.filesize = contentProps.size;
 
 			newFile.changetime = Instant.now().getEpochSecond();
 			newFile.modifytime = Instant.now().getEpochSecond();
 
 
-			//Add something to muck things up
-			newFile.fileblocks.add("FAKE");
+			//Change the filehash to one that doesn't exist
+			newFile.filehash = "FAKE";
 
 			try {
 				srepo.putFileProps(newFile, "null", "null");
-			} catch (DataNotFoundException e) {
-				System.out.println("System successfully rejected the post because of the missing block");
-				newFile.fileblocks.remove("FAKE");
+			} catch (ContentsNotFoundException e) {
+				System.out.println("System successfully rejected the post because of the missing content");
+				newFile.filehash = fileHash;
 			}
 			srepo.putFileProps(newFile, "null", "null");
 
@@ -145,6 +158,34 @@ public class TestRepoBasics {
 
 
 		}  catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+
+
+
+	private String importToTempFile() throws IOException {
+		if(!tempFileSmall.toFile().exists()) {
+			Files.createDirectories(tempFileSmall.getParent());
+			Files.createFile(tempFileSmall);
+		}
+
+		URL largeUrl = new URL(externalUri_1MB.toString());
+		try (BufferedInputStream in = new BufferedInputStream(largeUrl.openStream());
+			 DigestInputStream dis = new DigestInputStream(in, MessageDigest.getInstance("SHA-256"));
+			 FileOutputStream fileOutputStream = new FileOutputStream(tempFileSmall.toFile())) {
+
+			byte[] dataBuffer = new byte[1024];
+			int bytesRead;
+			while ((bytesRead = dis.read(dataBuffer, 0, 1024)) != -1) {
+				fileOutputStream.write(dataBuffer, 0, bytesRead);
+			}
+
+
+			return ContentConnector.bytesToHex( dis.getMessageDigest().digest() );
+		}
+		catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
 		}
 	}

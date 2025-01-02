@@ -6,7 +6,7 @@ import android.net.Uri;
 import android.widget.ImageView;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.DataNotFoundException;
+import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
@@ -61,7 +61,7 @@ public class TestEverything {
 		} catch (ConnectException e) {
 			System.out.println("ConnectException in testDomainMove");
 			throw new RuntimeException(e);
-		} catch (DataNotFoundException | FileNotFoundException e) {
+		} catch (ContentsNotFoundException | FileNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -138,7 +138,7 @@ public class TestEverything {
 		} catch (UnknownHostException e) {
 			System.out.println("Houston we have a problem");
 			throw new RuntimeException(e);
-		} catch (DataNotFoundException e) {
+		} catch (ContentsNotFoundException e) {
 			throw new RuntimeException(e);
 		}
 
@@ -149,13 +149,13 @@ public class TestEverything {
 
 		try {
 			System.out.println("Putting file contents into server");
-			newFile = grepo.putDataServer(newFile, uri);
+			newFile = grepo.putContentsServer(newFile, uri);
 
 			System.out.println("Putting file props into server");
 			grepo.putFilePropsServer(newFile);
 		} catch (UnknownHostException e) {
 			throw new RuntimeException(e);
-		} catch (DataNotFoundException e) {
+		} catch (ContentsNotFoundException e) {
 			throw new RuntimeException(e);
 		} catch (ConnectException e) {
 			throw new RuntimeException(e);

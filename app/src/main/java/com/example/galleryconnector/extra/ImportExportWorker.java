@@ -63,9 +63,12 @@ public class ImportExportWorker extends Worker {
 			UUID parentUID = UUID.fromString(parent);
 			Uri sourceUri = Uri.parse(target);
 
+			//TODO Import into a temp file and get fileHash from there
+			String fileHash = "testImport";
+
 			//Import the file to the local system
 			try {
-				ImportExportApi.getInstance().importFileToLocal(accountUID, parentUID, sourceUri);
+				ImportExportApi.getInstance().importFileToLocal(accountUID, parentUID, fileHash, sourceUri);
 			} catch (UnknownHostException e) {
 				throw new RuntimeException(e);
 			} catch (IOException e) {

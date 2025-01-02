@@ -10,7 +10,6 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.shittytests.TestDomainOperations;
-import com.example.galleryconnector.shittytests.TestEverything;
 import com.example.galleryconnector.shittytests.TestMultipart;
 import com.example.galleryconnector.shittytests.TestRepoBasics;
 import com.example.galleryconnector.shittytests.TestSyncOperations;
@@ -34,7 +33,6 @@ public class MainActivity extends AppCompatActivity {
 	}
 
 
-	TestEverything everything = new TestEverything();
 	TestRepoBasics testRepoBasics = new TestRepoBasics();
 	TestDomainOperations testDomainOps = new TestDomainOperations();
 	TestSyncOperations testSyncOps = new TestSyncOperations();
@@ -48,25 +46,19 @@ public class MainActivity extends AppCompatActivity {
 		//gRepo.initializeListeners();
 
 
-		//Plan: Make a test text file, and import it to local repo
-		//Gotta get a way to just upload a block though. Don't have that yet.
-		//Then we just put file once the blocks are uploaded
-
-
 
 		Thread thread = new Thread(() -> {
+
+			/*
 			try {
 				//multipart.createAndDeleteMultipart();
-				multipart.uploadToMultipart();
-				//multipart.completeMultipart();
+				multipart.useSrepoAutoupload();
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
+			/**/
 
 
-			//everything.testServerUpdate();
-			//everything.testDomainMove();
-			//everything.testCopyServerWhenExists();
 
 			/*
 			testRepoBasics.testLocalBasics();
@@ -78,7 +70,7 @@ public class MainActivity extends AppCompatActivity {
 			System.out.println("---------------------------------------------------------");
 			System.out.println("---------------------------------------------------------");
 			testRepoBasics.testServerBasics();
-			 */
+			/**/
 
 
 			/*
@@ -101,21 +93,20 @@ public class MainActivity extends AppCompatActivity {
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
-			 */
+			/**/
 
 
 			/*
 			try {
-				//testSyncOps.testSync();
+				testSyncOps.testSync();
 
 				//testSyncOps.testWorkerLocalChange();
 				//testSyncOps.testWorkerServerChange();
-				testSyncOps.testWorkerBothChange();
+				//testSyncOps.testWorkerBothChange();
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
-			 */
-
+			/**/
 		});
 		thread.start();
 

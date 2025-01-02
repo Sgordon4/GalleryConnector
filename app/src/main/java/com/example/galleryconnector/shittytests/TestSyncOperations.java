@@ -2,6 +2,7 @@ package com.example.galleryconnector.shittytests;
 
 import android.net.Uri;
 
+import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
@@ -9,9 +10,19 @@ import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.server.ServerRepo;
+import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 import com.example.galleryconnector.repositories.server.servertypes.SFile;
 
+import java.io.BufferedInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -26,16 +37,25 @@ public class TestSyncOperations {
 	UUID accountUID = UUID.fromString("b16fe0ba-df94-4bb6-ad03-aab7e47ca8c3");
 
 	Uri externalUri_1MB = Uri.parse("https://sample-videos.com/img/Sample-jpg-image-1mb.jpg");
+	Path tempFileSmall = Paths.get(MyApplication.getAppContext().getDataDir().toString(), "temp", "smallFile.txt");
 
 
 
 
 	public void testWorkerLocalChange() throws IOException {
+		String fileHash = importToTempFile();
+
+		//Put the contents in local
+		int filesize = grepo.putContentsLocal(fileHash, externalUri_1MB);
+
 		UUID fileUID = UUID.randomUUID();
 		GFile local = new GFile(fileUID, accountUID);
+		local.filehash = fileHash;
+		local.filesize = filesize;
+		local.changetime = Instant.now().getEpochSecond();
+		local.modifytime = Instant.now().getEpochSecond();
 
 		//Start with a file in local
-		local = grepo.putDataLocal(local, externalUri_1MB);
 		local = grepo.putFilePropsLocal(local, "null", "null");
 
 		//And copy it to server
@@ -51,14 +71,25 @@ public class TestSyncOperations {
 		syncHandler.clearQueuedItems();
 		syncHandler.enqueue(fileUID);
 		syncHandler.doSomething(20);
+
+
+		System.out.println("Test complete!");
 	}
 
 	public void testWorkerServerChange() throws IOException {
+		String fileHash = importToTempFile();
+
+		//Put the contents in local
+		int filesize = grepo.putContentsLocal(fileHash, externalUri_1MB);
+
 		UUID fileUID = UUID.randomUUID();
 		GFile local = new GFile(fileUID, accountUID);
+		local.filehash = fileHash;
+		local.filesize = filesize;
+		local.changetime = Instant.now().getEpochSecond();
+		local.modifytime = Instant.now().getEpochSecond();
 
 		//Start with a file in local
-		local = grepo.putDataLocal(local, externalUri_1MB);
 		local = grepo.putFilePropsLocal(local, "null", "null");
 
 		//And copy it to server
@@ -74,14 +105,25 @@ public class TestSyncOperations {
 		syncHandler.clearQueuedItems();
 		syncHandler.enqueue(fileUID);
 		syncHandler.doSomething(20);
+
+
+		System.out.println("Test complete!");
 	}
 
 	public void testWorkerBothChange() throws IOException {
+		String fileHash = importToTempFile();
+
+		//Put the contents in local
+		int filesize = grepo.putContentsLocal(fileHash, externalUri_1MB);
+
 		UUID fileUID = UUID.randomUUID();
 		GFile local = new GFile(fileUID, accountUID);
+		local.filehash = fileHash;
+		local.filesize = filesize;
+		local.changetime = Instant.now().getEpochSecond();
+		local.modifytime = Instant.now().getEpochSecond();
 
 		//Start with a file in local
-		local = grepo.putDataLocal(local, externalUri_1MB);
 		local = grepo.putFilePropsLocal(local, "null", "null");
 
 		//And copy it to server
@@ -113,6 +155,9 @@ public class TestSyncOperations {
 		syncHandler.clearQueuedItems();
 		syncHandler.enqueue(fileUID);
 		syncHandler.doSomething(20);
+
+
+		System.out.println("Test complete!");
 	}
 
 
@@ -120,15 +165,24 @@ public class TestSyncOperations {
 
 
 	public void testSync() throws IOException {
-		UUID fileUID = UUID.randomUUID();
-		GFile file = new GFile(fileUID, accountUID);
 
 		System.out.println("----------------------------------------------------------------");
 		System.out.println("1111111111111111111111111111111111111111111111111111111111111111");
 		System.out.println("----------------------------------------------------------------");
 
+		String fileHash = importToTempFile();
+
+		//Put the contents in local
+		int filesize = grepo.putContentsLocal(fileHash, externalUri_1MB);
+
+		UUID fileUID = UUID.randomUUID();
+		GFile file = new GFile(fileUID, accountUID);
+		file.filehash = fileHash;
+		file.filesize = filesize;
+		file.changetime = Instant.now().getEpochSecond();
+		file.modifytime = Instant.now().getEpochSecond();
+
 		//Start with a file in local
-		file = grepo.putDataLocal(file, externalUri_1MB);
 		file = grepo.putFilePropsLocal(file, "null", "null");
 		assert grepo.isFileLocal(fileUID);
 		assert !grepo.isFileServer(fileUID);
@@ -244,5 +298,35 @@ public class TestSyncOperations {
 		assert Objects.equals(lFile.filehash, sFile.filehash);
 		assert Objects.equals(lFile.attrhash, sFile.attrhash);
 
+
+		System.out.println("Test complete!");
+	}
+
+
+
+
+	private String importToTempFile() throws IOException {
+		if(!tempFileSmall.toFile().exists()) {
+			Files.createDirectories(tempFileSmall.getParent());
+			Files.createFile(tempFileSmall);
+		}
+
+		URL largeUrl = new URL(externalUri_1MB.toString());
+		try (BufferedInputStream in = new BufferedInputStream(largeUrl.openStream());
+			 DigestInputStream dis = new DigestInputStream(in, MessageDigest.getInstance("SHA-256"));
+			 FileOutputStream fileOutputStream = new FileOutputStream(tempFileSmall.toFile())) {
+
+			byte[] dataBuffer = new byte[1024];
+			int bytesRead;
+			while ((bytesRead = dis.read(dataBuffer, 0, 1024)) != -1) {
+				fileOutputStream.write(dataBuffer, 0, bytesRead);
+			}
+
+
+			return ContentConnector.bytesToHex( dis.getMessageDigest().digest() );
+		}
+		catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }

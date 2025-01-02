@@ -37,8 +37,6 @@ public class SFile {
 	public boolean islink;
 	public boolean isdeleted;
 
-	@NonNull
-	public List<String> fileblocks;
 	public int filesize;
 	@Nullable
 	public String filehash;
@@ -56,6 +54,7 @@ public class SFile {
 	public Long createtime;
 
 
+
 	public SFile(@NonNull UUID accountuid) {
 		this(accountuid, UUID.randomUUID());
 	}
@@ -66,7 +65,6 @@ public class SFile {
 		this.isdir = false;
 		this.islink = false;
 		this.isdeleted = false;
-		this.fileblocks = new ArrayList<>();
 		this.filesize = 0;
 		this.userattr = new JsonObject();
 		this.changetime = Instant.now().getEpochSecond();
@@ -77,57 +75,28 @@ public class SFile {
 
 
 
-	/*
-	public String hashAttributes() {
-		StringBuilder sb = new StringBuilder();
-		sb.append(this.fileuid);
-		sb.append(this.accountuid);
-		sb.append(this.isdir);
-		sb.append(this.islink);
-		sb.append(this.isdeleted);
-		sb.append(this.fileblocks);
-		sb.append(this.filesize);
-		sb.append(this.filehash);
-		sb.append(this.userattr);
-		//sb.append(this.changetime);
-		//sb.append(this.modifytime);
-		//sb.append(this.accesstime);
-		//sb.append(this.createtime);
-
-		try {
-			byte[] hash = MessageDigest.getInstance("SHA-1").digest(sb.toString().getBytes());
-			this.attrhash = bytesToHex(hash);
-		} catch (NoSuchAlgorithmException e) {
-			throw new RuntimeException(e);
-		}
-
-		return this.attrhash;
-	}
-	//https://stackoverflow.com/a/9855338
-	private static final byte[] HEX_ARRAY = "0123456789ABCDEF".getBytes(StandardCharsets.US_ASCII);
-	private static String bytesToHex(@NonNull byte[] bytes) {
-		byte[] hexChars = new byte[bytes.length * 2];
-		for (int j = 0; j < bytes.length; j++) {
-			int v = bytes[j] & 0xFF;
-			hexChars[j * 2] = HEX_ARRAY[v >>> 4];
-			hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
-		}
-		return new String(hexChars, StandardCharsets.UTF_8);
-	}
-	 */
-
-
-
-
-	//We want to exclude some fields with default values from the JSON output
-
-
-
 	public JsonObject toJson() {
-		return new Gson().toJsonTree(this).getAsJsonObject();
+		//We want to exclude some fields with default values from the JSON output
+		ExclusionStrategy strategy = new ExclusionStrategy() {
+			@Override
+			public boolean shouldSkipField(FieldAttributes f) {
+				switch (f.getName()) {
+					case "modifytime": return modifytime == null;
+					case "accesstime": return accesstime == null;
+					default: return false;
+				}
+			}
+
+			@Override
+			public boolean shouldSkipClass(Class<?> clazz) {
+				return false;
+			}
+		};
+
+		Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
+		//Gson gson = new GsonBuilder().create();
+		return gson.toJsonTree(this).getAsJsonObject();
 	}
-
-
 
 	@NonNull
 	@Override
@@ -141,19 +110,19 @@ public class SFile {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		SFile that = (SFile) o;
-		return isdir == that.isdir && islink == that.islink && isdeleted == that.isdeleted &&
-				filesize == that.filesize && Objects.equals(fileuid, that.fileuid) &&
-				Objects.equals(accountuid, that.accountuid) && Objects.equals(userattr, that.userattr) &&
-				Objects.equals(fileblocks, that.fileblocks) && Objects.equals(filehash, that.filehash) &&
-				Objects.equals(changetime, that.changetime) && Objects.equals(modifytime, that.modifytime) &&
-				Objects.equals(accesstime, that.accesstime) && Objects.equals(createtime, that.createtime) &&
-				Objects.equals(attrhash, that.attrhash);
+		SFile sFile = (SFile) o;
+		return isdir == sFile.isdir && islink == sFile.islink &&
+				isdeleted == sFile.isdeleted && filesize == sFile.filesize &&
+				Objects.equals(fileuid, sFile.fileuid) && Objects.equals(accountuid, sFile.accountuid) &&
+				Objects.equals(filehash, sFile.filehash) && Objects.equals(userattr, sFile.userattr) &&
+				Objects.equals(attrhash, sFile.attrhash) && Objects.equals(changetime, sFile.changetime) &&
+				Objects.equals(modifytime, sFile.modifytime) && Objects.equals(accesstime, sFile.accesstime) &&
+				Objects.equals(createtime, sFile.createtime);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, fileblocks, filesize, filehash,
+		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, filesize, filehash,
 				userattr, attrhash, changetime, modifytime, accesstime, createtime);
 	}
 }

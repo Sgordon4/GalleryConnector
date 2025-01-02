@@ -1,6 +1,5 @@
 package com.example.galleryconnector.repositories.local;
 
-import android.content.ContentResolver;
 import android.net.Uri;
 import android.os.Looper;
 import android.os.NetworkOnMainThreadException;
@@ -12,18 +11,15 @@ import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.ConcatenatedInputStream;
-import com.example.galleryconnector.repositories.combined.DataNotFoundException;
+import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.local.account.LAccount;
-import com.example.galleryconnector.repositories.local.block.LBlock;
-import com.example.galleryconnector.repositories.local.block.LBlockHandler;
+import com.example.galleryconnector.repositories.local.content.LContent;
+import com.example.galleryconnector.repositories.local.content.LContentHandler;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.journal.LJournal;
 import com.example.galleryconnector.repositories.local.sync.LSyncFile;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -41,14 +37,14 @@ import java.util.stream.Collectors;
 public class LocalRepo {
 	private static final String TAG = "Gal.LRepo";
 	public final LocalDatabase database;
-	public final LBlockHandler blockHandler;
+	public final LContentHandler contentHandler;
 
 	private final RoomDatabaseUpdateListener listener;
 
 	public LocalRepo() {
 		database = new LocalDatabase.DBBuilder().newInstance( MyApplication.getAppContext() );
 
-		blockHandler = new LBlockHandler(database.getBlockDao());
+		contentHandler = new LContentHandler(database.getContentDao());
 
 		listener = new RoomDatabaseUpdateListener();
 	}
@@ -157,45 +153,45 @@ public class LocalRepo {
 	}
 
 
-	public LFile putFileProps(@NonNull LFile file, @Nullable String prevFileHash, @Nullable String prevAttrHash)
-			throws DataNotFoundException, IllegalStateException {
-		Log.i(TAG, String.format("PUT LOCAL FILE PROPS called with fileUID='%s'", file.fileuid));
+	public LFile putFileProps(@NonNull LFile fileProps, @Nullable String prevFileHash, @Nullable String prevAttrHash)
+			throws ContentsNotFoundException, IllegalStateException {
+		Log.i(TAG, String.format("PUT LOCAL FILE PROPS called with fileUID='%s'", fileProps.fileuid));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 
-		//Check if the block repo is missing any blocks from the blockset
-		List<String> missingBlocks = file.fileblocks.stream()
-				.filter( b -> !getBlockPropsExist(b) )
-				.collect(Collectors.toList());
-
-		//If any are missing, we can't commit the file changes
-		if(!missingBlocks.isEmpty())
-			throw new DataNotFoundException("Cannot put props, system is missing "+missingBlocks.size()+" blocks!");
+		//Check if the repo is missing the file contents. If so, we can't commit the file changes
+		if(fileProps.filehash != null) {
+			try {
+				contentHandler.getProps(fileProps.filehash);
+			} catch (ContentsNotFoundException e) {
+				throw new ContentsNotFoundException("Cannot put props, system is missing file contents!");
+			}
+		}
 
 
 		//Make sure the hashes match if any were passed
-		LFile oldFile = database.getFileDao().loadByUID(file.fileuid);
+		LFile oldFile = database.getFileDao().loadByUID(fileProps.fileuid);
 		if(oldFile != null) {
-			if(prevFileHash != null && !oldFile.filehash.equals(prevFileHash))
+			if(prevFileHash != null && !Objects.equals(oldFile.filehash, prevFileHash))
 				throw new IllegalStateException(String.format("File contents hash doesn't match for fileUID='%s'", oldFile.fileuid));
-			if(prevAttrHash != null && ( oldFile.attrhash == null || !oldFile.attrhash.equals(prevAttrHash) ))
+			if(prevAttrHash != null && !Objects.equals(oldFile.attrhash, prevAttrHash))
 				throw new IllegalStateException(String.format("File attributes hash doesn't match for fileUID='%s'", oldFile.fileuid));
 		}
 
 
-		//Now that we've confirmed all blocks exist, create/update the file metadata:
+		//Now that we've confirmed the contents exist, create/update the file metadata
 
 		//Hash the user attributes
 		try {
-			byte[] hash = MessageDigest.getInstance("SHA-1").digest(file.userattr.toString().getBytes());
-			file.attrhash = bytesToHex(hash);
+			byte[] hash = MessageDigest.getInstance("SHA-1").digest(fileProps.userattr.toString().getBytes());
+			fileProps.attrhash = bytesToHex(hash);
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
 		}
 
 		//Create/update the file
-		database.getFileDao().put(file);
-		return file;
+		database.getFileDao().put(fileProps);
+		return fileProps;
 	}
 	//https://stackoverflow.com/a/9855338
 	private static final byte[] HEX_ARRAY = "0123456789ABCDEF".getBytes(StandardCharsets.US_ASCII);
@@ -210,8 +206,18 @@ public class LocalRepo {
 	}
 
 
+	//TODO When we get other infrastructure set up, just set delete prop
+	public void deleteFileProps(@NonNull UUID fileUID) {
+		Log.i(TAG, String.format("DELETE LOCAL FILE called with fileUID='%s'", fileUID));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException, DataNotFoundException {
+		database.getFileDao().delete(fileUID);
+	}
+
+
+
+	/*
+	public InputStream getFileContents(UUID fileUID) throws FileNotFoundException, ContentsNotFoundException {
 		Log.i(TAG, String.format("GET LOCAL FILE CONTENTS called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
@@ -227,37 +233,95 @@ public class LocalRepo {
 
 		return new ConcatenatedInputStream(blockStreams);
 	}
+	 */
 
 
-	public LBlockHandler.BlockSet putData(@NonNull Uri source) throws IOException {
-		Log.i(TAG, String.format("PUT LOCAL FILE CONTENTS (Uri) called with Uri='%s'", source));
+
+	//---------------------------------------------------------------------------------------------
+	// Contents
+	//---------------------------------------------------------------------------------------------
+
+	@Nullable
+	public Uri getContentUri(@NonNull String name) throws ContentsNotFoundException {
+		Log.v(TAG, String.format("\nGET LOCAL CONTENT URI called with name='"+name+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		//Write the Uri to the system as a set of blocks
-		LBlockHandler.BlockSet blockSet = blockHandler.writeUriToBlocks(source);
+		//Throws a ContentsNotFound exception if the content properties don't exist
+		contentHandler.getProps(name);
 
-		Log.d(TAG, "Blocks written to system");
-
-		return blockSet;
+		//Now that we know the properties exist, return the content uri
+		return contentHandler.getContentUri(name);
 	}
 
 
-	public LBlockHandler.BlockSet putData(@NonNull String contents) throws IOException {
-		Log.i(TAG, String.format("PUT LOCAL FILE CONTENTS (String) called with size='%s'", contents.length()));
+	//Helper method
+	public LContent writeContents(@NonNull String name, @NonNull Uri source) throws FileNotFoundException {
+		Log.v(TAG, String.format("\nGET LOCAL CONTENT URI called with name='"+name+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		//Write the String to the system as a set of blocks
-		return blockHandler.writeBytesToBlocks(contents.getBytes());
+		return contentHandler.writeContents(name, source);
 	}
 
 
-	//TODO When we get other infrastructure set up, just set delete prop
-	public void deleteFileProps(@NonNull UUID fileUID) {
-		Log.i(TAG, String.format("DELETE LOCAL FILE called with fileUID='%s'", fileUID));
+	public void deleteContents(@NonNull String name) {
+		Log.i(TAG, String.format("\nDELETE LOCAL CONTENTS called with name='"+name+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
-		database.getFileDao().delete(fileUID);
+		//Remove the database entry first to avoid race conditions
+		contentHandler.deleteProps(name);
+
+		//Now remove the content itself from disk
+		contentHandler.deleteContents(name);
 	}
+
+
+
+	//We don't actually need things to be able to access the content table
+
+	/*
+	public LContent getBlockProps(@NonNull String blockHash) throws ContentsNotFoundException {
+		Log.v(TAG, String.format("GET LOCAL BLOCK PROPS called with blockHash='%s'", blockHash));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
+		return blockHandler.getProps(blockHash);
+	}
+	public boolean getBlockPropsExist(@NonNull String blockHash) {
+		try {
+			getBlockProps(blockHash);
+			return true;
+		} catch (ContentsNotFoundException e) {
+			return false;
+		}
+	}
+
+	 */
+
+
+	/*
+	@Nullable	//Mostly used internally
+	public byte[] getBlockContents(@NonNull String blockHash) throws ContentsNotFoundException {
+		Log.i(TAG, String.format("\nGET LOCAL BLOCK CONTENTS called with blockHash='"+blockHash+"'"));
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
+		return blockHandler.readBlock(blockHash);
+	}
+
+	//Note: For efficiency, check if the block already exists before using this
+	public LContentHandler.BlockSet putBlockData(@NonNull byte[] contents) throws IOException {
+		Log.i(TAG, "\nPUT LOCAL BLOCK CONTENTS BYTE called");
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
+		return blockHandler.writeBytesToBlocks(contents);
+	}
+
+	public LContentHandler.BlockSet putBlockData(@NonNull Uri uri) throws IOException {
+		Log.i(TAG, "\nPUT LOCAL BLOCK CONTENTS URI called");
+		if(isOnMainThread()) throw new NetworkOnMainThreadException();
+
+		return blockHandler.writeUriToBlocks(uri);
+	}
+
+	 */
 
 
 
@@ -275,74 +339,6 @@ public class LocalRepo {
 
 	public void deleteLastSyncedData(@NonNull UUID fileUID) {
 		database.getSyncDao().delete(fileUID);
-	}
-
-
-
-	//---------------------------------------------------------------------------------------------
-	// Block
-	//---------------------------------------------------------------------------------------------
-
-	public LBlock getBlockProps(@NonNull String blockHash) throws FileNotFoundException {
-		Log.v(TAG, String.format("GET LOCAL BLOCK PROPS called with blockHash='%s'", blockHash));
-		if(isOnMainThread()) throw new NetworkOnMainThreadException();
-
-		return blockHandler.getBlockProps(blockHash);
-	}
-	public boolean getBlockPropsExist(@NonNull String blockHash) {
-		try {
-			getBlockProps(blockHash);
-			return true;
-		} catch (FileNotFoundException e) {
-			return false;
-		}
-	}
-
-
-	@Nullable
-	public Uri getBlockContentsUri(@NonNull String blockHash) throws DataNotFoundException {
-		Log.v(TAG, String.format("\nGET LOCAL BLOCK URI called with blockHash='"+blockHash+"'"));
-		if(isOnMainThread()) throw new NetworkOnMainThreadException();
-
-		return blockHandler.getBlockUri(blockHash);
-	}
-
-
-
-	@Nullable	//Mostly used internally
-	public byte[] getBlockContents(@NonNull String blockHash) throws DataNotFoundException {
-		Log.i(TAG, String.format("\nGET LOCAL BLOCK CONTENTS called with blockHash='"+blockHash+"'"));
-		if(isOnMainThread()) throw new NetworkOnMainThreadException();
-
-		return blockHandler.readBlock(blockHash);
-	}
-
-	//Note: For efficiency, check if the block already exists before using this
-	public LBlockHandler.BlockSet putBlockData(@NonNull byte[] contents) throws IOException {
-		Log.i(TAG, "\nPUT LOCAL BLOCK CONTENTS BYTE called");
-		if(isOnMainThread()) throw new NetworkOnMainThreadException();
-
-		return blockHandler.writeBytesToBlocks(contents);
-	}
-
-	public LBlockHandler.BlockSet putBlockData(@NonNull Uri uri) throws IOException {
-		Log.i(TAG, "\nPUT LOCAL BLOCK CONTENTS URI called");
-		if(isOnMainThread()) throw new NetworkOnMainThreadException();
-
-		return blockHandler.writeUriToBlocks(uri);
-	}
-
-
-
-	public void deleteBlock(@NonNull String blockHash) {
-		Log.i(TAG, String.format("\nDELETE LOCAL BLOCK called with blockHash='"+blockHash+"'"));
-		if(isOnMainThread()) throw new NetworkOnMainThreadException();
-
-		//Remove the database entry first to avoid race conditions
-		database.getBlockDao().delete(blockHash);
-
-		//Now remove the block itself from disk
-		blockHandler.deleteBlock(blockHash);
 	}
 
 

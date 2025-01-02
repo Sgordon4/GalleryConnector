@@ -28,8 +28,6 @@ public class GFile {
 	public boolean islink;
 	public boolean isdeleted;
 
-	@NonNull
-	public List<String> fileblocks;
 	public int filesize;
 	@Nullable
 	public String filehash;
@@ -45,6 +43,7 @@ public class GFile {
 	public Long createtime; //Create time :)
 
 
+
 	public GFile(@NonNull UUID accountuid) {
 		this(accountuid, UUID.randomUUID());
 	}
@@ -55,7 +54,6 @@ public class GFile {
 		this.isdir = false;
 		this.islink = false;
 		this.isdeleted = false;
-		this.fileblocks = new ArrayList<>();
 		this.filesize = 0;
 		this.userattr = new JsonObject();
 		this.changetime = Instant.now().getEpochSecond();
@@ -66,31 +64,26 @@ public class GFile {
 
 
 
-
-	//We want to exclude some fields with default values from the JSON output
-	@Ignore
-	public ExclusionStrategy strategy = new ExclusionStrategy() {
-		@Override
-		public boolean shouldSkipField(FieldAttributes f) {
-			switch (f.getName()) {
-				case "modifytime": return modifytime == null;
-				case "accesstime": return accesstime == null;
-				default:
-					return false;
-			}
-		}
-
-		@Override
-		public boolean shouldSkipClass(Class<?> clazz) {
-			return false;
-		}
-	};
-
-
-
 	public JsonObject toJson() {
-		//Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
-		Gson gson = new GsonBuilder().create();
+		//We want to exclude some fields with default values from the JSON output
+		ExclusionStrategy strategy = new ExclusionStrategy() {
+			@Override
+			public boolean shouldSkipField(FieldAttributes f) {
+				switch (f.getName()) {
+					case "modifytime": return modifytime == null;
+					case "accesstime": return accesstime == null;
+					default: return false;
+				}
+			}
+
+			@Override
+			public boolean shouldSkipClass(Class<?> clazz) {
+				return false;
+			}
+		};
+
+		Gson gson = new GsonBuilder().addSerializationExclusionStrategy(strategy).create();
+		//Gson gson = new GsonBuilder().create();
 		return gson.toJsonTree(this).getAsJsonObject();
 	}
 
@@ -106,19 +99,19 @@ public class GFile {
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
-		GFile that = (GFile) o;
-		return isdir == that.isdir && islink == that.islink && isdeleted == that.isdeleted &&
-				filesize == that.filesize && Objects.equals(fileuid, that.fileuid) &&
-				Objects.equals(accountuid, that.accountuid) && Objects.equals(userattr, that.userattr) &&
-				Objects.equals(fileblocks, that.fileblocks) && Objects.equals(filehash, that.filehash) &&
-				Objects.equals(changetime, that.changetime) && Objects.equals(modifytime, that.modifytime) &&
-				Objects.equals(accesstime, that.accesstime) && Objects.equals(createtime, that.createtime) &&
-				Objects.equals(attrhash, that.attrhash);
+		GFile gFile = (GFile) o;
+		return isdir == gFile.isdir && islink == gFile.islink &&
+				isdeleted == gFile.isdeleted && filesize == gFile.filesize &&
+				Objects.equals(fileuid, gFile.fileuid) && Objects.equals(accountuid, gFile.accountuid) &&
+				Objects.equals(filehash, gFile.filehash) && Objects.equals(userattr, gFile.userattr) &&
+				Objects.equals(attrhash, gFile.attrhash) && Objects.equals(changetime, gFile.changetime) &&
+				Objects.equals(modifytime, gFile.modifytime) && Objects.equals(accesstime, gFile.accesstime) &&
+				Objects.equals(createtime, gFile.createtime);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, fileblocks, filesize, filehash,
+		return Objects.hash(fileuid, accountuid, isdir, islink, isdeleted, filesize, filehash,
 				userattr, attrhash, changetime, modifytime, accesstime, createtime);
 	}
 
@@ -131,7 +124,6 @@ public class GFile {
 		gFile.isdir = local.isdir;
 		gFile.islink = local.islink;
 		gFile.isdeleted = local.isdeleted;
-		gFile.fileblocks = local.fileblocks;
 		gFile.filesize = local.filesize;
 		gFile.filehash = local.filehash;
 		gFile.userattr = local.userattr;
@@ -149,7 +141,6 @@ public class GFile {
 		gFile.isdir = server.isdir;
 		gFile.islink = server.islink;
 		gFile.isdeleted = server.isdeleted;
-		gFile.fileblocks = server.fileblocks;
 		gFile.filesize = server.filesize;
 		gFile.filehash = server.filehash;
 		gFile.userattr = server.userattr;
@@ -168,7 +159,6 @@ public class GFile {
 		local.isdir = isdir;
 		local.islink = islink;
 		local.isdeleted = isdeleted;
-		local.fileblocks = fileblocks;
 		local.filesize = filesize;
 		local.filehash = filehash;
 		local.userattr = userattr;
@@ -186,7 +176,6 @@ public class GFile {
 		server.isdir = isdir;
 		server.islink = islink;
 		server.isdeleted = isdeleted;
-		server.fileblocks = fileblocks;
 		server.filesize = filesize;
 		server.filehash = filehash;
 		server.userattr = userattr;

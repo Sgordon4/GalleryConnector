@@ -24,7 +24,6 @@ public class LSyncFile extends LFile {
 		this.isdir = file.isdir;
 		this.islink = file.islink;
 		this.isdeleted = file.isdeleted;
-		this.fileblocks = file.fileblocks;
 		this.filesize = file.filesize;
 		this.filehash = file.filehash;
 		this.userattr = file.userattr;
