@@ -143,6 +143,7 @@ public class LocalRepo {
 	//---------------------------------------------------------------------------------------------
 
 
+	@NonNull
 	public LFile getFileProps(UUID fileUID) throws FileNotFoundException {
 		Log.v(TAG, String.format("GET LOCAL FILE PROPS called with fileUID='%s'", fileUID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();

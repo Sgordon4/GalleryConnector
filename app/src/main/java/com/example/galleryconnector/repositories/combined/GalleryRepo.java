@@ -149,7 +149,7 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	@Nullable
+	@NonNull
 	public GFile getFileProps(@NonNull UUID fileUID) throws FileNotFoundException, ConnectException {
 		//Try to get the file data from local. If it exists, return that.
 		try {

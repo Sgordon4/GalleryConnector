@@ -52,8 +52,8 @@ android {
             implementation "androidx.datastore:datastore-preferences:1.1.1"
 
             //Remove these
-            //implementation "com.github.bumptech.glide:glide:4.16.0"
-            //annotationProcessor 'com.github.bumptech.glide:compiler:4.11.0'
+            implementation "com.github.bumptech.glide:glide:4.16.0"
+            annotationProcessor 'com.github.bumptech.glide:compiler:4.11.0'
             //implementation "commons-io:commons-io:2.18.0"
 
         }

@@ -1,6 +1,9 @@
 package com.example.galleryconnector;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.ImageView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -8,13 +11,17 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.shittytests.TestDomainOperations;
+import com.example.galleryconnector.shittytests.TestGlide;
 import com.example.galleryconnector.shittytests.TestMultipart;
 import com.example.galleryconnector.shittytests.TestRepoBasics;
 import com.example.galleryconnector.shittytests.TestSyncOperations;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.ConnectException;
 
 public class MainActivity extends AppCompatActivity {
 	GalleryRepo gRepo;
@@ -37,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
 	TestDomainOperations testDomainOps = new TestDomainOperations();
 	TestSyncOperations testSyncOps = new TestSyncOperations();
 	TestMultipart multipart = new TestMultipart();
+	TestGlide testGlide = new TestGlide();
 
 	@Override
 	protected void onResume() {
@@ -44,6 +52,25 @@ public class MainActivity extends AppCompatActivity {
 
 		gRepo = GalleryRepo.getInstance();
 		//gRepo.initializeListeners();
+
+
+
+
+
+		/**/
+		Thread glideThread = new Thread(() -> {
+			try {
+				ImageView imageView = findViewById(R.id.image);
+
+				//testGlide.importToBothRepos();
+				//testGlide.displayImage(imageView);
+				testGlide.displayImageWithGlide(imageView);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		});
+		glideThread.start();
+		 /**/
 
 
 
