@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
+import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -20,6 +21,10 @@ import java.nio.ByteBuffer;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.attribute.UserDefinedFileAttributeView;
+import java.security.DigestOutputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Objects;
 import java.util.UUID;
 
 
@@ -45,55 +50,41 @@ public class TempFileHandler {
 	// We can add a little spinner after the drop if need be. I like this idea.
 
 
-	//We should use this because the other option requires a side thread
-	public void createTempFile(UUID fileUID, byte[] syncedData) {
 
-	}
-
-
-	//Creates a temp file with the contents of the given UUID, as well as a last-sync file to accompany it (with the same data)
-	public void createTempFileFor(UUID fileUID) throws
-			FileAlreadyExistsException, FileNotFoundException, ConnectException, ContentsNotFoundException {
+	//This should be called with the content from the repo, not the new data we hope to write to the temp file
+	public void createTempFile(UUID fileUID, byte[] syncedData) throws FileAlreadyExistsException {
 		File tempFile = getTempLocationOnDisk(fileUID);
 		File syncFile = getSyncPointLocationOnDisk(fileUID);
 
 		if(tempFile.exists()) throw new FileAlreadyExistsException("Temp file already exists for fileUID='"+fileUID+"'");
 
-		GFile fileProps = grepo.getFileProps(fileUID);
-		byte[] contents = new byte[fileProps.filesize];
 
-		//If there is data to read, read it
-		if(fileProps.filehash != null) {
-			try {
-				URL contentUri = new URL(grepo.getContentUri(fileProps.filehash).toString());
-				try (BufferedInputStream in = new BufferedInputStream( contentUri.openStream() )) {
-					in.read(contents);
-				}
-				catch (IOException e) { throw new RuntimeException(e); }
-			} catch (MalformedURLException e) { throw new RuntimeException(e); }
-		}
-
-
-		//Now create the temp file pair and write the retrieved content to them
+		//Create the temp file pair and write the data to them
 		try {
 			Files.createDirectories(tempFile.toPath().getParent());
-
-
 			Files.createFile(tempFile.toPath());
-			try (FileOutputStream out = new FileOutputStream(tempFile)) {
-				out.write(contents);
+
+
+			try (DigestOutputStream out = new DigestOutputStream(Files.newOutputStream(tempFile.toPath()), MessageDigest.getInstance("SHA-256"))) {
+				out.write(syncedData);
+				String fileHash = ContentConnector.bytesToHex(out.getMessageDigest().digest());
+
+				UserDefinedFileAttributeView attrs = Files.getFileAttributeView(tempFile.toPath(), UserDefinedFileAttributeView.class);
+				attrs.write("hash", ByteBuffer.wrap(fileHash.getBytes()));
+			} catch (NoSuchAlgorithmException e) {
+				throw new RuntimeException(e);
 			}
-			UserDefinedFileAttributeView tempAttrs = Files.getFileAttributeView(tempFile.toPath(), UserDefinedFileAttributeView.class);
-			tempAttrs.write("hash", ByteBuffer.wrap(fileProps.filehash.getBytes()));
 
 
-			Files.createFile(syncFile.toPath());
-			try (FileOutputStream out = new FileOutputStream(syncFile)) {
-				out.write(contents);
+			try (DigestOutputStream out = new DigestOutputStream(Files.newOutputStream(syncFile.toPath()), MessageDigest.getInstance("SHA-256"))) {
+				out.write(syncedData);
+				String fileHash = ContentConnector.bytesToHex(out.getMessageDigest().digest());
+
+				UserDefinedFileAttributeView attrs = Files.getFileAttributeView(syncFile.toPath(), UserDefinedFileAttributeView.class);
+				attrs.write("hash", ByteBuffer.wrap(fileHash.getBytes()));
+			} catch (NoSuchAlgorithmException e) {
+				throw new RuntimeException(e);
 			}
-			UserDefinedFileAttributeView syncAttrs = Files.getFileAttributeView(syncFile.toPath(), UserDefinedFileAttributeView.class);
-			syncAttrs.write("hash", ByteBuffer.wrap(fileProps.filehash.getBytes()));
-
 
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -101,14 +92,32 @@ public class TempFileHandler {
 	}
 
 
-	//WARNING: Blocks if a temp file needs to be createdk
+
 	public void writeToTempFile(UUID fileUID, byte[] data, String lastTempHash) throws IOException {
 		File tempFile = getTempLocationOnDisk(fileUID);
 		File syncFile = getSyncPointLocationOnDisk(fileUID);
 
 		if(!tempFile.exists()) throw new FileNotFoundException("Temp file does not exist for fileUID='"+fileUID+"'");
 
+		//Get the current hash of the temp file
+		UserDefinedFileAttributeView attrs = Files.getFileAttributeView(syncFile.toPath(), UserDefinedFileAttributeView.class);
+		ByteBuffer buffer = ByteBuffer.allocate(attrs.size("hash"));
+		attrs.read("hash", buffer);
+		String tempHash = buffer.toString();
 
+		//If the hashes don't match, yell loudly
+		if(!Objects.equals(tempHash, lastTempHash))
+			throw new IllegalStateException("Hashes do not match. Current hash='"+tempHash+"'");
+
+
+		//TODO Working here
+
+	}
+
+
+	public boolean doesTempFileExist(UUID fileUID) {
+		File tempFile = getTempLocationOnDisk(fileUID);
+		return tempFile.exists();
 	}
 
 
