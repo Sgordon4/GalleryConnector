@@ -32,6 +32,7 @@ import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.FileAlreadyExistsException;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -156,7 +157,6 @@ public class GalleryRepo {
 	}
 
 
-	//TODO This method also creates the temp files in preparation for a write
 	public long requestWriteLock(UUID fileUID) {
 		throw new RuntimeException("Stub!");
 	}
@@ -164,62 +164,15 @@ public class GalleryRepo {
 		throw new RuntimeException("Stub!");
 	}
 
+	
+
 
 	TempFileHelper tempHelper = TempFileHelper.getInstance();
 
 	//Actually writes to a temp file, which needs to be persisted later
-	public void writeFile(UUID fileUID, byte[] contents, String lastHash, long lockStamp) throws FileNotFoundException, ConnectException, ContentsNotFoundException {
-
-		//Get the current file properties, making sure the file exists. May throw FileNotFound.
-		GFile fileProps = getFileProps(fileUID);
-		if(fileProps.filehash == null)
-			throw new RuntimeException("File hash is null! FileUID: '"+fileUID+"'");
-
-
-		//For an effective write, we need two things:
-		// 1. The data being written, which will be overwritten with each new write
-		// 2. A snapshot of the in-repo file contents BEFORE any writes, in case we need to merge later
-		String mainTempName = fileUID.toString();
-		String syncTempName = fileUID + ".sync";
-
-		//If either temp file for this UUID is not already present, we need to set a few things up
-		if(!tempHelper.doesTempFileExist(mainTempName) ||
-			!tempHelper.doesTempFileExist(syncTempName)) {
-
-
-
-
-			//Create the main temp file, storing the new contents inside
-			if(!tempHelper.doesTempFileExist(mainTempName))
-				tempHelper.createTempFile(mainTempName, contents);
-
-
-			//Create a sync-point snapshot of the contents
-			if(!tempHelper.doesTempFileExist(syncTempName)) {
-				Uri uri = getContentUri(lastHash);
-
-				try (InputStream in = new URL(uri.toString()).openStream()) {
-					byte[] content = new byte[fileProps.filesize];
-					in.read(content);
-
-					tempHelper.createTempFile(syncTempName, content);
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				}
-			}
-		}
-
-
-
-
-
-
-
-
-
-
-
-		throw new RuntimeException("Stub!");
+	//Optimistically assumes the file exists in one of the repos. If not, this temp file will be deleted later.
+	public void writeFile(UUID fileUID, byte[] contents, String lastHash, long lockStamp) throws IOException {
+		tempHelper.write(fileUID, contents, lastHash, lockStamp);
 	}
 	public void writeFile(UUID fileUID, Uri contents, String lastHash, long lockStamp) {
 		throw new RuntimeException("Stub!");
