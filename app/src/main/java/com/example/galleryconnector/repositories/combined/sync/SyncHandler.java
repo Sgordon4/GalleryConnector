@@ -13,11 +13,11 @@ import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
+import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
+import com.example.galleryconnector.repositories.combined.domain_movement.DomainAPI;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.journal.LJournal;

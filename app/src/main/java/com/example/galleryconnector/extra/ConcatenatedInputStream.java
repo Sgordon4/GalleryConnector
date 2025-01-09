@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined;
+package com.example.galleryconnector.extra;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -10,9 +10,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GAccount;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
+import com.example.galleryconnector.repositories.combined.domain_movement.DomainAPI;
 import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.account.LAccount;
@@ -26,13 +27,8 @@ import com.google.gson.Gson;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.ConnectException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.file.FileAlreadyExistsException;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -149,30 +145,36 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 
 
+	//Don't use these, imports need to be done separately
+	/*
 	public UUID createFile(byte[] contents) {
 		throw new RuntimeException("Stub!");
 	}
 	public UUID createFile(Uri contents) {
 		throw new RuntimeException("Stub!");
 	}
+	 */
 
 
 	public long requestWriteLock(UUID fileUID) {
-		throw new RuntimeException("Stub!");
+		return tempHelper.requestWriteLock(fileUID);
 	}
 	public void releaseWriteLock(UUID fileUID, long lockStamp) {
-		throw new RuntimeException("Stub!");
+		tempHelper.releaseWriteLock(fileUID, lockStamp);
 	}
 
 	
 
 
-	TempFileHelper tempHelper = TempFileHelper.getInstance();
+	WriteStalling tempHelper = WriteStalling.getInstance();
 
 	//Actually writes to a temp file, which needs to be persisted later
 	//Optimistically assumes the file exists in one of the repos. If not, this temp file will be deleted later.
-	public void writeFile(UUID fileUID, byte[] contents, String lastHash, long lockStamp) throws IOException {
-		tempHelper.write(fileUID, contents, lastHash, lockStamp);
+	public String writeFile(UUID fileUID, byte[] contents, String lastHash, long lockStamp) throws IOException {
+		if(!tempHelper.isStampValid(fileUID, lockStamp))
+			throw new IllegalStateException("Invalid lock stamp! FileUID='"+fileUID+"'");
+
+		return tempHelper.write(fileUID, contents, lastHash);
 	}
 	public void writeFile(UUID fileUID, Uri contents, String lastHash, long lockStamp) {
 		throw new RuntimeException("Stub!");

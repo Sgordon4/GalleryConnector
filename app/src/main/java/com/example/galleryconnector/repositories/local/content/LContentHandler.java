@@ -1,6 +1,5 @@
 package com.example.galleryconnector.repositories.local.content;
 
-import android.content.ContentResolver;
 import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
@@ -8,17 +7,14 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
+import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public class LContentHandler {
 

@@ -1,7 +1,5 @@
 package com.example.galleryconnector.shittytests;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -9,11 +7,10 @@ import android.widget.ImageView;
 
 import com.bumptech.glide.Glide;
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.R;
-import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
+import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
+import com.example.galleryconnector.repositories.combined.domain_movement.DomainAPI;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
@@ -22,7 +19,6 @@ import java.io.BufferedInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.URL;
 import java.nio.file.Files;

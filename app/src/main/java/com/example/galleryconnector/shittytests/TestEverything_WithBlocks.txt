@@ -6,7 +6,7 @@ import android.net.Uri;
 import android.widget.ImageView;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
+import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.domain.DomainAPI;

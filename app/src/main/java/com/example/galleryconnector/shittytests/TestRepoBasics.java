@@ -3,7 +3,7 @@ package com.example.galleryconnector.shittytests;
 import android.net.Uri;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
+import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.content.LContent;
 import com.example.galleryconnector.repositories.local.file.LFile;

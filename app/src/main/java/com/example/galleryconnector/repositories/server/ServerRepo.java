@@ -9,7 +9,7 @@ import android.util.Pair;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
+import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.server.connectors.AccountConnector;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 import com.example.galleryconnector.repositories.server.connectors.FileConnector;

@@ -1,8 +1,6 @@
 package com.example.galleryconnector;
 
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.widget.ImageView;
 
 import androidx.activity.EdgeToEdge;
@@ -11,7 +9,6 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.shittytests.TestDomainOperations;
 import com.example.galleryconnector.shittytests.TestGlide;
@@ -19,9 +16,7 @@ import com.example.galleryconnector.shittytests.TestMultipart;
 import com.example.galleryconnector.shittytests.TestRepoBasics;
 import com.example.galleryconnector.shittytests.TestSyncOperations;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.ConnectException;
 
 public class MainActivity extends AppCompatActivity {
 	GalleryRepo gRepo;

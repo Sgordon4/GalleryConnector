@@ -5,7 +5,7 @@ import android.net.Uri;
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
+import com.example.galleryconnector.repositories.combined.domain_movement.DomainAPI;
 import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;

@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined.domain;
+package com.example.galleryconnector.repositories.combined.domain_movement;
 
 import android.content.Context;
 import android.util.Log;

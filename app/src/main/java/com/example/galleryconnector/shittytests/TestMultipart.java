@@ -5,22 +5,17 @@ import android.util.Pair;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
-import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
+import com.example.galleryconnector.repositories.combined.domain_movement.DomainAPI;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 
 import java.io.BufferedInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 

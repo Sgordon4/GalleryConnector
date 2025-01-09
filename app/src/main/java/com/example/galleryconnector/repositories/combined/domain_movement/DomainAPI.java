@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined.domain;
+package com.example.galleryconnector.repositories.combined.domain_movement;
 
 import android.net.Uri;
 import android.util.Log;
@@ -11,7 +11,7 @@ import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
+import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.local.LocalRepo;

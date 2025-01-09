@@ -3,18 +3,14 @@ package com.example.galleryconnector.repositories.combined;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.attribute.UserDefinedFileAttributeView;
 import java.security.DigestOutputStream;
@@ -29,10 +25,10 @@ import java.util.concurrent.locks.StampedLock;
 
 //NOTE: We are assuming file contents are small
 
-public class TempFileHelper {
+public class WriteStalling {
 
 	private static final String TAG = "Gal.GRepo.Temp";
-	private final String tempDir = "temp";
+	private final String storageDir = "writes";
 
 
 	//TODO This isn't actually a "temp file" handler, it's more an intermediary write handler.
@@ -78,17 +74,24 @@ public class TempFileHelper {
 
 
 
-	public static TempFileHelper getInstance() {
-		return TempFileHelper.SingletonHelper.INSTANCE;
+	public static WriteStalling getInstance() {
+		return WriteStalling.SingletonHelper.INSTANCE;
 	}
 	private static class SingletonHelper {
-		private static final TempFileHelper INSTANCE = new TempFileHelper();
+		private static final WriteStalling INSTANCE = new WriteStalling();
 	}
-	private TempFileHelper() {
+	private WriteStalling() {
 		fileLocks = new HashMap<>();
 	}
 
 
+	//---------------------------------------------------------------------------------------------
+
+
+	public boolean doesStallFileExist(UUID fileUID) {
+		File stallFile = getStallFile(fileUID);
+		return stallFile.exists();
+	}
 
 
 	public long requestWriteLock(UUID fileUID) {
@@ -97,86 +100,86 @@ public class TempFileHelper {
 
 		return fileLocks.get(fileUID).writeLock();
 	}
-	public void releaseWriteLock(UUID fileUID, long lockStamp) {
+	public void releaseWriteLock(UUID fileUID, long stamp) {
 		if(!fileLocks.containsKey(fileUID))
 			return;
 
-		fileLocks.get(fileUID).unlockWrite(lockStamp);
+		fileLocks.get(fileUID).unlockWrite(stamp);
 	}
-	public boolean isValidStamp(UUID fileUID, long stamp) {
+	public boolean isStampValid(UUID fileUID, long stamp) {
 		if(!fileLocks.containsKey(fileUID))
 			return false;
 
 		return fileLocks.get(fileUID).validate(stamp);
 	}
 
-	public void lockExample() {
-		StampedLock stampedLock = new StampedLock();
-		long stamp = stampedLock.writeLock();
-		stampedLock.unlockWrite(stamp);
+
+	//---------------------------------------------------------------------------------------------
+
+
+	public String write(UUID fileUID, byte[] data, String lastHash) throws IOException {
+		File stallFile = getStallFile(fileUID);
+		UserDefinedFileAttributeView attrs;
+
+		//If the stall file already exists...
+		if(stallFile.exists()) {
+			attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
+			ByteBuffer buffer = ByteBuffer.allocate(attrs.size("hash"));
+			attrs.read("hash", buffer);
+			String writtenHash = buffer.toString();
+
+			//Check that the last hash written to it matches what we've been given
+			if(!Objects.equals(writtenHash, lastHash))
+				throw new IllegalStateException("Invalid write to stall file, hashes do not match!");
+		}
+		//If the stall file does not exist...
+		else {
+			//We need to create it
+			Files.createDirectories(stallFile.toPath().getParent());
+			Files.createFile(stallFile.toPath());
+
+			//And put the fileHash this change was based off of (hopefully from the Repos) in as an attribute
+			attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
+			attrs.write("synchash", ByteBuffer.wrap(lastHash.getBytes()));
+		}
+
+
+		//Finally write to the stall file
+		byte[] fileHash = writeData(stallFile, data);
+
+		//Put the fileHash in as an attribute
+		attrs.write("hash", ByteBuffer.wrap(fileHash));
+
+		//And return the fileHash
+		return ContentConnector.bytesToHex(fileHash);
 	}
 
 
-
-	public void write(UUID fileUID, byte[] data, String lastHash, long lockStamp) throws IOException {
-		if(!isValidStamp(fileUID, lockStamp))
-			throw new IllegalStateException("Invalid lock stamp! FileUID: '"+fileUID+"'");
-
-		File tempFile = getTempLocationOnDisk(fileUID);
-		UserDefinedFileAttributeView attrs =
-				Files.getFileAttributeView(tempFile.toPath(), UserDefinedFileAttributeView.class);
+	//---------------------------------------------------------------------------------------------
 
 
-
-		//If the temp file already exists, we need to check that the lastHash matches
-		if(tempFile.exists()) {
-			ByteBuffer buffer = ByteBuffer.allocate(attrs.size("hash"));
-			attrs.read("hash", buffer);
-			String tempHash = buffer.toString();
-
-			if(!Objects.equals(tempHash, lastHash))
-				throw new IllegalStateException("Cannot write to temp file, hashes do not match!");
-		}
-		//If the temp file does not exist, we need to create it
-		else {
-			Files.createDirectories(tempFile.toPath().getParent());
-			Files.createFile(tempFile.toPath());
-
-			//And put the fileHash this change was based off of (hopefully from the Repos) in as an attribute
-			attrs.write("hash", ByteBuffer.wrap(lastHash.getBytes()));
-		}
-
-
-
-		//Finally write to the temp file
-		try(OutputStream out = Files.newOutputStream(tempFile.toPath());
+	//Helper method, returns fileHash
+	private byte[] writeData(File file, byte[] data) throws IOException {
+		try(OutputStream out = Files.newOutputStream(file.toPath());
 			DigestOutputStream dos = new DigestOutputStream(out, MessageDigest.getInstance("SHA-256"))) {
 
-			//Write the data
 			dos.write(data);
 
-			//And the new fileHash
-			String fileHash = ContentConnector.bytesToHex(dos.getMessageDigest().digest());
-			attrs.write("hash", ByteBuffer.wrap(fileHash.getBytes()));
+			//Return the fileHash calculated when we wrote the file
+			return dos.getMessageDigest().digest();
 		}
 		catch (NoSuchAlgorithmException e) { throw new RuntimeException(e); }
 	}
 
 
-
-	public boolean doesTempFileExist(UUID fileUID) {
-		File tempFile = getTempLocationOnDisk(fileUID);
-		return tempFile.exists();
-	}
-
 	@NonNull
-	private File getTempLocationOnDisk(@NonNull UUID fileUID) {
+	public File getStallFile(@NonNull UUID fileUID) {
 		//Starting out of the app's data directory...
 		Context context = MyApplication.getAppContext();
 		String appDataDir = context.getApplicationInfo().dataDir;
 
 		//Temp files are stored in a temp subdirectory
-		File tempRoot = new File(appDataDir, tempDir);
+		File tempRoot = new File(appDataDir, storageDir);
 
 		//With each temp file named by the fileUID it represents
 		return new File(tempRoot, fileUID.toString());

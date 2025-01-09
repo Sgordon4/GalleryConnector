@@ -11,7 +11,7 @@ import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.ContentsNotFoundException;
+import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.local.account.LAccount;
 import com.example.galleryconnector.repositories.local.content.LContent;
 import com.example.galleryconnector.repositories.local.content.LContentHandler;
