@@ -8,17 +8,11 @@ import android.net.Uri;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.work.Data;
-import androidx.work.ExistingWorkPolicy;
-import androidx.work.OneTimeWorkRequest;
-import androidx.work.WorkContinuation;
-import androidx.work.WorkManager;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GAccount;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.domain.DomainAPI;
-import com.example.galleryconnector.extra.ImportExportWorker;
 import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.account.LAccount;
@@ -32,11 +26,16 @@ import com.google.gson.Gson;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ConnectException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Map;
 import java.util.UUID;
 
 public class GalleryRepo {
@@ -147,6 +146,110 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 	// File Props
 	//---------------------------------------------------------------------------------------------
+
+
+	public UUID createFile(byte[] contents) {
+		throw new RuntimeException("Stub!");
+	}
+	public UUID createFile(Uri contents) {
+		throw new RuntimeException("Stub!");
+	}
+
+
+	//TODO This method also creates the temp files in preparation for a write
+	public long requestWriteLock(UUID fileUID) {
+		throw new RuntimeException("Stub!");
+	}
+	public void releaseWriteLock(UUID fileUID, long lockStamp) {
+		throw new RuntimeException("Stub!");
+	}
+
+
+	TempFileHelper tempHelper = TempFileHelper.getInstance();
+
+	//Actually writes to a temp file, which needs to be persisted later
+	public void writeFile(UUID fileUID, byte[] contents, String lastHash, long lockStamp) throws FileNotFoundException, ConnectException, ContentsNotFoundException {
+
+		//Get the current file properties, making sure the file exists. May throw FileNotFound.
+		GFile fileProps = getFileProps(fileUID);
+		if(fileProps.filehash == null)
+			throw new RuntimeException("File hash is null! FileUID: '"+fileUID+"'");
+
+
+		//For an effective write, we need two things:
+		// 1. The data being written, which will be overwritten with each new write
+		// 2. A snapshot of the in-repo file contents BEFORE any writes, in case we need to merge later
+		String mainTempName = fileUID.toString();
+		String syncTempName = fileUID + ".sync";
+
+		//If either temp file for this UUID is not already present, we need to set a few things up
+		if(!tempHelper.doesTempFileExist(mainTempName) ||
+			!tempHelper.doesTempFileExist(syncTempName)) {
+
+
+
+
+			//Create the main temp file, storing the new contents inside
+			if(!tempHelper.doesTempFileExist(mainTempName))
+				tempHelper.createTempFile(mainTempName, contents);
+
+
+			//Create a sync-point snapshot of the contents
+			if(!tempHelper.doesTempFileExist(syncTempName)) {
+				Uri uri = getContentUri(lastHash);
+
+				try (InputStream in = new URL(uri.toString()).openStream()) {
+					byte[] content = new byte[fileProps.filesize];
+					in.read(content);
+
+					tempHelper.createTempFile(syncTempName, content);
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
+			}
+		}
+
+
+
+
+
+
+
+
+
+
+
+		throw new RuntimeException("Stub!");
+	}
+	public void writeFile(UUID fileUID, Uri contents, String lastHash, long lockStamp) {
+		throw new RuntimeException("Stub!");
+	}
+
+
+
+
+
+
+	public Map<String, String> getFileAttributes(UUID fileUID) {
+		throw new RuntimeException("Stub!");
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 	@NonNull
@@ -307,85 +410,11 @@ public class GalleryRepo {
 
 
 	//---------------------------------------------------------------------------------------------
-	// Block
-	//---------------------------------------------------------------------------------------------
-
-	/*
-	@Nullable
-	public GContent getBlockProps(@NonNull String blockHash) throws FileNotFoundException, ConnectException {
-		//Try to get the block data from local. If it exists, return that.
-		try {
-			LContent local = localRepo.getBlockProps(blockHash);
-			return new Gson().fromJson(local.toJson(), GContent.class);
-		}
-		catch (FileNotFoundException e) {
-			//Do nothing
-		}
-
-		//If the block doesn't exist locally, try to get it from the server.
-		try {
-			SContent server = serverRepo.getBlockProps(blockHash);
-			return new Gson().fromJson(server.toJson(), GContent.class);
-		} catch (FileNotFoundException e) {
-			//Do nothing
-		}
-
-		//If the file doesn't exist in either, throw an exception
-		throw new FileNotFoundException(String.format("Block not found with blockHash='%s'", blockHash));
-	}
-	 */
-
-	/*
-	public byte[] getBlockContents(@NonNull String blockHash) throws FileNotFoundException, ConnectException {
-		//Try to get the block data from local. If it exists, return that.
-		try {
-			return localRepo.getBlockContents(blockHash);
-		} catch (ContentsNotFoundException e) {
-			//Do nothing
-		}
-
-		//If the block doesn't exist locally, try to get it from the server.
-		try {
-			return serverRepo.getBlockContents(blockHash);
-		} catch (ContentsNotFoundException e) {
-			//Do nothing
-		}
-
-		//If the block doesn't exist in either, throw an exception
-		throw new FileNotFoundException(String.format("Block not found with blockHash='%s'", blockHash));
-	}
-	 */
-
-
-
-	/*
-	public boolean isBlockLocal(@NonNull String blockHash) {
-		try {
-			localRepo.getBlockProps(blockHash);
-			return true;
-		} catch (FileNotFoundException e) {
-			return false;
-		}
-	}
-
-	public boolean isBlockServer(@NonNull String blockHash) throws ConnectException {
-		try {
-			serverRepo.getBlockProps(blockHash);
-			return true;
-		} catch (FileNotFoundException e) {
-			return false;
-		} catch (ConnectException e) {
-			throw e;
-		}
-	}
-	 */
-
-
-
-	//---------------------------------------------------------------------------------------------
 	// Import/Export
 	//---------------------------------------------------------------------------------------------
 
+
+	/*
 
 	private final String IMPORT_GROUP = "import";
 	private final String EXPORT_GROUP = "export";
@@ -434,6 +463,7 @@ public class GalleryRepo {
 		WorkContinuation continuation = workManager.beginUniqueWork(EXPORT_GROUP, ExistingWorkPolicy.APPEND, request);
 		continuation.enqueue();
 	}
+	 */
 
 
 	//---------------------------------------------------------------------------------------------

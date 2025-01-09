@@ -1,23 +1,16 @@
 package com.example.galleryconnector.repositories.combined;
 
 import android.content.Context;
-import android.net.Uri;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.ConnectException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -34,13 +27,14 @@ import java.util.concurrent.locks.StampedLock;
 
 //NOTE: We are assuming file contents are small
 
-public class TempFileHandler {
+public class TempFileHelper {
 
 	private static final String TAG = "Gal.GRepo.Temp";
 	private final String tempDir = "temp";
 
-	private final GalleryRepo grepo = GalleryRepo.getInstance();
 
+	//TODO This isn't actually a "temp file" handler, it's more an intermediary write handler.
+	// Pick a better name.
 
 	//Create makeTempFileFor(UUID, byte[], lastHash)
 	//Ideally write to closest repo every 5 seconds or so
@@ -61,22 +55,21 @@ public class TempFileHandler {
 
 
 
-	public static TempFileHandler getInstance() {
-		return TempFileHandler.SingletonHelper.INSTANCE;
+	public static TempFileHelper getInstance() {
+		return TempFileHelper.SingletonHelper.INSTANCE;
 	}
 	private static class SingletonHelper {
-		private static final TempFileHandler INSTANCE = new TempFileHandler();
+		private static final TempFileHelper INSTANCE = new TempFileHelper();
 	}
-	private TempFileHandler() {
+	private TempFileHelper() {
 		fileLocks = new HashMap<>();
 	}
 
 
 
 
-	public UUID createFile(byte[] data) {
-		throw new RuntimeException("Stub!");
-	}
+	//When writing, make sure the lock was actually requested
+
 
 	public long requestWriteLock(UUID fileUID) {
 		if(!fileLocks.containsKey(fileUID))
@@ -90,11 +83,46 @@ public class TempFileHandler {
 
 		fileLocks.get(fileUID).unlockWrite(lockStamp);
 	}
+	public boolean isValidStamp(UUID fileUID, long stamp) {
+		if(!fileLocks.containsKey(fileUID))
+			return false;
+
+		return fileLocks.get(fileUID).validate(stamp);
+	}
 
 
-	public void write(long lockStamp, UUID fileUID, byte[] data, String lastTempHash) {
+	public void write(UUID fileUID, byte[] data, String lastTempHash, long lockStamp) {
 		throw new RuntimeException("Stub!");
 	}
+
+
+
+
+	public void createTempFile(String name, byte[] data) {
+		throw new RuntimeException("Stub!");
+	}
+
+	public boolean doesTempFileExist(String fileName) {
+		File tempFile = getTempLocationOnDisk(fileName);
+		return tempFile.exists();
+	}
+
+
+
+	@NonNull
+	private File getTempLocationOnDisk(@NonNull String fileName) {
+		//Starting out of the app's data directory...
+		Context context = MyApplication.getAppContext();
+		String appDataDir = context.getApplicationInfo().dataDir;
+
+		//Temp files are stored in a temp subdirectory
+		File tempRoot = new File(appDataDir, tempDir);
+
+		//With each temp file named by the fileUID it represents
+		return new File(tempRoot, fileName);
+	}
+
+
 
 
 
