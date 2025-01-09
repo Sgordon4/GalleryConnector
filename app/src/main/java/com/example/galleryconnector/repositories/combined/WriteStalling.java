@@ -8,6 +8,7 @@ import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -111,6 +112,39 @@ public class WriteStalling {
 			return false;
 
 		return fileLocks.get(fileUID).validate(stamp);
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+
+
+	public String getStallFileAttribute(UUID fileUID, String attribute) throws IOException {
+		File stallFile = getStallFile(fileUID);
+		if(!stallFile.exists())
+			throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
+
+		UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
+
+		ByteBuffer buffer = ByteBuffer.allocate(attrs.size(attribute));
+		attrs.read(attribute, buffer);
+		return buffer.toString();
+	}
+
+	public Map<String, String> getStallFileAttributes(UUID fileUID) throws IOException {
+		File stallFile = getStallFile(fileUID);
+		if(!stallFile.exists())
+			throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
+
+		UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
+		Map<String, String> map = new HashMap<>();
+
+		//For each attribute key:value pair, add to the map
+		for(String attr : attrs.list()) {
+			ByteBuffer buffer = ByteBuffer.allocate(attrs.size(attr));
+			attrs.read(attr, buffer);
+			map.put(attr, buffer.toString());
+		}
+		return map;
 	}
 
 

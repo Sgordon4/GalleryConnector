@@ -69,4 +69,56 @@ public class ImportExportApi {
 
 
 	//---------------------------------------------------------------------------------------------
+
+
+	/*
+
+	private final String IMPORT_GROUP = "import";
+	private final String EXPORT_GROUP = "export";
+
+	//Note: External links are not imported to the system, and should not be handled with this method.
+	// Instead, their link file should be created and edited through the file creation/edit modals.
+
+
+	//Launch a WorkManager to import an external uri to the system.
+	public void importFile(@NonNull Uri source, @NonNull UUID accountuid, @NonNull UUID parent) {
+		//Compile the information we'll need for the import
+		Data.Builder builder = new Data.Builder();
+		builder.putString("OPERATION", "IMPORT");
+		builder.putString("TARGET_URI", source.toString());
+		builder.putString("PARENTUID", parent.toString());
+		builder.putString("ACCOUNTUID", accountuid.toString());
+
+		OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(ImportExportWorker.class)
+				.setInputData(builder.build())
+				.build();
+
+		//Create the work request that will handle the import
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+
+		//Add the work request to the queue so that the imports run in order
+		WorkContinuation continuation = workManager.beginUniqueWork(IMPORT_GROUP, ExistingWorkPolicy.APPEND, request);
+		continuation.enqueue();
+	}
+
+	public void exportFile(@NonNull UUID fileuid, @NonNull UUID parent, @NonNull Uri destination) {
+		//Compile the information we'll need for the export
+		Data.Builder builder = new Data.Builder();
+		builder.putString("OPERATION", "EXPORT");
+		builder.putString("TARGET_URI", destination.toString());
+		builder.putString("PARENTUID", parent.toString());
+		builder.putString("FILEUID", fileuid.toString());
+
+		OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(ImportExportWorker.class)
+				.setInputData(builder.build())
+				.build();
+
+		//Create the work request that will handle the import
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+
+		//Add the work request to the queue so that the imports run in order
+		WorkContinuation continuation = workManager.beginUniqueWork(EXPORT_GROUP, ExistingWorkPolicy.APPEND, request);
+		continuation.enqueue();
+	}
+	 */
 }

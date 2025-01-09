@@ -33,6 +33,7 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public class GalleryRepo {
@@ -44,6 +45,7 @@ public class GalleryRepo {
 
 	private final DomainAPI domainAPI;
 	private final SyncHandler syncHandler;
+	private final WriteStalling writeStalling;
 
 	private GFileUpdateObservers observers;
 
@@ -61,6 +63,7 @@ public class GalleryRepo {
 
 		domainAPI = DomainAPI.getInstance();
 		syncHandler = SyncHandler.getInstance();
+		writeStalling = WriteStalling.getInstance();
 
 		observers = new GFileUpdateObservers();
 	}
@@ -127,16 +130,18 @@ public class GalleryRepo {
 	}
 
 
-	public boolean putAccountPropsLocal(@NonNull GAccount gAccount) {
-		LAccount account = new Gson().fromJson(gAccount.toJson(), LAccount.class);
-		localRepo.putAccountProps(account);
-		return true;
+	public void putAccountProps(@NonNull GAccount gAccount) {
+		throw new RuntimeException("Stub!");
 	}
 
-	public boolean putAccountPropsServer(@NonNull GAccount gAccount) throws ConnectException {
+	protected void putAccountPropsLocal(@NonNull GAccount gAccount) {
+		LAccount account = new Gson().fromJson(gAccount.toJson(), LAccount.class);
+		localRepo.putAccountProps(account);
+	}
+
+	protected void putAccountPropsServer(@NonNull GAccount gAccount) throws ConnectException {
 		SAccount account = new Gson().fromJson(gAccount.toJson(), SAccount.class);
 		serverRepo.putAccountProps(account);
-		return true;
 	}
 
 
@@ -145,39 +150,54 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 
 
-	//Don't use these, imports need to be done separately
-	/*
-	public UUID createFile(byte[] contents) {
-		throw new RuntimeException("Stub!");
-	}
-	public UUID createFile(Uri contents) {
-		throw new RuntimeException("Stub!");
-	}
-	 */
-
 
 	public long requestWriteLock(UUID fileUID) {
-		return tempHelper.requestWriteLock(fileUID);
+		return writeStalling.requestWriteLock(fileUID);
 	}
 	public void releaseWriteLock(UUID fileUID, long lockStamp) {
-		tempHelper.releaseWriteLock(fileUID, lockStamp);
+		writeStalling.releaseWriteLock(fileUID, lockStamp);
 	}
 
-	
-
-
-	WriteStalling tempHelper = WriteStalling.getInstance();
 
 	//Actually writes to a temp file, which needs to be persisted later
-	//Optimistically assumes the file exists in one of the repos. If not, this temp file will be deleted later.
+	//Optimistically assumes the file exists in one of the repos. If not, this temp file will be deleted when we try to persist.
 	public String writeFile(UUID fileUID, byte[] contents, String lastHash, long lockStamp) throws IOException {
-		if(!tempHelper.isStampValid(fileUID, lockStamp))
+		if(!writeStalling.isStampValid(fileUID, lockStamp))
 			throw new IllegalStateException("Invalid lock stamp! FileUID='"+fileUID+"'");
 
-		return tempHelper.write(fileUID, contents, lastHash);
+		return writeStalling.write(fileUID, contents, lastHash);
 	}
 	public void writeFile(UUID fileUID, Uri contents, String lastHash, long lockStamp) {
 		throw new RuntimeException("Stub!");
+	}
+
+
+	//Persist a stall file to a repo (if the file already exists), merging if needed
+	protected void persistStalledWrite(UUID fileUID, long lockStamp) throws IOException {
+		if(!writeStalling.isStampValid(fileUID, lockStamp))
+			throw new IllegalStateException("Invalid lock stamp! FileUID='"+fileUID+"'");
+
+		GFile existingFileProps;
+		Map<String, String> stallAttributes;
+
+		try {
+			//Get the properties for the existing file in the repos and for the stall file
+			existingFileProps = getFileProps(fileUID);
+			stallAttributes = writeStalling.getStallFileAttributes(fileUID);
+		}
+		//If the file doesn't exist in either repo or the stall file is missing, leave
+		catch (FileNotFoundException e) {
+			return;
+		}
+
+		//If the current stall file hash matches the existing file hash, leave
+		if(Objects.equals(existingFileProps.filehash, stallAttributes.get("hash")))
+			return;
+
+
+		//Merge
+
+
 	}
 
 
@@ -362,64 +382,7 @@ public class GalleryRepo {
 			throw new RuntimeException(e);
 		}
 	}
-
-
-	//---------------------------------------------------------------------------------------------
-	// Import/Export
-	//---------------------------------------------------------------------------------------------
-
-
-	/*
-
-	private final String IMPORT_GROUP = "import";
-	private final String EXPORT_GROUP = "export";
-
-	//Note: External links are not imported to the system, and should not be handled with this method.
-	// Instead, their link file should be created and edited through the file creation/edit modals.
-
-
-	//Launch a WorkManager to import an external uri to the system.
-	public void importFile(@NonNull Uri source, @NonNull UUID accountuid, @NonNull UUID parent) {
-		//Compile the information we'll need for the import
-		Data.Builder builder = new Data.Builder();
-		builder.putString("OPERATION", "IMPORT");
-		builder.putString("TARGET_URI", source.toString());
-		builder.putString("PARENTUID", parent.toString());
-		builder.putString("ACCOUNTUID", accountuid.toString());
-
-		OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(ImportExportWorker.class)
-				.setInputData(builder.build())
-				.build();
-
-		//Create the work request that will handle the import
-		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-
-		//Add the work request to the queue so that the imports run in order
-		WorkContinuation continuation = workManager.beginUniqueWork(IMPORT_GROUP, ExistingWorkPolicy.APPEND, request);
-		continuation.enqueue();
-	}
-
-	public void exportFile(@NonNull UUID fileuid, @NonNull UUID parent, @NonNull Uri destination) {
-		//Compile the information we'll need for the export
-		Data.Builder builder = new Data.Builder();
-		builder.putString("OPERATION", "EXPORT");
-		builder.putString("TARGET_URI", destination.toString());
-		builder.putString("PARENTUID", parent.toString());
-		builder.putString("FILEUID", fileuid.toString());
-
-		OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(ImportExportWorker.class)
-				.setInputData(builder.build())
-				.build();
-
-		//Create the work request that will handle the import
-		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-
-		//Add the work request to the queue so that the imports run in order
-		WorkContinuation continuation = workManager.beginUniqueWork(EXPORT_GROUP, ExistingWorkPolicy.APPEND, request);
-		continuation.enqueue();
-	}
-	 */
-
+	
 
 	//---------------------------------------------------------------------------------------------
 	// Domain Movements
