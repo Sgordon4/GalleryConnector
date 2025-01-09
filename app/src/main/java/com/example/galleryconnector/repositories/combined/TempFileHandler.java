@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
+import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 
 import java.io.BufferedInputStream;
@@ -24,8 +25,11 @@ import java.nio.file.attribute.UserDefinedFileAttributeView;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.locks.StampedLock;
 
 
 //NOTE: We are assuming file contents are small
@@ -48,6 +52,63 @@ public class TempFileHandler {
 	//Create a temp file right before importing/exporting, and right before reordering
 	//What if we make the temp file the instant we start a drag for reordering?
 	// We can add a little spinner after the drop if need be. I like this idea.
+
+
+
+	Map<UUID, StampedLock> fileLocks;
+
+	//Use StampedLock
+
+
+
+	public static TempFileHandler getInstance() {
+		return TempFileHandler.SingletonHelper.INSTANCE;
+	}
+	private static class SingletonHelper {
+		private static final TempFileHandler INSTANCE = new TempFileHandler();
+	}
+	private TempFileHandler() {
+		fileLocks = new HashMap<>();
+	}
+
+
+
+
+	public UUID createFile(byte[] data) {
+		throw new RuntimeException("Stub!");
+	}
+
+	public long requestWriteLock(UUID fileUID) {
+		if(!fileLocks.containsKey(fileUID))
+			fileLocks.put(fileUID, new StampedLock());
+
+		return fileLocks.get(fileUID).writeLock();
+	}
+	public void releaseWriteLock(UUID fileUID, long lockStamp) {
+		if(!fileLocks.containsKey(fileUID))
+			return;
+
+		fileLocks.get(fileUID).unlockWrite(lockStamp);
+	}
+
+
+	public void write(long lockStamp, UUID fileUID, byte[] data, String lastTempHash) {
+		throw new RuntimeException("Stub!");
+	}
+
+
+
+
+
+	public void testLock() {
+		StampedLock stampedLock = new StampedLock();
+		long stamp = stampedLock.writeLock();
+		stampedLock.unlockWrite(stamp);
+	}
+
+
+
+
 
 
 
