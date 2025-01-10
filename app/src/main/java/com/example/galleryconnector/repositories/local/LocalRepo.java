@@ -170,6 +170,8 @@ public class LocalRepo {
 		}
 
 
+		//TODO Null values should mean no prev data, not skip like we have now
+
 		//Make sure the hashes match if any were passed
 		LFile oldFile = database.getFileDao().loadByUID(fileProps.fileuid);
 		if(oldFile != null) {

@@ -1,23 +1,28 @@
 package com.example.galleryconnector.repositories.combined;
 
 import android.content.Context;
+import android.net.Uri;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
+import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.attribute.UserDefinedFileAttributeView;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -31,7 +36,6 @@ public class WriteStalling {
 
 	private static final String TAG = "Gal.GRepo.Temp";
 	private final String storageDir = "writes";
-
 
 	//TODO This isn't actually a "temp file" handler, it's more an intermediary write handler.
 	// Pick a better name.
@@ -70,7 +74,8 @@ public class WriteStalling {
 
 
 
-	Map<UUID, StampedLock> fileLocks;
+	private final GalleryRepo grepo;
+	private final Map<UUID, StampedLock> fileLocks;
 
 	//Use StampedLock
 
@@ -83,6 +88,7 @@ public class WriteStalling {
 		private static final WriteStalling INSTANCE = new WriteStalling();
 	}
 	private WriteStalling() {
+		grepo = GalleryRepo.getInstance();
 		fileLocks = new HashMap<>();
 	}
 
@@ -202,6 +208,133 @@ public class WriteStalling {
 		return stallFile.delete();
 	}
 
+
+
+	//---------------------------------------------------------------------------------------------
+
+
+	//Persist a stall file to a repo (if the file already exists), merging if needed
+	protected void persistStalledWrite(UUID fileUID, long lockStamp) {
+		if(!isStampValid(fileUID, lockStamp))
+			throw new IllegalStateException("Invalid lock stamp! FileUID='"+fileUID+"'");
+
+
+		//----------------------------------------------------------------------
+		//Make sure we actually need to persist
+
+
+		//If there is no data to persist, do nothing
+		if(!doesStallFileExist(fileUID))
+			return;
+
+		String stallHash;
+		String syncHash;
+		try {
+			stallHash = getStallFileAttribute(fileUID, "hash");
+			assert stallHash != null;
+			syncHash = getStallFileAttribute(fileUID, "synchash");
+		} catch (FileNotFoundException e) {	//Should never happen
+			throw new RuntimeException(e);
+		}
+
+
+		//If the stall file has no updates since its last sync, everything should be up to date.
+		boolean stallHasChanges = !Objects.equals(stallHash, syncHash);
+		if(!stallHasChanges) {
+			//It's likely that there haven't been any updates in the last 5 seconds, so now is a good time to delete the stall file
+			delete(fileUID);
+			return;
+		}
+
+
+		//----------------------------------------------------------------------
+		//See if we can persist without merging
+
+
+		//Get the properties of the existing file from the repos
+		GFile existingFileProps;
+		try {
+			existingFileProps = grepo.getFileProps(fileUID);
+		} catch (ConnectException e) {
+			//If the file is not in local and we can't connect to the server, we can't write anything. Skip for now
+			return;
+		} catch (FileNotFoundException e) {
+			//If the file is not in local OR server then there's nowhere to write, and either the client wrote to this UUID as a mistake
+			// or the file was just deleted a few seconds ago. Either way, we can discard the data.
+			delete(fileUID);
+			return;
+		}
+
+
+		File stallFile = getStallFile(fileUID);
+
+		//If the repository doesn't have any changes, we can write stall straight to repo
+		boolean repoHasChanges = !Objects.equals(existingFileProps.filehash, syncHash);
+		if(!repoHasChanges || existingFileProps.filehash == null) {
+			//Find which repo to write to
+			try {
+				if(grepo.isFileLocal(fileUID)) {
+					int fileSize = grepo.putContentsLocal(stallHash, Uri.fromFile(stallFile));
+
+					existingFileProps.filehash = stallHash;
+					existingFileProps.filesize = fileSize;
+					existingFileProps.changetime = Instant.now().getEpochSecond();
+					existingFileProps.modifytime = Instant.now().getEpochSecond();
+
+					grepo.putFilePropsLocal(existingFileProps, syncHash, existingFileProps.attrhash);
+				}
+				else {
+					int fileSize = grepo.putContentsServer(stallHash, stallFile);
+
+					existingFileProps.filehash = stallHash;
+					existingFileProps.filesize = fileSize;
+					existingFileProps.changetime = Instant.now().getEpochSecond();
+					existingFileProps.modifytime = Instant.now().getEpochSecond();
+
+					grepo.putFilePropsServer(existingFileProps, syncHash, existingFileProps.attrhash);
+				}
+			} catch (FileNotFoundException | ContentsNotFoundException e) {
+				throw new RuntimeException(e);
+			}
+			//If the file isn't local and we can't connect to the server, skip and try again later
+			catch (ConnectException e) {
+				return;
+			}
+		}
+
+
+		//----------------------------------------------------------------------
+		//We gotta merge...
+
+
+		//Otherwise, since both the repo and the stall file have changes, we need to merge before we can persist
+		else {
+			try {
+				Uri stallContents = Uri.fromFile(stallFile);
+				Uri repoContents = grepo.getContentUri(existingFileProps.filehash);
+				Uri syncContents = syncHash != null ? grepo.getContentUri(syncHash) : null;
+
+
+				if(existingFileProps.isdir) {
+					byte[] mergedContents = MergeUtilities.mergeDirectories(stallContents, repoContents, syncContents);
+					write(fileUID, mergedContents, stallHash);
+				}
+				else if(existingFileProps.islink) {
+					throw new RuntimeException("Stub!");
+				}
+				else {
+					throw new RuntimeException("Stub!");
+				}
+
+
+			} //If the file isn't local and we can't connect to the server, skip and try again later
+			catch (ConnectException e) {
+				return;
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
+	}
 
 
 	//---------------------------------------------------------------------------------------------
