@@ -3,6 +3,7 @@ package com.example.galleryconnector.repositories.combined;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
@@ -118,16 +119,21 @@ public class WriteStalling {
 	//---------------------------------------------------------------------------------------------
 
 
-	public String getStallFileAttribute(UUID fileUID, String attribute) throws IOException {
+	@Nullable
+	public String getStallFileAttribute(UUID fileUID, String attribute) throws FileNotFoundException {
 		File stallFile = getStallFile(fileUID);
 		if(!stallFile.exists())
 			throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
 
 		UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
 
-		ByteBuffer buffer = ByteBuffer.allocate(attrs.size(attribute));
-		attrs.read(attribute, buffer);
-		return buffer.toString();
+		try {
+			ByteBuffer buffer = ByteBuffer.allocate(attrs.size(attribute));
+			attrs.read(attribute, buffer);
+			return buffer.toString();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public Map<String, String> getStallFileAttributes(UUID fileUID) throws IOException {
@@ -187,6 +193,15 @@ public class WriteStalling {
 		//And return the fileHash
 		return ContentConnector.bytesToHex(fileHash);
 	}
+
+
+	//Note: Don't delete the lock for the file, as we don't actually care if it sits around until the app is closed
+	// Other threads may be waiting for it however, so it's safest to leave it be
+	public boolean delete(UUID fileUID) {
+		File stallFile = getStallFile(fileUID);
+		return stallFile.delete();
+	}
+
 
 
 	//---------------------------------------------------------------------------------------------

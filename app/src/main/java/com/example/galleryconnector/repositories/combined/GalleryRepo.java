@@ -32,6 +32,7 @@ import java.net.ConnectException;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -159,6 +160,7 @@ public class GalleryRepo {
 	}
 
 
+	//TODO This is the grossest method in this system. Figure out a way to split things up and make it better. Also move to writeStalling
 	//Actually writes to a temp file, which needs to be persisted later
 	//Optimistically assumes the file exists in one of the repos. If not, this temp file will be deleted when we try to persist.
 	public String writeFile(UUID fileUID, byte[] contents, String lastHash, long lockStamp) throws IOException {
@@ -173,50 +175,116 @@ public class GalleryRepo {
 
 
 	//Persist a stall file to a repo (if the file already exists), merging if needed
-	protected void persistStalledWrite(UUID fileUID, long lockStamp) throws IOException {
+	protected void persistStalledWrite(UUID fileUID, long lockStamp) {
 		if(!writeStalling.isStampValid(fileUID, lockStamp))
 			throw new IllegalStateException("Invalid lock stamp! FileUID='"+fileUID+"'");
 
-		GFile existingFileProps;
-		Map<String, String> stallAttributes;
 
+		//If there is no data to persist, do nothing
+		if(!writeStalling.doesStallFileExist(fileUID))
+			return;
+
+		String stallHash;
+		String syncHash;
 		try {
-			//Get the properties for the existing file in the repos and for the stall file
+			stallHash = writeStalling.getStallFileAttribute(fileUID, "hash");
+			assert stallHash != null;
+			syncHash = writeStalling.getStallFileAttribute(fileUID, "synchash");
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+
+
+		//If the stall file has no updates since its last sync, everything should be up to date.
+		boolean stallHasChanges = !Objects.equals(stallHash, syncHash);
+		if(!stallHasChanges) {
+			//It's likely that there haven't been any updates in the last 5 seconds, so now is a good time to delete the stall file
+			writeStalling.delete(fileUID);
+			return;
+		}
+
+
+
+		//If the stall file has updates, we need to decide if we need to do anything before we write
+		GFile existingFileProps;
+		try {
 			existingFileProps = getFileProps(fileUID);
-			stallAttributes = writeStalling.getStallFileAttributes(fileUID);
-		}
-		//If the file doesn't exist in either repo or the stall file is missing, leave
-		catch (FileNotFoundException e) {
+		} catch (ConnectException e) {
+			//If the file is not in local and we can't connect to the server, we can't write anything. Skip for now
+			return;
+		} catch (FileNotFoundException e) {
+			//If the file is not in local OR server then there's nowhere to write, and either the client wrote to this UUID as a mistake
+			// or the file was just deleted. Either way, we can discard the data.
+			writeStalling.delete(fileUID);
 			return;
 		}
 
-		//If the current stall file hash matches the existing file hash, leave
-		if(Objects.equals(existingFileProps.filehash, stallAttributes.get("hash")))
-			return;
+
+		File stallFile = writeStalling.getStallFile(fileUID);
+
+		//If the repository doesn't have any changes, we can write stall straight to repo
+		boolean repoHasChanges = !Objects.equals(existingFileProps.filehash, syncHash);
+		if(!repoHasChanges || existingFileProps.filehash == null) {
+			//Find which repo to write to
+			try {
+				if(isFileLocal(fileUID)) {
+					int fileSize = putContentsLocal(stallHash, Uri.fromFile(stallFile));
+
+					existingFileProps.filehash = stallHash;
+					existingFileProps.filesize = fileSize;
+					existingFileProps.changetime = Instant.now().getEpochSecond();
+					existingFileProps.modifytime = Instant.now().getEpochSecond();
+
+					if(syncHash == null) syncHash = "null";
+					putFilePropsLocal(existingFileProps, syncHash, existingFileProps.attrhash);
+				}
+				else {
+					int fileSize = putContentsServer(stallHash, stallFile);
+
+					existingFileProps.filehash = stallHash;
+					existingFileProps.filesize = fileSize;
+					existingFileProps.changetime = Instant.now().getEpochSecond();
+					existingFileProps.modifytime = Instant.now().getEpochSecond();
+
+					if(syncHash == null) syncHash = "null";
+					putFilePropsServer(existingFileProps, syncHash, existingFileProps.attrhash);
+				}
+			} catch (FileNotFoundException | ContentsNotFoundException e) {
+				throw new RuntimeException(e);
+			}
+			//If the file isn't local and we can't connect to the server, skip and try again later
+			catch (ConnectException e) {
+				return;
+			}
+		}
+		//Otherwise, since both the repo and the stall file have changes, we need to merge before we can write
+		else {
+			try {
+				Uri stallContents = Uri.fromFile(stallFile);
+				Uri repoContents = getContentUri(existingFileProps.filehash);
+				Uri syncContents = syncHash != null ? getContentUri(syncHash) : null;
 
 
-		//Merge
+				if(existingFileProps.isdir) {
+					byte[] mergedContents = MergeUtilities.mergeDirectories(stallContents, repoContents, syncContents);
+					writeStalling.write(fileUID, mergedContents, stallHash);
+				}
+				else if(existingFileProps.islink) {
+					throw new RuntimeException("Stub!");
+				}
+				else {
+					throw new RuntimeException("Stub!");
+				}
 
 
+			} //If the file isn't local and we can't connect to the server, skip and try again later
+			catch (ConnectException e) {
+				return;
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
 	}
-
-
-
-
-
-
-	public Map<String, String> getFileAttributes(UUID fileUID) {
-		throw new RuntimeException("Stub!");
-	}
-
-
-
-
-
-
-
-
-
 
 
 

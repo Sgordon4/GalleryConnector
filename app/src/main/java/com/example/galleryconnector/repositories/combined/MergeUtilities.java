@@ -5,13 +5,19 @@ import android.net.Uri;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import java.io.File;
 import java.util.Map;
 
 public class MergeUtilities {
 
+
+	public static byte[] mergeDirectories(@NonNull Uri file1, @NonNull Uri file2,
+										@Nullable Uri commonBase) {
+		throw new RuntimeException("Stub!");
+	}
 	public static void mergeDirectories(@NonNull Uri file1, @NonNull Uri file2,
 										@Nullable Uri commonBase,
-										@NonNull Uri destination) {
+										@NonNull File destination) {
 		throw new RuntimeException("Stub!");
 	}
 
