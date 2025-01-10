@@ -320,7 +320,7 @@ public class GalleryRepo {
 	//Helper method
 	//WARNING: DOES NOT UPDATE FILE PROPERTIES ON SERVER
 	//WARNING: Source file must be on-disk
-	public int putContentsServer(@NonNull String name, @NonNull File source) throws FileNotFoundException {
+	public int putContentsServer(@NonNull String name, @NonNull File source) throws FileNotFoundException, ConnectException {
 		return serverRepo.uploadData(name, source).size;
 	}
 

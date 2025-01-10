@@ -285,7 +285,7 @@ public class ServerRepo {
 	//Source file must be on-disk
 	//Returns the filesize of the provided source
 	//WARNING: DOES NOT UPDATE FILE PROPERTIES
-	public SContent uploadData(@NonNull String name, @NonNull File source) throws FileNotFoundException {
+	public SContent uploadData(@NonNull String name, @NonNull File source) throws FileNotFoundException, ConnectException {
 		Log.i(TAG, "\nPUT SERVER CONTENTS called with source='"+source.getPath()+"'");
 
 		if (!source.exists()) throw new FileNotFoundException("Source file not found! Path: '"+source.getPath()+"'");
@@ -342,6 +342,10 @@ public class ServerRepo {
 			//Now that the data has been written, create a new entry in the content table
 			return contentConn.putProps(name, filesize);
 
+		} catch (ConnectException e) {
+			throw e;
+		} catch (SocketTimeoutException | SocketException e) {
+			throw new ConnectException();
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

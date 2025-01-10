@@ -126,14 +126,18 @@ public class WriteStalling {
 
 
 	@Nullable
-	public String getStallFileAttribute(UUID fileUID, String attribute) throws FileNotFoundException {
+	private String getAttribute(UUID fileUID, String attribute) /*throws FileNotFoundException*/ {
 		File stallFile = getStallFile(fileUID);
-		if(!stallFile.exists())
-			throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
 
-		UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
+		//We've only been using this method after checking that the file exists, and this is getting in the way
+		//if(!stallFile.exists())
+		//	throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
 
 		try {
+			UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
+			if(attrs.size(attribute) <= 0)
+				return null;
+
 			ByteBuffer buffer = ByteBuffer.allocate(attrs.size(attribute));
 			attrs.read(attribute, buffer);
 			return buffer.toString();
@@ -142,68 +146,71 @@ public class WriteStalling {
 		}
 	}
 
-	public Map<String, String> getStallFileAttributes(UUID fileUID) throws IOException {
+	public void putAttribute(UUID fileUID, String key, String value) /*throws FileNotFoundException*/ {
+		putAttribute(fileUID, key, value.getBytes());
+	}
+	public void putAttribute(UUID fileUID, String key, byte[] value) /*throws FileNotFoundException*/ {
 		File stallFile = getStallFile(fileUID);
-		if(!stallFile.exists())
-			throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
 
-		UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
-		Map<String, String> map = new HashMap<>();
+		//We've only been using this method after checking that the file exists, and this is getting in the way
+		//if(!stallFile.exists())
+		//	throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
 
-		//For each attribute key:value pair, add to the map
-		for(String attr : attrs.list()) {
-			ByteBuffer buffer = ByteBuffer.allocate(attrs.size(attr));
-			attrs.read(attr, buffer);
-			map.put(attr, buffer.toString());
+		try {
+			UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
+			attrs.write(key, ByteBuffer.wrap(value));
+		} catch (IOException e) {
+			throw new RuntimeException(e);
 		}
-		return map;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 
 
-	public String write(UUID fileUID, byte[] data, String lastHash) throws IOException {
+	//Speedy fast
+	public String write(UUID fileUID, byte[] data, String lastHash) {
 		File stallFile = getStallFile(fileUID);
-		UserDefinedFileAttributeView attrs;
 
 		//If the stall file already exists...
 		if(stallFile.exists()) {
-			attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
-			ByteBuffer buffer = ByteBuffer.allocate(attrs.size("hash"));
-			attrs.read("hash", buffer);
-			String writtenHash = buffer.toString();
-
 			//Check that the last hash written to it matches what we've been given
+			String writtenHash = getAttribute(fileUID, "hash");
 			if(!Objects.equals(writtenHash, lastHash))
 				throw new IllegalStateException("Invalid write to stall file, hashes do not match!");
 		}
+
 		//If the stall file does not exist...
 		else {
-			//We need to create it
-			Files.createDirectories(stallFile.toPath().getParent());
-			Files.createFile(stallFile.toPath());
+			try {
+				//We need to create it
+				Files.createDirectories(stallFile.toPath().getParent());
+				Files.createFile(stallFile.toPath());
 
-			//And put the fileHash this change was based off of (hopefully from the Repos) in as an attribute
-			attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
-			attrs.write("synchash", ByteBuffer.wrap(lastHash.getBytes()));
+				//We can't guarantee we can reach the existing fileProps (server connection), so for speed we'll need to use the passed lastHash as the sync-point
+				//Not connecting to check also has the side effect of allowing a write to a fileUID that doesn't exist, but we can just discard later if so
+				putAttribute(fileUID, "synchash", lastHash);
+			}
+			catch (IOException e) { throw new RuntimeException(e); }
 		}
 
 
-		//Finally write to the stall file
-		byte[] fileHash = writeData(stallFile, data);
+		try {
+			//Finally write the new data to the stall file
+			byte[] fileHash = writeData(stallFile, data);
 
-		//Put the fileHash in as an attribute
-		attrs.write("hash", ByteBuffer.wrap(fileHash));
+			//Put the fileHash in as an attribute
+			putAttribute(fileUID, "hash", fileHash);
 
-		//And return the fileHash
-		return ContentConnector.bytesToHex(fileHash);
+			//And return the fileHash
+			return ContentConnector.bytesToHex(fileHash);
+		}
+		catch (IOException e) { throw new RuntimeException(e); }
 	}
 
 
-	//Note: Don't delete the lock for the file, as we don't actually care if it sits around until the app is closed
-	// Other threads may be waiting for it however, so it's safest to leave it be
-	public boolean delete(UUID fileUID) {
+	//Note: Don't delete the lock for the file as other threads may be waiting for it
+	private boolean delete(UUID fileUID) {
 		File stallFile = getStallFile(fileUID);
 		return stallFile.delete();
 	}
@@ -214,31 +221,22 @@ public class WriteStalling {
 
 
 	//Persist a stall file to a repo (if the file already exists), merging if needed
+	//This method is long as fuck, but realistically should be super fast to run. Unless we need to merge.
 	protected void persistStalledWrite(UUID fileUID, long lockStamp) {
-		if(!isStampValid(fileUID, lockStamp))
-			throw new IllegalStateException("Invalid lock stamp! FileUID='"+fileUID+"'");
-
-
-		//----------------------------------------------------------------------
-		//Make sure we actually need to persist
-
-
 		//If there is no data to persist, do nothing
 		if(!doesStallFileExist(fileUID))
 			return;
 
-		String stallHash;
-		String syncHash;
-		try {
-			stallHash = getStallFileAttribute(fileUID, "hash");
-			assert stallHash != null;
-			syncHash = getStallFileAttribute(fileUID, "synchash");
-		} catch (FileNotFoundException e) {	//Should never happen
-			throw new RuntimeException(e);
-		}
+		if(!isStampValid(fileUID, lockStamp))
+			throw new IllegalStateException("Invalid lock stamp! FileUID='"+fileUID+"'");
 
 
-		//If the stall file has no updates since its last sync, everything should be up to date.
+		File stallFile = getStallFile(fileUID);
+		String stallHash = getAttribute(fileUID, "hash");
+		assert stallHash != null;
+		String syncHash = getAttribute(fileUID, "synchash");
+
+		//If the stall file has had no updates since its last sync, everything should be up to date
 		boolean stallHasChanges = !Objects.equals(stallHash, syncHash);
 		if(!stallHasChanges) {
 			//It's likely that there haven't been any updates in the last 5 seconds, so now is a good time to delete the stall file
@@ -246,9 +244,6 @@ public class WriteStalling {
 			return;
 		}
 
-
-		//----------------------------------------------------------------------
-		//See if we can persist without merging
 
 
 		//Get the properties of the existing file from the repos
@@ -266,39 +261,37 @@ public class WriteStalling {
 		}
 
 
-		File stallFile = getStallFile(fileUID);
+		//----------------------------------------------------------------------
+		//See if we can persist without merging
+
 
 		//If the repository doesn't have any changes, we can write stall straight to repo
 		boolean repoHasChanges = !Objects.equals(existingFileProps.filehash, syncHash);
-		if(!repoHasChanges || existingFileProps.filehash == null) {
+		if(!repoHasChanges) {
 			//Find which repo to write to
 			try {
+				existingFileProps.filehash = stallHash;
+				existingFileProps.filesize = (int) stallFile.length();
+				existingFileProps.changetime = Instant.now().getEpochSecond();
+				existingFileProps.modifytime = Instant.now().getEpochSecond();
+
 				if(grepo.isFileLocal(fileUID)) {
-					int fileSize = grepo.putContentsLocal(stallHash, Uri.fromFile(stallFile));
-
-					existingFileProps.filehash = stallHash;
-					existingFileProps.filesize = fileSize;
-					existingFileProps.changetime = Instant.now().getEpochSecond();
-					existingFileProps.modifytime = Instant.now().getEpochSecond();
-
+					grepo.putContentsLocal(stallHash, Uri.fromFile(stallFile));
 					grepo.putFilePropsLocal(existingFileProps, syncHash, existingFileProps.attrhash);
 				}
 				else {
-					int fileSize = grepo.putContentsServer(stallHash, stallFile);
-
-					existingFileProps.filehash = stallHash;
-					existingFileProps.filesize = fileSize;
-					existingFileProps.changetime = Instant.now().getEpochSecond();
-					existingFileProps.modifytime = Instant.now().getEpochSecond();
-
-					grepo.putFilePropsServer(existingFileProps, syncHash, existingFileProps.attrhash);
+					try {
+						grepo.putContentsServer(stallHash, stallFile);
+						grepo.putFilePropsServer(existingFileProps, syncHash, existingFileProps.attrhash);
+					}
+					//If the file isn't local and we can't connect to the server, skip and try again later
+					catch (ConnectException e) {
+						return;
+					}
 				}
-			} catch (FileNotFoundException | ContentsNotFoundException e) {
-				throw new RuntimeException(e);
 			}
-			//If the file isn't local and we can't connect to the server, skip and try again later
-			catch (ConnectException e) {
-				return;
+			catch (ContentsNotFoundException | FileNotFoundException e) {
+				throw new RuntimeException(e);
 			}
 		}
 
@@ -320,14 +313,15 @@ public class WriteStalling {
 					write(fileUID, mergedContents, stallHash);
 				}
 				else if(existingFileProps.islink) {
-					throw new RuntimeException("Stub!");
+					byte[] mergedContents = MergeUtilities.mergeLinks(stallContents, repoContents, syncContents);
+					write(fileUID, mergedContents, stallHash);
 				}
 				else {
-					throw new RuntimeException("Stub!");
+					byte[] mergedContents = MergeUtilities.mergeNormal(stallContents, repoContents, syncContents);
+					write(fileUID, mergedContents, stallHash);
 				}
-
-
-			} //If the file isn't local and we can't connect to the server, skip and try again later
+			}
+			//If the file isn't local and we can't connect to the server, skip and try again later
 			catch (ConnectException e) {
 				return;
 			} catch (IOException e) {
@@ -360,10 +354,10 @@ public class WriteStalling {
 		Context context = MyApplication.getAppContext();
 		String appDataDir = context.getApplicationInfo().dataDir;
 
-		//Temp files are stored in a temp subdirectory
+		//Stall files are stored in a stall subdirectory
 		File tempRoot = new File(appDataDir, storageDir);
 
-		//With each temp file named by the fileUID it represents
+		//With each file named by the fileUID it represents
 		return new File(tempRoot, fileUID.toString());
 	}
 }
