@@ -23,11 +23,15 @@ import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.locks.StampedLock;
+import java.util.stream.Collectors;
 
 
 //NOTE: We are assuming file contents are small
@@ -96,6 +100,15 @@ public class WriteStalling {
 	//---------------------------------------------------------------------------------------------
 
 
+	@NonNull
+	public List<UUID> listStallFiles() {
+		File stallDir = getStallFile(UUID.randomUUID()).getParentFile();
+		if(!stallDir.exists())
+			return new ArrayList<>();
+
+		return Arrays.stream(stallDir.list()).map(UUID::fromString).collect(Collectors.toList());
+	}
+
 	public boolean doesStallFileExist(UUID fileUID) {
 		File stallFile = getStallFile(fileUID);
 		return stallFile.exists();
@@ -125,49 +138,6 @@ public class WriteStalling {
 	//---------------------------------------------------------------------------------------------
 
 
-	@Nullable
-	private String getAttribute(UUID fileUID, String attribute) /*throws FileNotFoundException*/ {
-		File stallFile = getStallFile(fileUID);
-
-		//We've only been using this method after checking that the file exists, and this is getting in the way
-		//if(!stallFile.exists())
-		//	throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
-
-		try {
-			UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
-			if(attrs.size(attribute) <= 0)
-				return null;
-
-			ByteBuffer buffer = ByteBuffer.allocate(attrs.size(attribute));
-			attrs.read(attribute, buffer);
-			return buffer.toString();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	public void putAttribute(UUID fileUID, String key, String value) /*throws FileNotFoundException*/ {
-		putAttribute(fileUID, key, value.getBytes());
-	}
-	public void putAttribute(UUID fileUID, String key, byte[] value) /*throws FileNotFoundException*/ {
-		File stallFile = getStallFile(fileUID);
-
-		//We've only been using this method after checking that the file exists, and this is getting in the way
-		//if(!stallFile.exists())
-		//	throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
-
-		try {
-			UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
-			attrs.write(key, ByteBuffer.wrap(value));
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-
-
 	//Speedy fast
 	public String write(UUID fileUID, byte[] data, String lastHash) {
 		File stallFile = getStallFile(fileUID);
@@ -186,6 +156,8 @@ public class WriteStalling {
 				//We need to create it
 				Files.createDirectories(stallFile.toPath().getParent());
 				Files.createFile(stallFile.toPath());
+
+				System.out.println("Created "+stallFile.toPath());
 
 				//We can't guarantee we can reach the existing fileProps (server connection), so for speed we'll need to use the passed lastHash as the sync-point
 				//Not connecting to check also has the side effect of allowing a write to a fileUID that doesn't exist, but we can just discard later if so
@@ -210,7 +182,7 @@ public class WriteStalling {
 
 
 	//Note: Don't delete the lock for the file as other threads may be waiting for it
-	private boolean delete(UUID fileUID) {
+	public boolean delete(UUID fileUID) {
 		File stallFile = getStallFile(fileUID);
 		return stallFile.delete();
 	}
@@ -327,6 +299,53 @@ public class WriteStalling {
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
+		}
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+
+
+	@Nullable
+	private String getAttribute(UUID fileUID, String attribute) /*throws FileNotFoundException*/ {
+		File stallFile = getStallFile(fileUID);
+
+		//We've only been using this method after checking that the file exists, and this is getting in the way
+		//if(!stallFile.exists())
+		//	throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
+
+		try {
+			UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
+			if(attrs.size(attribute) <= 0)
+				return null;
+
+			ByteBuffer buffer = ByteBuffer.allocate(attrs.size(attribute));
+			attrs.read(attribute, buffer);
+			return buffer.toString();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void putAttribute(UUID fileUID, String key, String value) /*throws FileNotFoundException*/ {
+		putAttribute(fileUID, key, value.getBytes());
+	}
+	private void putAttribute(UUID fileUID, String key, byte[] value) /*throws FileNotFoundException*/ {
+		File stallFile = getStallFile(fileUID);
+
+		System.out.println("Putting attributes in "+stallFile.toPath());
+		System.out.println("Exists: "+stallFile.exists());
+
+		//We've only been using this method after checking that the file exists, and this is getting in the way
+		//if(!stallFile.exists())
+		//	throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
+
+		try {
+			UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
+			System.out.println(attrs);
+			attrs.write(key, ByteBuffer.wrap(value));
+		} catch (IOException e) {
+			throw new RuntimeException(e);
 		}
 	}
 

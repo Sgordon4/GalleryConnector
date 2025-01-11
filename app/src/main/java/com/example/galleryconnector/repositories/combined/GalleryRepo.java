@@ -160,7 +160,6 @@ public class GalleryRepo {
 	}
 
 
-	//TODO This is the grossest method in this system. Figure out a way to split things up and make it better. Also move to writeStalling
 	//Actually writes to a temp file, which needs to be persisted later
 	//Optimistically assumes the file exists in one of the repos. If not, this temp file will be deleted when we try to persist.
 	public String writeFile(UUID fileUID, byte[] contents, String lastHash, long lockStamp) throws IOException {
@@ -172,16 +171,6 @@ public class GalleryRepo {
 	public void writeFile(UUID fileUID, Uri contents, String lastHash, long lockStamp) {
 		throw new RuntimeException("Stub!");
 	}
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -236,17 +225,21 @@ public class GalleryRepo {
 	//TODO Private these, and just give a "putFileProps" option that figures out where to put things and errors if out of date
 	// Maybe not private them idk
 
-	public GFile createFilePropsLocal(@NonNull GFile gFile) throws IllegalStateException, ContentsNotFoundException, ConnectException {
+	public GFile createFilePropsLocal(@NonNull GFile gFile) throws IllegalStateException, ContentsNotFoundException {
 		return putFilePropsLocal(gFile, "null", "null");
 	}
+	/*
 	public GFile putFilePropsLocal(@NonNull GFile gFile) throws ContentsNotFoundException {
 		return putFilePropsLocal(gFile, null, null);
 	}
+	 */
 	public GFile putFilePropsLocal(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash) throws ContentsNotFoundException {
 		LFile file = gFile.toLocalFile();
 		try {
 			LFile retFile = localRepo.putFileProps(file, prevFileHash, prevAttrHash);
 			return GFile.fromLocalFile(retFile);
+		} catch (IllegalStateException e) {
+			throw new IllegalStateException("PrevHashes do not match in putFileProps", e);
 		} catch (ContentsNotFoundException e) {
 			throw new ContentsNotFoundException("Cannot put props, Local is missing content!", e);
 		}
@@ -255,9 +248,11 @@ public class GalleryRepo {
 	public GFile createFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, ContentsNotFoundException, ConnectException {
 		return putFilePropsServer(gFile, "null", "null");
 	}
+	/*
 	public GFile putFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, ContentsNotFoundException, ConnectException {
 		return putFilePropsServer(gFile, null, null);
 	}
+	 */
 	public GFile putFilePropsServer(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash)
 			throws IllegalStateException, ContentsNotFoundException, ConnectException {
 		SFile file = gFile.toServerFile();

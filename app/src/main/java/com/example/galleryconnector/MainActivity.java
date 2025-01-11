@@ -1,7 +1,6 @@
 package com.example.galleryconnector;
 
 import android.os.Bundle;
-import android.widget.ImageView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -15,6 +14,7 @@ import com.example.galleryconnector.shittytests.TestGlide;
 import com.example.galleryconnector.shittytests.TestMultipart;
 import com.example.galleryconnector.shittytests.TestRepoBasics;
 import com.example.galleryconnector.shittytests.TestSyncOperations;
+import com.example.galleryconnector.shittytests.TestWriteStalling;
 
 import java.io.IOException;
 
@@ -40,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
 	TestSyncOperations testSyncOps = new TestSyncOperations();
 	TestMultipart multipart = new TestMultipart();
 	TestGlide testGlide = new TestGlide();
+	TestWriteStalling testWrite = new TestWriteStalling();
 
 	@Override
 	protected void onResume() {
@@ -52,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-		/**/
+		/*
 		Thread glideThread = new Thread(() -> {
 			try {
 				ImageView imageView = findViewById(R.id.image);
@@ -70,6 +71,13 @@ public class MainActivity extends AppCompatActivity {
 
 
 		Thread thread = new Thread(() -> {
+
+			try {
+				testWrite.testWrite();
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+
 
 			/*
 			try {

@@ -102,7 +102,7 @@ public class TestGlide {
 		GFile local = new GFile(fileUID, accountUID);
 		local.filehash = smallHash;
 		local.filesize = fileSize;
-		local = grepo.putFilePropsLocal(local);
+		local = grepo.putFilePropsLocal(local, "null", "null");
 
 		domainAPI.copyFileToServer(local.toLocalFile(), "null", "null");
 	}
