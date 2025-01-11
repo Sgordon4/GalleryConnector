@@ -29,9 +29,13 @@ public class TestWriteStalling {
 
 
 	public void testWrite() throws IOException {
-		writeStalling.delete(fileUID);
 		List<UUID> stallFiles = writeStalling.listStallFiles();
+		for(UUID uuid : stallFiles) {
+			writeStalling.delete(uuid);
+		}
+		stallFiles = writeStalling.listStallFiles();
 		assert stallFiles.isEmpty();
+
 
 		String fileHash = writeStalling.write(fileUID, sampleData, "null");
 

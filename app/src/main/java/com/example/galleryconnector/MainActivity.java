@@ -73,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
 		Thread thread = new Thread(() -> {
 
 			try {
+				//testWrite.testFileAttributes();
 				testWrite.testWrite();
 			} catch (IOException e) {
 				throw new RuntimeException(e);

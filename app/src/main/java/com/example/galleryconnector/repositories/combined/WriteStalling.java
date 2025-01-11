@@ -18,6 +18,7 @@ import java.io.OutputStream;
 import java.net.ConnectException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.attribute.UserDefinedFileAttributeView;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
@@ -153,6 +154,7 @@ public class WriteStalling {
 		//If the stall file does not exist...
 		else {
 			try {
+				System.out.println("Creating stall file");
 				//We need to create it
 				Files.createDirectories(stallFile.toPath().getParent());
 				Files.createFile(stallFile.toPath());
@@ -316,12 +318,14 @@ public class WriteStalling {
 
 		try {
 			UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
-			if(attrs.size(attribute) <= 0)
-				return null;
 
-			ByteBuffer buffer = ByteBuffer.allocate(attrs.size(attribute));
-			attrs.read(attribute, buffer);
-			return buffer.toString();
+			ByteBuffer readBuffer = ByteBuffer.allocate( attrs.size(attribute) );
+			attrs.read(attribute, readBuffer);
+			return new String(readBuffer.array());
+
+		} catch (NoSuchFileException e) {
+			//Attribute does not exist
+			return null;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
@@ -341,9 +345,20 @@ public class WriteStalling {
 		//	throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
 
 		try {
+			boolean supports = Files.getFileStore(stallFile.toPath()).supportsFileAttributeView(UserDefinedFileAttributeView.class);
+			System.out.println("DoesSupport:"+supports);
 			UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
-			System.out.println(attrs);
-			attrs.write(key, ByteBuffer.wrap(value));
+
+
+
+			ByteBuffer buffer = ByteBuffer.wrap(value);
+			System.out.println("isNull?");
+			System.out.println("attrs:"+attrs);
+			System.out.println("buffer:"+buffer);
+			System.out.println("key:"+key);
+
+
+			attrs.write(key, buffer);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
