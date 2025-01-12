@@ -50,4 +50,9 @@ public class TestWriteStalling {
 			assert new String(buffer).equals(sampleData);
 		}
 	}
+
+
+	public void testPersist() {
+		writeStalling.persistStalledWrite(fileUID);
+	}
 }

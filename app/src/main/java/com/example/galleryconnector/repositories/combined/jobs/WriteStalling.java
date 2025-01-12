@@ -2,6 +2,7 @@ package com.example.galleryconnector.repositories.combined.jobs;
 
 import android.content.Context;
 import android.net.Uri;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -46,8 +47,9 @@ public class WriteStalling {
 	private static final String TAG = "Gal.GRepo.Temp";
 	private final String storageDir = "writes";
 
-	//TODO This isn't actually a "temp file" handler, it's more an intermediary write handler.
-	// Pick a better name.
+	private static final boolean debug = true;
+
+
 
 	//Create makeTempFileFor(UUID, byte[], lastHash)
 	//Ideally write to closest repo every 5 seconds or so
@@ -216,23 +218,25 @@ public class WriteStalling {
 
 	//Persist a stall file to a repo (if the file already exists), merging if needed
 	//This method is long as fuck, but realistically should be super fast to run. Unless we need to merge.
-	protected void persistStalledWrite(UUID fileUID, long lockStamp) {
+	public void persistStalledWrite(UUID fileUID) {
+		Log.i(TAG, String.format("PERSIST STALLFILE called with fileUID='%s'", fileUID));
 		//If there is no data to persist, do nothing
-		if(!doesStallFileExist(fileUID))
+		if(!doesStallFileExist(fileUID)) {
+			if(debug) Log.d(TAG, "No stall file to persist, skipping.");
 			return;
-
-		if(!isStampValid(fileUID, lockStamp))
-			throw new IllegalStateException("Invalid lock stamp! FileUID='"+fileUID+"'");
+		}
 
 
 		File stallFile = getStallFile(fileUID);
 		String stallHash = getAttribute(fileUID, "hash");
 		assert stallHash != null;
 		String syncHash = getAttribute(fileUID, "synchash");
+		if(debug) Log.d(TAG, String.format("Hashes are '%s'::'%s'", stallHash, syncHash));
 
 		//If the stall file has had no updates since its last sync, everything should be up to date
 		boolean stallHasChanges = !Objects.equals(stallHash, syncHash);
 		if(!stallHasChanges) {
+			if(debug) Log.d(TAG, String.format("Stall file hash identical to sync-point, deleting stall file. fileUID='%s'", fileUID));
 			//It's likely that there haven't been any updates in the last 5 seconds, so now is a good time to delete the stall file
 			delete(fileUID);
 			return;
@@ -245,9 +249,11 @@ public class WriteStalling {
 		try {
 			existingFileProps = grepo.getFileProps(fileUID);
 		} catch (ConnectException e) {
+			if(debug) Log.d(TAG, "File props not found locally, cannot connect to server, skipping.");
 			//If the file is not in local and we can't connect to the server, we can't write anything. Skip for now
 			return;
 		} catch (FileNotFoundException e) {
+			if(debug) Log.d(TAG, String.format("File props not found in either repo, deleting stall file. fileUID='%s'", fileUID));
 			//If the file is not in local OR server then there's nowhere to write, and either the client wrote to this UUID as a mistake
 			// or the file was just deleted a few seconds ago. Either way, we can discard the data.
 			delete(fileUID);
@@ -261,7 +267,9 @@ public class WriteStalling {
 
 		//If the repository doesn't have any changes, we can write stall straight to repo
 		boolean repoHasChanges = !Objects.equals(existingFileProps.filehash, syncHash);
-		if(!repoHasChanges) {
+		if(!repoHasChanges || existingFileProps.filehash == null) {
+			if(debug) Log.d(TAG, "Repo identical to sync-point, persisting stall file with no changes.");
+
 			//Find which repo to write to
 			try {
 				existingFileProps.filehash = stallHash;
@@ -270,16 +278,19 @@ public class WriteStalling {
 				existingFileProps.modifytime = Instant.now().getEpochSecond();
 
 				if(grepo.isFileLocal(fileUID)) {
+					if(debug) Log.d(TAG, "Persisting locally.");
 					grepo.putContentsLocal(stallHash, Uri.fromFile(stallFile));
 					grepo.putFilePropsLocal(existingFileProps, syncHash, existingFileProps.attrhash);
 				}
 				else {
 					try {
+						if(debug) Log.d(TAG, "Persisting on Server.");
 						grepo.putContentsServer(stallHash, stallFile);
 						grepo.putFilePropsServer(existingFileProps, syncHash, existingFileProps.attrhash);
 					}
 					//If the file isn't local and we can't connect to the server, skip and try again later
 					catch (ConnectException e) {
+						if(debug) Log.d(TAG, "File not local, no connection to server. Could not persist, skipping.");
 						return;
 					}
 				}
@@ -296,10 +307,12 @@ public class WriteStalling {
 
 		//Otherwise, since both the repo and the stall file have changes, we need to merge before we can persist
 		else {
+			if(debug) Log.d(TAG, "Repo has changes, merging with stall file.");
+
 			try {
 				Uri stallContents = Uri.fromFile(stallFile);
 				Uri repoContents = grepo.getContentUri(existingFileProps.filehash);
-				Uri syncContents = syncHash != null ? grepo.getContentUri(syncHash) : null;
+				Uri syncContents = syncHash == null ? null : grepo.getContentUri(syncHash);
 
 
 				if(existingFileProps.isdir) {
@@ -317,6 +330,7 @@ public class WriteStalling {
 			}
 			//If the file isn't local and we can't connect to the server, skip and try again later
 			catch (ConnectException e) {
+				if(debug) Log.d(TAG, "File not local, no connection to server. Could not merge, skipping.");
 				return;
 			} catch (IOException e) {
 				throw new RuntimeException(e);
@@ -332,7 +346,9 @@ public class WriteStalling {
 	private String getAttribute(UUID fileUID, String attribute) /*throws FileNotFoundException*/ {
 		try {
 			JsonObject props = readAttributes(fileUID);
-			return props.get(attribute).getAsString();
+			String prop = props.get(attribute).getAsString();
+
+			return Objects.equals(prop, "null") ? null : prop;
 		}
 		catch (FileNotFoundException e) { throw new RuntimeException(e); }
 	}

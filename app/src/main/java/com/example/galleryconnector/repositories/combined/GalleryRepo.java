@@ -5,6 +5,7 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.Uri;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -34,6 +35,11 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Handler;
 
 public class GalleryRepo {
 
@@ -42,9 +48,9 @@ public class GalleryRepo {
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
 
-	private final DomainAPI domainAPI;
-	private final SyncHandler syncHandler;
-	private final WriteStalling writeStalling;
+	private DomainAPI domainAPI;
+	private SyncHandler syncHandler;
+	private WriteStalling writeStalling;
 
 	private GFileUpdateObservers observers;
 
@@ -55,21 +61,49 @@ public class GalleryRepo {
 	}
 	private static class SingletonHelper {
 		private static final GalleryRepo INSTANCE = new GalleryRepo();
+		private SingletonHelper() {
+			INSTANCE.initialize();
+		}
 	}
 	private GalleryRepo() {
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
+	}
+	private void initialize() {
+		observers = new GFileUpdateObservers();
 
 		domainAPI = DomainAPI.getInstance();
 		syncHandler = SyncHandler.getInstance();
 		writeStalling = WriteStalling.getInstance();
-
-		observers = new GFileUpdateObservers();
 	}
 
-	public void initializeSyncing() {
+
+	public void startListening() {
 		syncHandler.catchUpOnSyncing();
 		observers.attachListeners(localRepo, serverRepo);
+	}
+
+
+	private final ScheduledExecutorService syncLooper = Executors.newSingleThreadScheduledExecutor();
+	private final ScheduledExecutorService domainLooper = Executors.newSingleThreadScheduledExecutor();
+	private final ScheduledExecutorService writeStallLooper = Executors.newSingleThreadScheduledExecutor();
+	public void startJobs() {
+		syncLooper.scheduleWithFixedDelay(() -> {
+			//Check for sync jobs
+			//Like legitimately check for the number of jobs. If 0, skip. If not 0, doSomething()
+			//I think we might need to add a method for getting the number of jobs.
+		}, 0, 5, TimeUnit.SECONDS);
+		domainLooper.scheduleWithFixedDelay(() -> {
+			//Check for domain movement jobs
+		}, 0, 5, TimeUnit.SECONDS);
+		writeStallLooper.scheduleWithFixedDelay(() -> {
+			//Check for writeStall files to persist
+		}, 0, 5, TimeUnit.SECONDS);
+	}
+	public void stopJobs() {
+		syncLooper.shutdown();
+		domainLooper.shutdown();
+		writeStallLooper.shutdown();
 	}
 
 	//---------------------------------------------------------------------------------------------

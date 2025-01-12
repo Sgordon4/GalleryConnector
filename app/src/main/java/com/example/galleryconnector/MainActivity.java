@@ -47,7 +47,7 @@ public class MainActivity extends AppCompatActivity {
 		super.onResume();
 
 		gRepo = GalleryRepo.getInstance();
-		//gRepo.initializeListeners();
+		//gRepo.startListening();
 
 
 
@@ -75,6 +75,7 @@ public class MainActivity extends AppCompatActivity {
 			try {
 				//testWrite.testFileAttributes();
 				testWrite.testWrite();
+				testWrite.testPersist();
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
