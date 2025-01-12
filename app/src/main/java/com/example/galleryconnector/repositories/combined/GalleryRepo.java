@@ -13,8 +13,9 @@ import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GAccount;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.domain_movement.DomainAPI;
-import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
+import com.example.galleryconnector.repositories.combined.jobs.WriteStalling;
+import com.example.galleryconnector.repositories.combined.jobs.domain_movement.DomainAPI;
+import com.example.galleryconnector.repositories.combined.jobs.sync.SyncHandler;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.account.LAccount;
 import com.example.galleryconnector.repositories.local.file.LFile;
@@ -32,9 +33,6 @@ import java.net.ConnectException;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
-import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 public class GalleryRepo {

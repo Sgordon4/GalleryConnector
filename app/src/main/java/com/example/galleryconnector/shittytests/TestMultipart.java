@@ -5,7 +5,7 @@ import android.util.Pair;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
-import com.example.galleryconnector.repositories.combined.domain_movement.DomainAPI;
+import com.example.galleryconnector.repositories.combined.jobs.domain_movement.DomainAPI;
 import com.example.galleryconnector.repositories.server.ServerRepo;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 

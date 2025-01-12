@@ -9,15 +9,13 @@ import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.server.ServerFileObservers;
 import com.example.galleryconnector.repositories.server.ServerRepo;
-import com.example.galleryconnector.repositories.combined.sync.SyncHandler;
+import com.example.galleryconnector.repositories.combined.jobs.sync.SyncHandler;
 import com.google.gson.Gson;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 public class GFileUpdateObservers {
 

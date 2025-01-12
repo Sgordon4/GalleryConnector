@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined;
+package com.example.galleryconnector.repositories.combined.jobs;
 
 import android.content.Context;
 import android.net.Uri;
@@ -7,19 +7,23 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.example.galleryconnector.MyApplication;
+import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.ConnectException;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.attribute.UserDefinedFileAttributeView;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -107,13 +111,15 @@ public class WriteStalling {
 		if(!stallDir.exists())
 			return new ArrayList<>();
 
-		return Arrays.stream(stallDir.list()).map(UUID::fromString).collect(Collectors.toList());
+		return Arrays.stream(stallDir.list()).filter(f -> !f.endsWith(".metadata"))
+				.map(UUID::fromString).collect(Collectors.toList());
 	}
 
 	public boolean doesStallFileExist(UUID fileUID) {
 		File stallFile = getStallFile(fileUID);
 		return stallFile.exists();
 	}
+
 
 
 	public long requestWriteLock(UUID fileUID) {
@@ -133,6 +139,29 @@ public class WriteStalling {
 			return false;
 
 		return fileLocks.get(fileUID).validate(stamp);
+	}
+
+
+
+	private void createStallFile(UUID fileUID) throws IOException {
+		File stallFile = getStallFile(fileUID);
+		File metadataFile = getMetadataFile(fileUID);
+
+		//Create the stall file
+		Files.createDirectories(stallFile.toPath().getParent());
+		Files.createFile(stallFile.toPath());
+
+		//And create its companion metadata file
+		Files.createDirectories(metadataFile.toPath().getParent());
+		Files.createFile(metadataFile.toPath());
+	}
+
+	//Note: Don't delete the lock for the file as other threads may be waiting for it
+	public void delete(UUID fileUID) {
+		File stallFile = getStallFile(fileUID);
+		File stallMetadata = getMetadataFile(fileUID);
+		stallFile.delete();
+		stallMetadata.delete();
 	}
 
 
@@ -156,8 +185,7 @@ public class WriteStalling {
 			try {
 				System.out.println("Creating stall file");
 				//We need to create it
-				Files.createDirectories(stallFile.toPath().getParent());
-				Files.createFile(stallFile.toPath());
+				createStallFile(fileUID);
 
 				System.out.println("Created "+stallFile.toPath());
 
@@ -174,21 +202,13 @@ public class WriteStalling {
 			byte[] fileHash = writeData(stallFile, data);
 
 			//Put the fileHash in as an attribute
-			putAttribute(fileUID, "hash", fileHash);
+			putAttribute(fileUID, "hash", ContentConnector.bytesToHex(fileHash));
 
 			//And return the fileHash
 			return ContentConnector.bytesToHex(fileHash);
 		}
 		catch (IOException e) { throw new RuntimeException(e); }
 	}
-
-
-	//Note: Don't delete the lock for the file as other threads may be waiting for it
-	public boolean delete(UUID fileUID) {
-		File stallFile = getStallFile(fileUID);
-		return stallFile.delete();
-	}
-
 
 
 	//---------------------------------------------------------------------------------------------
@@ -310,59 +330,53 @@ public class WriteStalling {
 
 	@Nullable
 	private String getAttribute(UUID fileUID, String attribute) /*throws FileNotFoundException*/ {
-		File stallFile = getStallFile(fileUID);
-
-		//We've only been using this method after checking that the file exists, and this is getting in the way
-		//if(!stallFile.exists())
-		//	throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
-
 		try {
-			UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
-
-			ByteBuffer readBuffer = ByteBuffer.allocate( attrs.size(attribute) );
-			attrs.read(attribute, readBuffer);
-			return new String(readBuffer.array());
-
-		} catch (NoSuchFileException e) {
-			//Attribute does not exist
-			return null;
-		} catch (IOException e) {
-			throw new RuntimeException(e);
+			JsonObject props = readAttributes(fileUID);
+			return props.get(attribute).getAsString();
 		}
+		catch (FileNotFoundException e) { throw new RuntimeException(e); }
 	}
 
 	private void putAttribute(UUID fileUID, String key, String value) /*throws FileNotFoundException*/ {
-		putAttribute(fileUID, key, value.getBytes());
-	}
-	private void putAttribute(UUID fileUID, String key, byte[] value) /*throws FileNotFoundException*/ {
-		File stallFile = getStallFile(fileUID);
-
-		System.out.println("Putting attributes in "+stallFile.toPath());
-		System.out.println("Exists: "+stallFile.exists());
-
-		//We've only been using this method after checking that the file exists, and this is getting in the way
-		//if(!stallFile.exists())
-		//	throw new FileNotFoundException("Stall file does not exist! FileUID='"+fileUID+"'");
-
 		try {
-			boolean supports = Files.getFileStore(stallFile.toPath()).supportsFileAttributeView(UserDefinedFileAttributeView.class);
-			System.out.println("DoesSupport:"+supports);
-			UserDefinedFileAttributeView attrs = Files.getFileAttributeView(stallFile.toPath(), UserDefinedFileAttributeView.class);
-
-
-
-			ByteBuffer buffer = ByteBuffer.wrap(value);
-			System.out.println("isNull?");
-			System.out.println("attrs:"+attrs);
-			System.out.println("buffer:"+buffer);
-			System.out.println("key:"+key);
-
-
-			attrs.write(key, buffer);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
+			JsonObject props = readAttributes(fileUID);
+			System.out.println("Props: "+props);
+			props.addProperty(key, value);
+			writeAttributes(fileUID, props);
 		}
+		catch (FileNotFoundException e) { throw new RuntimeException(e); }
 	}
+
+
+
+
+	@NonNull
+	private JsonObject readAttributes(UUID fileUID) throws FileNotFoundException {
+		File metadataFile = getMetadataFile(fileUID);
+		if(!metadataFile.exists())
+			throw new FileNotFoundException("Stall metadata file does not exist! FileUID='"+fileUID+"'");
+
+		if(metadataFile.length() == 0)
+			return new JsonObject();
+
+		try (BufferedReader br = new BufferedReader(new FileReader(metadataFile))) {
+			return new Gson().fromJson(br, JsonObject.class);
+		}
+		catch (IOException e) { throw new RuntimeException(e); }
+	}
+
+
+	private void writeAttributes(UUID fileUID, JsonObject props) throws FileNotFoundException {
+		File metadataFile = getMetadataFile(fileUID);
+		if(!metadataFile.exists())
+			throw new FileNotFoundException("Stall metadata file does not exist! FileUID='"+fileUID+"'");
+
+		try (BufferedWriter bw = new BufferedWriter(new FileWriter(metadataFile))) {
+			new Gson().toJson(props, bw);
+		}
+		catch (IOException e) { throw new RuntimeException(e); }
+	}
+
 
 
 	//---------------------------------------------------------------------------------------------
@@ -393,5 +407,17 @@ public class WriteStalling {
 
 		//With each file named by the fileUID it represents
 		return new File(tempRoot, fileUID.toString());
+	}
+	@NonNull
+	private File getMetadataFile(@NonNull UUID fileUID) {
+		//Starting out of the app's data directory...
+		Context context = MyApplication.getAppContext();
+		String appDataDir = context.getApplicationInfo().dataDir;
+
+		//Stall files are stored in a stall subdirectory
+		File tempRoot = new File(appDataDir, storageDir);
+
+		//With each file named by the fileUID it represents
+		return new File(tempRoot, fileUID.toString()+".metadata");
 	}
 }

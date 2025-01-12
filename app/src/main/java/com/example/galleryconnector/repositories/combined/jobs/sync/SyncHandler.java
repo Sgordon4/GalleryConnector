@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined.sync;
+package com.example.galleryconnector.repositories.combined.jobs.sync;
 
 
 import android.content.Context;
@@ -15,9 +15,9 @@ import androidx.work.WorkRequest;
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
-import com.example.galleryconnector.repositories.combined.PersistedMapQueue;
+import com.example.galleryconnector.repositories.combined.jobs.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.domain_movement.DomainAPI;
+import com.example.galleryconnector.repositories.combined.jobs.domain_movement.DomainAPI;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.journal.LJournal;

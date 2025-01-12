@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined.sync;
+package com.example.galleryconnector.repositories.combined.jobs.sync;
 
 import android.content.Context;
 import android.util.Log;
