@@ -56,6 +56,10 @@ public abstract class PersistedMapQueue<K, V> {
 		return pendingItems.containsKey(key);
 	}
 
+	public int size() {
+		return pendingItems.size();
+	}
+
 
 	//---------------------------------------------------------------------------------------------
 

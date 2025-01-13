@@ -89,9 +89,12 @@ public class GalleryRepo {
 	private final ScheduledExecutorService writeStallLooper = Executors.newSingleThreadScheduledExecutor();
 	public void startJobs() {
 		syncLooper.scheduleWithFixedDelay(() -> {
-			//Check for sync jobs
-			//Like legitimately check for the number of jobs. If 0, skip. If not 0, doSomething()
-			//I think we might need to add a method for getting the number of jobs.
+			int syncJobsToRun = syncHandler.getQueueSize();
+
+			if(syncJobsToRun <= 0)
+				return;
+
+			//Do something probably 5 times. We need to setup a system to not run more workers if too many exist
 		}, 0, 5, TimeUnit.SECONDS);
 		domainLooper.scheduleWithFixedDelay(() -> {
 			//Check for domain movement jobs

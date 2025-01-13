@@ -148,6 +148,10 @@ public class SyncHandler {
 		pendingSync.clear();
 	}
 
+	public int getQueueSize() {
+		return pendingSync.size();
+	}
+
 
 	//---------------------------------------------------------------------------------------------
 
