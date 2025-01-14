@@ -9,6 +9,8 @@ import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.work.Configuration;
+import androidx.work.WorkManager;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
@@ -68,6 +70,13 @@ public class GalleryRepo {
 	private GalleryRepo() {
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
+
+		//Configure the WorkManager for this application to use fewer threads
+		//Note: MUST disable the default initializer in App Manifest for this to take effect
+		//Note: This must be done in onCreate of the Application
+		Configuration config = new Configuration.Builder()
+				.setExecutor(Executors.newFixedThreadPool(5)).build();
+		WorkManager.initialize(MyApplication.getAppContext(), config);
 	}
 	private void initialize() {
 		observers = new GFileUpdateObservers();
@@ -84,18 +93,13 @@ public class GalleryRepo {
 	}
 
 
-	private final ScheduledExecutorService syncLooper = Executors.newSingleThreadScheduledExecutor();
 	private final ScheduledExecutorService domainLooper = Executors.newSingleThreadScheduledExecutor();
 	private final ScheduledExecutorService writeStallLooper = Executors.newSingleThreadScheduledExecutor();
 	public void startJobs() {
-		syncLooper.scheduleWithFixedDelay(() -> {
-			int syncJobsToRun = syncHandler.getQueueSize();
 
-			if(syncJobsToRun <= 0)
-				return;
+		//Sync and Domain are actually going to be queued straight to WorkManager.
+		//WriteStalling will use Executors.
 
-			//Do something probably 5 times. We need to setup a system to not run more workers if too many exist
-		}, 0, 5, TimeUnit.SECONDS);
 		domainLooper.scheduleWithFixedDelay(() -> {
 			//Check for domain movement jobs
 		}, 0, 5, TimeUnit.SECONDS);
@@ -104,7 +108,6 @@ public class GalleryRepo {
 		}, 0, 5, TimeUnit.SECONDS);
 	}
 	public void stopJobs() {
-		syncLooper.shutdown();
 		domainLooper.shutdown();
 		writeStallLooper.shutdown();
 	}

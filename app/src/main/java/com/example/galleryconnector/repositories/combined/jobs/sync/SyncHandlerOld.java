@@ -7,20 +7,16 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.work.Configuration;
-import androidx.work.Constraints;
 import androidx.work.Data;
-import androidx.work.ExistingWorkPolicy;
-import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
 import androidx.work.WorkRequest;
 
 import com.example.galleryconnector.MyApplication;
-import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
-import com.example.galleryconnector.repositories.combined.jobs.PersistedMapQueue;
+import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
+import com.example.galleryconnector.repositories.combined.jobs.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.jobs.domain_movement.DomainAPI;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.file.LFile;
@@ -41,15 +37,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.Executors;
 
 
-public class SyncHandler {
+public class SyncHandlerOld {
 	private static final String TAG = "Gal.SRepo.Sync";
 
 	private final SharedPreferences sharedPrefs;
 	private int lastSyncLocalID;
 	private int lastSyncServerID;
+
+	private final PersistedMapQueue<UUID, Nullable> pendingSync;
 
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
@@ -60,13 +57,13 @@ public class SyncHandler {
 
 
 
-	public static SyncHandler getInstance() {
+	public static SyncHandlerOld getInstance() {
 		return SingletonHelper.INSTANCE;
 	}
 	private static class SingletonHelper {
-		private static final SyncHandler INSTANCE = new SyncHandler();
+		private static final SyncHandlerOld INSTANCE = new SyncHandlerOld();
 	}
-	private SyncHandler() {
+	private SyncHandlerOld() {
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
 
@@ -82,11 +79,81 @@ public class SyncHandler {
 		if(debug) Log.d(TAG, "Sync pointers:");
 		if(debug) Log.d(TAG, "lastSyncLocalID: "+lastSyncLocalID);
 		if(debug) Log.d(TAG, "lastSyncServerID: "+lastSyncServerID);
+
+
+		String appDataDir = MyApplication.getAppContext().getApplicationInfo().dataDir;
+		Path persistLocation = Paths.get(appDataDir, "queues", "syncQueue.txt");
+
+		pendingSync = new PersistedMapQueue<UUID, Nullable>(persistLocation) {
+			@Override
+			public UUID parseKey(String keyString) { return UUID.fromString(keyString); }
+			@Override
+			public Nullable parseVal(String valString) { return null; }
+		};
+	}
+
+
+
+
+	//---------------------------------------------------------------------------------------------
+
+
+	//Actually launches n workers to execute the next n sync operations (if available)
+	public void doSomething(int times) {
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+
+		//Get the next N fileUIDs that need syncing
+		List<Map.Entry<UUID, Nullable>> filesToSync = pendingSync.pop(times);
+		Log.i(TAG, "SyncHandler doing something "+filesToSync.size()+" times...");
+
+
+		//For each item...
+		for(Map.Entry<UUID, Nullable> entry : filesToSync) {
+			//Launch the worker to perform the sync
+			WorkRequest request = buildWorker(entry.getKey()).build();
+			workManager.enqueue(request);
+		}
+	}
+
+
+	public OneTimeWorkRequest.Builder buildWorker(@NonNull UUID fileuid) {
+		Data.Builder data = new Data.Builder();
+		data.putString("FILEUID", fileuid.toString());
+
+		return new OneTimeWorkRequest.Builder(SyncWorker.class)
+				.setInputData(data.build())
+				.addTag(fileuid.toString());
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 
+	public void enqueue(@NonNull UUID fileuid) {
+		pendingSync.enqueue(fileuid, null);
+	}
+	public void enqueue(@NonNull List<UUID> fileuids) {
+		Map<UUID, Nullable> map = new LinkedHashMap<>();
+		fileuids.forEach(fileUID -> map.put(fileUID, null));
+		pendingSync.enqueue(map);
+	}
+
+	public void dequeue(@NonNull UUID fileuid) {
+		pendingSync.dequeue(fileuid);
+	}
+	public void dequeue(@NonNull List<UUID> fileuids) {
+		pendingSync.dequeue(fileuids);
+	}
+
+	public void clearQueuedItems() {
+		pendingSync.clear();
+	}
+
+	public int getQueueSize() {
+		return pendingSync.size();
+	}
+
+
+	//---------------------------------------------------------------------------------------------
 
 	//TODO This is not set up to work with multiple accounts atm. Need to store it as a Map(UUID, Integer).
 	public void updateLastSyncLocal(int id) {
@@ -112,33 +179,6 @@ public class SyncHandler {
 	}
 	public int getLastSyncServer() {
 		return lastSyncServerID;
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-
-
-	//Enqueue a Worker
-	public void enqueue(@NonNull UUID fileuid) {
-		Data.Builder data = new Data.Builder();
-		data.putString("FILEUID", fileuid.toString());
-
-		OneTimeWorkRequest worker = new OneTimeWorkRequest.Builder(SyncWorker.class)
-				.setConstraints(new Constraints.Builder()
-						.setRequiredNetworkType(NetworkType.UNMETERED)
-						.setRequiresStorageNotLow(true)
-						.build())
-				.addTag(fileuid.toString()).addTag("SYNC")
-				.setInputData(data.build()).build();
-
-		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		workManager.enqueueUniqueWork(fileuid.toString(), ExistingWorkPolicy.KEEP, worker);
-	}
-
-
-	public void dequeue(@NonNull UUID fileuid) {
-		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		workManager.cancelUniqueWork(fileuid.toString());
 	}
 
 
@@ -342,8 +382,7 @@ public class SyncHandler {
 
 			//Queue all fileUIDs for sync
 			List<UUID> fileUIDsList = new ArrayList<>(fileUIDs);
-			for(UUID fileUID : fileUIDsList)
-				enqueue(fileUID);
+			enqueue(fileUIDsList);
 
 
 			updateLastSyncLocal(maxLocalID);
