@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined.jobs;
+package com.example.galleryconnector.repositories.combined.jobs.writestalling;
 
 import android.content.Context;
 import android.net.Uri;
@@ -11,6 +11,7 @@ import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
+import com.example.galleryconnector.repositories.combined.jobs.MergeUtilities;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 import java.util.stream.Collectors;
 
@@ -63,19 +65,19 @@ public class WriteStalling {
 	// We can add a little spinner after the drop if need be. I like this idea.
 
 
-	/* Temp file writing and setup notes:
+	/* Stall file writing and setup notes:
 	 * - Writing should aim to be be extremely fast and painless
 	 *
 	 * - For an effective write, we need two things:
 	 * 1. The data being written, which will be overwritten with each new write
 	 * 2. A snapshot of the in-repo file contents BEFORE any writes, in case we need to merge later
-	 *    This will just be a fileHash stored in the temp file's userAttributes referencing the actual content repos
+	 *    This will just be a fileHash referencing the actual content repos
 	 *
 	 * - We were going to make a sync-point file, but here's the deal:
 	 *   > If we're persisting to local, that will occur within 5-10 seconds, in which time the
-	 *     starting hash will not have been deleted and we can directly reference it.
+	 *     content for the sync-point hash will not have been deleted and we can directly reference it.
 	 *   > If we're persisting to server, the only way we don't persist within 5-10 seconds is if we
-	 *     can't connect to the server at all, in which case we also probably can't get the sync point here.
+	 *     can't connect to the server at all, in which case we also probably can't get the sync point anyway.
 	 *
 	 * - Checking that a file exists will work if the file is on local, but not if the file is on server
 	 *   and we can't connect. Because of this, I'm just choosing to let the client write to whatever
@@ -87,9 +89,6 @@ public class WriteStalling {
 
 	private final GalleryRepo grepo;
 	private final Map<UUID, StampedLock> fileLocks;
-
-	//Use StampedLock
-
 
 
 	public static WriteStalling getInstance() {

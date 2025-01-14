@@ -1,12 +1,11 @@
 package com.example.galleryconnector.shittytests;
 
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
-import com.example.galleryconnector.repositories.combined.jobs.WriteStalling;
+import com.example.galleryconnector.repositories.combined.jobs.writestalling.WriteStalling;
 
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.UUID;

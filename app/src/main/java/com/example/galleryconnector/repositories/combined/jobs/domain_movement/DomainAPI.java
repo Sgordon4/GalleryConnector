@@ -87,19 +87,7 @@ public class DomainAPI {
 
 
 		//Queue a DomainWorker with the new operations mask, replacing any existing worker
-		Data.Builder data = new Data.Builder();
-		data.putString("FILEUID", fileUID.toString());
-		data.putString("OPERATIONS", Integer.toString(operationsMask));
-
-		OneTimeWorkRequest worker = new OneTimeWorkRequest.Builder(SyncWorker.class)
-				.setConstraints(new Constraints.Builder()
-						.setRequiredNetworkType(NetworkType.UNMETERED)
-						.setRequiresStorageNotLow(true)
-						.build())
-				.addTag(fileUID.toString()).addTag("DOMAIN")
-				.addTag("OPERATIONS_"+operationsMask)
-				.setInputData(data.build()).build();
-
+		OneTimeWorkRequest worker = buildWorker(fileUID, operationsMask).build();
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
 		workManager.enqueueUniqueWork("domain_"+fileUID, ExistingWorkPolicy.REPLACE, worker);
 	}
@@ -117,7 +105,7 @@ public class DomainAPI {
 
 		//Starting from the existing operations mask, remove all specified operations
 		for(int operation : operations) {
-			operationsMask |= ~operation;
+			operationsMask &= ~operation;
 		}
 
 

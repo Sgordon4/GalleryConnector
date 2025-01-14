@@ -5,7 +5,6 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.Uri;
-import android.os.Looper;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -16,7 +15,8 @@ import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GAccount;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
-import com.example.galleryconnector.repositories.combined.jobs.WriteStalling;
+import com.example.galleryconnector.repositories.combined.jobs.writestalling.WriteStallWorkers;
+import com.example.galleryconnector.repositories.combined.jobs.writestalling.WriteStalling;
 import com.example.galleryconnector.repositories.combined.jobs.domain_movement.DomainAPI;
 import com.example.galleryconnector.repositories.combined.jobs.sync.SyncHandler;
 import com.example.galleryconnector.repositories.local.LocalRepo;
@@ -37,11 +37,8 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Handler;
 
 public class GalleryRepo {
 
@@ -52,7 +49,9 @@ public class GalleryRepo {
 
 	private DomainAPI domainAPI;
 	private SyncHandler syncHandler;
+
 	private WriteStalling writeStalling;
+	private WriteStallWorkers writeStallWorkers;
 
 	private GFileUpdateObservers observers;
 
@@ -75,7 +74,7 @@ public class GalleryRepo {
 		//Note: MUST disable the default initializer in App Manifest for this to take effect
 		//Note: This must be done in onCreate of the Application
 		Configuration config = new Configuration.Builder()
-				.setExecutor(Executors.newFixedThreadPool(5)).build();
+				.setExecutor(Executors.newFixedThreadPool(10)).build();
 		WorkManager.initialize(MyApplication.getAppContext(), config);
 	}
 	private void initialize() {
@@ -83,34 +82,17 @@ public class GalleryRepo {
 
 		domainAPI = DomainAPI.getInstance();
 		syncHandler = SyncHandler.getInstance();
+
 		writeStalling = WriteStalling.getInstance();
-	}
+		writeStallWorkers = WriteStallWorkers.getInstance();
 
 
-	public void startListening() {
-		syncHandler.catchUpOnSyncing();
 		observers.attachListeners(localRepo, serverRepo);
+
+		writeStallWorkers.startJobs();
+		syncHandler.catchUpOnSyncing();
 	}
 
-
-	private final ScheduledExecutorService domainLooper = Executors.newSingleThreadScheduledExecutor();
-	private final ScheduledExecutorService writeStallLooper = Executors.newSingleThreadScheduledExecutor();
-	public void startJobs() {
-
-		//Sync and Domain are actually going to be queued straight to WorkManager.
-		//WriteStalling will use Executors.
-
-		domainLooper.scheduleWithFixedDelay(() -> {
-			//Check for domain movement jobs
-		}, 0, 5, TimeUnit.SECONDS);
-		writeStallLooper.scheduleWithFixedDelay(() -> {
-			//Check for writeStall files to persist
-		}, 0, 5, TimeUnit.SECONDS);
-	}
-	public void stopJobs() {
-		domainLooper.shutdown();
-		writeStallLooper.shutdown();
-	}
 
 	//---------------------------------------------------------------------------------------------
 
@@ -204,7 +186,12 @@ public class GalleryRepo {
 		if(!writeStalling.isStampValid(fileUID, lockStamp))
 			throw new IllegalStateException("Invalid lock stamp! FileUID='"+fileUID+"'");
 
-		return writeStalling.write(fileUID, contents, lastHash);
+		//Write to the stall file
+		String fileHash = writeStalling.write(fileUID, contents, lastHash);
+
+		//Launch a worker to persist the file
+		writeStallWorkers.launch(fileUID);
+		return fileHash;
 	}
 	public void writeFile(UUID fileUID, Uri contents, String lastHash, long lockStamp) {
 		throw new RuntimeException("Stub!");
@@ -381,34 +368,18 @@ public class GalleryRepo {
 
 
 	public void queueCopyFileToLocal(@NonNull UUID fileuid) {
-		try {
-			domainAPI.enqueue(fileuid, DomainAPI.COPY_TO_LOCAL);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		domainAPI.enqueue(fileuid, DomainAPI.COPY_TO_LOCAL);
 	}
 	public void queueCopyFileToServer(@NonNull UUID fileuid) {
-		try {
-			domainAPI.enqueue(fileuid, DomainAPI.COPY_TO_SERVER);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		domainAPI.enqueue(fileuid, DomainAPI.COPY_TO_SERVER);
 	}
 
 
 	public void queueRemoveFileFromLocal(@NonNull UUID fileuid) {
-		try {
-			domainAPI.enqueue(fileuid, DomainAPI.REMOVE_FROM_LOCAL);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		domainAPI.enqueue(fileuid, DomainAPI.REMOVE_FROM_LOCAL);
 	}
 	public void queueRemoveFileFromServer(@NonNull UUID fileuid) {
-		try {
-			domainAPI.enqueue(fileuid, DomainAPI.REMOVE_FROM_SERVER);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		domainAPI.enqueue(fileuid, DomainAPI.REMOVE_FROM_SERVER);
 	}
 }
 
