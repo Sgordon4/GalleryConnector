@@ -98,13 +98,8 @@ public class DomainOpWorker extends Worker {
 		}
 		//If this fails due to server connection issues, requeue it for later
 		catch (ConnectException e) {
-			try {
-				Log.w(TAG, "DomWorker requeueing due to connection issues!");
-				domainAPI.enqueue(fileUID, operationsMap);
-			} catch (InterruptedException ex) {
-				throw new RuntimeException(ex);
-			}
-			return Result.failure();
+			Log.w(TAG, "DomWorker retrying due to connection issues!");
+			return Result.retry();
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

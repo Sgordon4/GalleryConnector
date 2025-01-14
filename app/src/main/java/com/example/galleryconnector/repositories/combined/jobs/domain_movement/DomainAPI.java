@@ -5,15 +5,19 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.work.Constraints;
 import androidx.work.Data;
+import androidx.work.ExistingWorkPolicy;
+import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkInfo;
 import androidx.work.WorkManager;
-import androidx.work.WorkRequest;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.jobs.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
+import com.example.galleryconnector.repositories.combined.jobs.sync.SyncWorker;
 import com.example.galleryconnector.repositories.local.LocalRepo;
 import com.example.galleryconnector.repositories.local.content.LContent;
 import com.example.galleryconnector.repositories.local.file.LFile;
@@ -27,17 +31,16 @@ import java.net.ConnectException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 
 public class DomainAPI {
 	private static final String TAG = "Gal.DomAPI";
 	private final LocalRepo localRepo;
 	private final ServerRepo serverRepo;
-
-	private final PersistedMapQueue<UUID, Integer> pendingOperations;
 
 
 	public static DomainAPI getInstance() {
@@ -49,17 +52,6 @@ public class DomainAPI {
 	private DomainAPI() {
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
-
-
-		String appDataDir = MyApplication.getAppContext().getApplicationInfo().dataDir;
-		Path persistLocation = Paths.get(appDataDir, "queues", "domainOpQueue.txt");
-
-		pendingOperations = new PersistedMapQueue<UUID, Integer>(persistLocation) {
-			@Override
-			public UUID parseKey(String keyString) { return UUID.fromString(keyString); }
-			@Override
-			public Integer parseVal(String valString) { return Integer.parseInt(valString); }
-		};
 	}
 	
 
@@ -74,112 +66,118 @@ public class DomainAPI {
 
 
 
+	//Enqueue a Worker
+	public void enqueue(@NonNull UUID fileUID, @NonNull Integer... newOperations) {
+		//Grab any existing operations for an already scheduled worker
+		int operationsMask = getExistingOperations(fileUID);
 
-	//Launches N workers to execute the next N operations (if available)
-	//Returns the number of operations launched
-	public int doSomething(int times) {
-		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-
-		//Get the next N fileUID and operation pairs
-		List<Map.Entry<UUID, Integer>> nextOperations = pendingOperations.pop(times);
-		System.out.println("DomainAPI doing something "+nextOperations.size()+" times...");
-
-		for(Map.Entry<UUID, Integer> entry : nextOperations) {
-			UUID fileUID = entry.getKey();
-			Integer operationsMask = entry.getValue();
-
-			System.out.println("Launching DomainOp: "+fileUID+"::"+operationsMask);
-
-			if(fileUID == null) {
-				Log.w(TAG, "Null file ID in queue!");
-				continue;
-			}
-
-			//If there are no operations for the file, it should be skipped
-			if(operationsMask == null)
-				continue;
-
-
-			//Launch the worker to perform the operation
-			WorkRequest request = buildWorker(fileUID, operationsMask).build();
-			workManager.enqueue(request);
-		}
-
-		return nextOperations.size();
-	}
-
-
-	public OneTimeWorkRequest.Builder buildWorker(@NonNull UUID fileuid, @NonNull Integer operationsMask) {
-		Data.Builder data = new Data.Builder();
-		data.putString("FILEUID", fileuid.toString());
-		data.putString("OPERATIONS", operationsMask.toString());
-
-		return new OneTimeWorkRequest.Builder(DomainOpWorker.class)
-				.setInputData(data.build())
-				.addTag(fileuid.toString())
-				.addTag(operationsMask.toString());
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-
-	public void enqueue(@NonNull UUID fileuid, @NonNull Integer... newOperations) throws InterruptedException {
-		//Get any current operations for this file
-		Integer operationsMask = pendingOperations.getOrDefault(fileuid, 0);
-
-		//Add all operations to the existing mask
-		for(Integer operation : newOperations) {
+		//Add all new operations to the existing mask
+		for(int operation : newOperations) {
 			operationsMask |= operation;
 		}
 
 
 		//Look for any conflicting operations and, if found, remove both.
-		//E.g. This operations mask now contains both COPY_TO_LOCAL and REMOVE_FROM_LOCAL.
-		//Copying a file to local just to remove it would be redundant, so we can safely remove both.
-
+		//E.g. If this operations mask now contains both COPY_TO_LOCAL and REMOVE_FROM_LOCAL,
+		// we can safely remove both as copying a file to local just to remove it would be redundant
 		if((operationsMask & LOCAL_MASK) == LOCAL_MASK)
 			operationsMask &= ~(LOCAL_MASK);
 		else if((operationsMask & SERVER_MASK) == SERVER_MASK)
 			operationsMask &= ~(SERVER_MASK);
 
 
-		//Queue the updated operations
-		pendingOperations.enqueue(fileuid, operationsMask);
+		//Queue a DomainWorker with the new operations mask, replacing any existing worker
+		Data.Builder data = new Data.Builder();
+		data.putString("FILEUID", fileUID.toString());
+		data.putString("OPERATIONS", Integer.toString(operationsMask));
+
+		OneTimeWorkRequest worker = new OneTimeWorkRequest.Builder(SyncWorker.class)
+				.setConstraints(new Constraints.Builder()
+						.setRequiredNetworkType(NetworkType.UNMETERED)
+						.setRequiresStorageNotLow(true)
+						.build())
+				.addTag(fileUID.toString()).addTag("DOMAIN")
+				.addTag("OPERATIONS_"+operationsMask)
+				.setInputData(data.build()).build();
+
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+		workManager.enqueueUniqueWork("domain_"+fileUID, ExistingWorkPolicy.REPLACE, worker);
 	}
 
 
-	//---------------------------------------------------
+	//Dequeue certain operations from an existing worker.
+	public void dequeue(@NonNull UUID fileUID, @NonNull Integer... operations) {
+		//Grab any existing operations for an already scheduled worker
+		int operationsMask = getExistingOperations(fileUID);
 
-	/** @return True if operations were removed, false if there were no operations to remove */
-	public boolean dequeue(@NonNull UUID fileuid, @NonNull Integer... operations) {
-		Integer operationsMask = pendingOperations.get(fileuid);
-		if(operationsMask == null) return false;
+		//If there are no operations queued, we're done here
+		if((operationsMask & MASK) == 0)
+			return;
 
-		//Remove all specified operations
-		for(Integer operation : operations)
-			operationsMask &= ~operation;
 
-		//If there are no operations left to perform, remove the file from the mapping
-		if(operationsMask == 0)
-			pendingOperations.dequeue(fileuid);
+		//Starting from the existing operations mask, remove all specified operations
+		for(int operation : operations) {
+			operationsMask |= ~operation;
+		}
 
-		//Otherwise, update the operations mask
-		pendingOperations.enqueue(fileuid, operationsMask);
-		return true;
-	}
-	/**  @return True if operations were removed, false if there were no operations to remove */
-	public boolean dequeue(@NonNull UUID fileuid) {
-		if(!pendingOperations.containsKey(fileuid)) return false;
 
-		pendingOperations.dequeue(fileuid);
-		return true;
+		//Queue a DomainWorker with the new operations mask, replacing any existing worker
+		OneTimeWorkRequest worker = buildWorker(fileUID, operationsMask).build();
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+		workManager.enqueueUniqueWork("domain_"+fileUID, ExistingWorkPolicy.REPLACE, worker);
 	}
 
 
-	public void clearQueuedItems() {
-		pendingOperations.clear();
+
+	private int getExistingOperations(@NonNull UUID fileUID) {
+		try {
+			//Grab any existing workers for this fileUID
+			WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+			List<WorkInfo> existingInfo = workManager.getWorkInfosForUniqueWork("domain_"+fileUID).get();
+
+			//If this fileUID has no workers, we have no existing operations
+			if(existingInfo.isEmpty())
+				return 0;
+
+
+			//Since we schedule unique work, there will only be one worker. Grab it and get its tags
+			Set<String> tags = existingInfo.get(0).getTags();
+
+			//Look for the "OPERATIONS_..." tag, which will contain the existing operations mask
+			for(String tag : tags) {
+				if(tag.startsWith("OPERATIONS_")) {
+					String existingOperations = tag.substring("OPERATIONS_".length());
+					return Integer.parseInt(existingOperations);
+				}
+			}
+			return 0;
+		}
+		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
 	}
 
+
+
+	public OneTimeWorkRequest.Builder buildWorker(@NonNull UUID fileUID, int operationsMask) {
+		Data.Builder data = new Data.Builder();
+		data.putString("FILEUID", fileUID.toString());
+		data.putString("OPERATIONS", Integer.toString(operationsMask));
+
+		Constraints.Builder constraints = new Constraints.Builder();
+
+		//If we are uploading/downloading (potentially large) data, require an unmetered connection
+		if((operationsMask & (COPY_TO_LOCAL | COPY_TO_SERVER)) != 0)
+				constraints.setRequiredNetworkType(NetworkType.UNMETERED);
+
+		//If we're copying (potentially large) data onto device, require storage not to be low
+		if((operationsMask & COPY_TO_LOCAL) != 0)
+			constraints.setRequiresStorageNotLow(true);
+
+		return new OneTimeWorkRequest.Builder(SyncWorker.class)
+				.setConstraints(constraints.build())
+				.addTag(fileUID.toString()).addTag("DOMAIN")
+				.addTag("OPERATIONS_"+operationsMask)
+				.setInputData(data.build());
+	}
 
 
 	//=============================================================================================

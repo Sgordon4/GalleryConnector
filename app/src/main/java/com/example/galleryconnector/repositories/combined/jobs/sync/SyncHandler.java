@@ -132,13 +132,13 @@ public class SyncHandler {
 				.setInputData(data.build()).build();
 
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		workManager.enqueueUniqueWork(fileuid.toString(), ExistingWorkPolicy.KEEP, worker);
+		workManager.enqueueUniqueWork("sync_"+fileuid, ExistingWorkPolicy.KEEP, worker);
 	}
 
 
 	public void dequeue(@NonNull UUID fileuid) {
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		workManager.cancelUniqueWork(fileuid.toString());
+		workManager.cancelUniqueWork("sync_"+fileuid);
 	}
 
 
