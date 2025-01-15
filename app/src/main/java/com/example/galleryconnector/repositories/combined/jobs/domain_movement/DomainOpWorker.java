@@ -105,6 +105,7 @@ public class DomainOpWorker extends Worker {
 		}
 
 
+		System.out.println("DomainWorker Finished!");
 		return Result.success();
 	}
 }

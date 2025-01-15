@@ -1,12 +1,16 @@
 package com.example.galleryconnector;
 
 import android.os.Bundle;
+import android.util.Log;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.work.Configuration;
+import androidx.work.WorkManager;
+import androidx.work.impl.utils.SynchronousExecutor;
 
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.shittytests.TestDomainOperations;
@@ -17,6 +21,7 @@ import com.example.galleryconnector.shittytests.TestSyncOperations;
 import com.example.galleryconnector.shittytests.TestWriteStalling;
 
 import java.io.IOException;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 	GalleryRepo gRepo;
@@ -32,6 +37,14 @@ public class MainActivity extends AppCompatActivity {
 			v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
 			return insets;
 		});
+
+
+		Configuration config = new Configuration.Builder()
+				.setMinimumLoggingLevel(Log.VERBOSE)
+				.setExecutor(Executors.newSingleThreadExecutor())
+				.build();
+
+		WorkManager.initialize(getApplicationContext(), config);
 	}
 
 
@@ -72,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
 
 		Thread thread = new Thread(() -> {
 
+			/*
 			try {
 				//testWrite.testFileAttributes();
 				testWrite.testWrite();
@@ -79,6 +93,7 @@ public class MainActivity extends AppCompatActivity {
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
+			/**/
 
 
 			/*
@@ -105,9 +120,9 @@ public class MainActivity extends AppCompatActivity {
 			/**/
 
 
-			/*
+			/**/
 			try {
-				//testDomainOps.testWorkerCopyToServer();
+				testDomainOps.testWorkerCopyToServer();
 				//testDomainOps.testWorkerCopyToLocal();
 
 				//testDomainOps.testWorkerCopyToBoth_StartingLocal();
@@ -121,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
 
 				//testDomainOps.testWorkerRemoveBoth_Both();
 				//testDomainOps.testWorkerRemoveBoth_Local();
-				testDomainOps.testWorkerRemoveBoth_Server();
+				//testDomainOps.testWorkerRemoveBoth_Server();
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}

@@ -7,19 +7,17 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.work.Configuration;
 import androidx.work.Constraints;
 import androidx.work.Data;
 import androidx.work.ExistingWorkPolicy;
 import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
+import androidx.work.Operation;
 import androidx.work.WorkManager;
-import androidx.work.WorkRequest;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
-import com.example.galleryconnector.repositories.combined.jobs.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.jobs.domain_movement.DomainAPI;
 import com.example.galleryconnector.repositories.local.LocalRepo;
@@ -32,16 +30,11 @@ import com.example.galleryconnector.repositories.server.servertypes.SJournal;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.ConnectException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.Executors;
 
 
 public class SyncHandler {
@@ -118,8 +111,9 @@ public class SyncHandler {
 	//---------------------------------------------------------------------------------------------
 
 
-	//Enqueue a Worker
-	public void enqueue(@NonNull UUID fileuid) {
+	//Enqueue a Worker to facilitate the sync process
+	//Returns the operation for testing purposes
+	public Operation enqueue(@NonNull UUID fileuid) {
 		Data.Builder data = new Data.Builder();
 		data.putString("FILEUID", fileuid.toString());
 
@@ -132,13 +126,14 @@ public class SyncHandler {
 				.setInputData(data.build()).build();
 
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		workManager.enqueueUniqueWork("sync_"+fileuid, ExistingWorkPolicy.KEEP, worker);
+		return workManager.enqueueUniqueWork("sync_"+fileuid, ExistingWorkPolicy.KEEP, worker);
 	}
 
 
-	public void dequeue(@NonNull UUID fileuid) {
+	//Returns the operation for testing purposes
+	public Operation dequeue(@NonNull UUID fileuid) {
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		workManager.cancelUniqueWork("sync_"+fileuid);
+		return workManager.cancelUniqueWork("sync_"+fileuid);
 	}
 
 

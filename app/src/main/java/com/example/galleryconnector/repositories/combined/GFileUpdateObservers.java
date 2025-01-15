@@ -86,7 +86,6 @@ public class GFileUpdateObservers {
 				try {
 					//Get the file that the journal is linked to	TODO Authenticate
 					LFile file = localRepo.getFileProps(newJournal.fileuid);
-					if(file == null) throw new IllegalStateException("File not found! ID: '"+newJournal.fileuid+"'");
 
 					//Notify listeners
 					GFile gFile = GFile.fromLocalFile(file);

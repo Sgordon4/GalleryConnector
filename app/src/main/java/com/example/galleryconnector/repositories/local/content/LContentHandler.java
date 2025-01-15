@@ -126,7 +126,7 @@ public class LContentHandler {
 			//Now that the data has been written, create a new entry in the content table
 			LContent contentProps = putProps(name, filesize);
 
-			Log.v(TAG, "Uploading block complete. Name: '"+name+"'");
+			Log.v(TAG, "Uploading content complete. Name: '"+name+"'");
 			return contentProps;
 		} catch (IOException e) {
 			throw new RuntimeException(e);

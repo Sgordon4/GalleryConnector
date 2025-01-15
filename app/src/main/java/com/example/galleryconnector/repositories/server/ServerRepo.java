@@ -259,7 +259,7 @@ public class ServerRepo {
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		try {
-			//Throws a ContentsNotFound exception if the block properties don't exist
+			//Throws a ContentsNotFound exception if the content properties don't exist
 			contentConn.getProps(name);
 
 			//Now that we know the properties exist, return the content uri

@@ -10,12 +10,12 @@ import androidx.work.Data;
 import androidx.work.ExistingWorkPolicy;
 import androidx.work.NetworkType;
 import androidx.work.OneTimeWorkRequest;
+import androidx.work.Operation;
 import androidx.work.WorkInfo;
 import androidx.work.WorkManager;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
-import com.example.galleryconnector.repositories.combined.jobs.PersistedMapQueue;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.jobs.sync.SyncWorker;
 import com.example.galleryconnector.repositories.local.LocalRepo;
@@ -28,8 +28,6 @@ import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import java.io.File;
 import java.io.IOException;
 import java.net.ConnectException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -66,8 +64,9 @@ public class DomainAPI {
 
 
 
-	//Enqueue a Worker
-	public void enqueue(@NonNull UUID fileUID, @NonNull Integer... newOperations) {
+	//Enqueue a Worker to facilitate the domain operations
+	//Returns the operation for testing purposes
+	public Operation enqueue(@NonNull UUID fileUID, @NonNull Integer... newOperations) {
 		//Grab any existing operations for an already scheduled worker
 		int operationsMask = getExistingOperations(fileUID);
 
@@ -89,18 +88,20 @@ public class DomainAPI {
 		//Queue a DomainWorker with the new operations mask, replacing any existing worker
 		OneTimeWorkRequest worker = buildWorker(fileUID, operationsMask).build();
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		workManager.enqueueUniqueWork("domain_"+fileUID, ExistingWorkPolicy.REPLACE, worker);
+		return workManager.enqueueUniqueWork("domain_"+fileUID, ExistingWorkPolicy.REPLACE, worker);
 	}
 
 
 	//Dequeue certain operations from an existing worker.
-	public void dequeue(@NonNull UUID fileUID, @NonNull Integer... operations) {
+	//Returns the operation for testing purposes
+	@Nullable
+	public Operation dequeue(@NonNull UUID fileUID, @NonNull Integer... operations) {
 		//Grab any existing operations for an already scheduled worker
 		int operationsMask = getExistingOperations(fileUID);
 
 		//If there are no operations queued, we're done here
 		if((operationsMask & MASK) == 0)
-			return;
+			return null;
 
 
 		//Starting from the existing operations mask, remove all specified operations
@@ -112,11 +113,12 @@ public class DomainAPI {
 		//Queue a DomainWorker with the new operations mask, replacing any existing worker
 		OneTimeWorkRequest worker = buildWorker(fileUID, operationsMask).build();
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		workManager.enqueueUniqueWork("domain_"+fileUID, ExistingWorkPolicy.REPLACE, worker);
+		return workManager.enqueueUniqueWork("domain_"+fileUID, ExistingWorkPolicy.REPLACE, worker);
 	}
 
 
 
+	//Returns the operation for testing purposes
 	private int getExistingOperations(@NonNull UUID fileUID) {
 		try {
 			//Grab any existing workers for this fileUID
@@ -160,7 +162,7 @@ public class DomainAPI {
 		if((operationsMask & COPY_TO_LOCAL) != 0)
 			constraints.setRequiresStorageNotLow(true);
 
-		return new OneTimeWorkRequest.Builder(SyncWorker.class)
+		return new OneTimeWorkRequest.Builder(DomainOpWorker.class)
 				.setConstraints(constraints.build())
 				.addTag(fileUID.toString()).addTag("DOMAIN")
 				.addTag("OPERATIONS_"+operationsMask)

@@ -15,28 +15,28 @@ public interface LContentDao {
 	List<LContent> loadAll(int offset);
 
 
-	@Query("SELECT * FROM content WHERE name = :blockHash")
-	LContent loadByHash(String blockHash);
+	@Query("SELECT * FROM content WHERE name = :fileHash")
+	LContent loadByHash(String fileHash);
 
-	@Query("SELECT * FROM content WHERE name IN (:blockHashes)")
-	List<LContent> loadAllByHash(String... blockHashes);
-	@Query("SELECT * FROM content WHERE name IN (:blockHashes)")
-	List<LContent> loadAllByHash(List<String> blockHashes);
+	@Query("SELECT * FROM content WHERE name IN (:fileHashes)")
+	List<LContent> loadAllByHash(String... fileHashes);
+	@Query("SELECT * FROM content WHERE name IN (:fileHashes)")
+	List<LContent> loadAllByHash(List<String> fileHashes);
 
 
 	@Upsert
-	List<Long> put(LContent... blocks);
+	List<Long> put(LContent... contents);
 
 	/*
 	@Insert(onConflict = OnConflictStrategy.IGNORE)
-	List<Long> insert(LContent... blocks);
+	List<Long> insert(LContent... contents);
 
 	@Update
-	Integer update(LContent... blocks);
+	Integer update(LContent... contents);
 	 */
 
 	@Delete
-	Integer delete(LContent... blocks);
-	@Query("DELETE FROM content WHERE name = :blockHash")
-	Integer delete(String blockHash);
+	Integer delete(LContent... contents);
+	@Query("DELETE FROM content WHERE name = :fileHash")
+	Integer delete(String fileHash);
 }

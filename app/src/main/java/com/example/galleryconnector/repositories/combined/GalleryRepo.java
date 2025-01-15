@@ -70,12 +70,14 @@ public class GalleryRepo {
 		localRepo = LocalRepo.getInstance();
 		serverRepo = ServerRepo.getInstance();
 
+		/*
 		//Configure the WorkManager for this application to use fewer threads
 		//Note: MUST disable the default initializer in App Manifest for this to take effect
 		//Note: This must be done in onCreate of the Application
 		Configuration config = new Configuration.Builder()
 				.setExecutor(Executors.newFixedThreadPool(10)).build();
 		WorkManager.initialize(MyApplication.getAppContext(), config);
+		*/
 	}
 	private void initialize() {
 		observers = new GFileUpdateObservers();
@@ -87,10 +89,10 @@ public class GalleryRepo {
 		writeStallWorkers = WriteStallWorkers.getInstance();
 
 
-		observers.attachListeners(localRepo, serverRepo);
+		//observers.attachListeners(localRepo, serverRepo);
 
-		writeStallWorkers.startJobs();
-		syncHandler.catchUpOnSyncing();
+		//writeStallWorkers.startJobs();
+		//syncHandler.catchUpOnSyncing();
 	}
 
 

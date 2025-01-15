@@ -2,6 +2,8 @@ package com.example.galleryconnector.shittytests;
 
 import android.net.Uri;
 
+import androidx.work.Operation;
+
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
@@ -26,6 +28,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 public class TestSyncOperations {
 	GalleryRepo grepo = GalleryRepo.getInstance();
@@ -68,9 +71,13 @@ public class TestSyncOperations {
 		local = grepo.putFilePropsLocal(local, local.filehash, local.attrhash);
 
 
-		syncHandler.clearQueuedItems();
-		syncHandler.enqueue(fileUID);
-		syncHandler.doSomething(20);
+
+
+		Operation op = syncHandler.enqueue(fileUID);
+
+		//Wait for the operation to complete
+		try { op.getResult().get(); }
+		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
 
 
 		System.out.println("Test complete!");
@@ -102,9 +109,11 @@ public class TestSyncOperations {
 		server = grepo.putFilePropsServer(server, server.filehash, server.attrhash);
 
 
-		syncHandler.clearQueuedItems();
-		syncHandler.enqueue(fileUID);
-		syncHandler.doSomething(20);
+		Operation op = syncHandler.enqueue(fileUID);
+
+		//Wait for the operation to complete
+		try { op.getResult().get(); }
+		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
 
 
 		System.out.println("Test complete!");
@@ -152,9 +161,11 @@ public class TestSyncOperations {
 		}
 
 
-		syncHandler.clearQueuedItems();
-		syncHandler.enqueue(fileUID);
-		syncHandler.doSomething(20);
+		Operation op = syncHandler.enqueue(fileUID);
+
+		//Wait for the operation to complete
+		try { op.getResult().get(); }
+		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
 
 
 		System.out.println("Test complete!");

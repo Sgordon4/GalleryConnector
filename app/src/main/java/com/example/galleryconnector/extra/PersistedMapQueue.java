@@ -1,4 +1,4 @@
-package com.example.galleryconnector.repositories.combined.jobs;
+package com.example.galleryconnector.extra;
 
 import java.io.IOException;
 import java.nio.file.Files;
