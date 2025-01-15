@@ -107,7 +107,7 @@ public class GalleryRepo {
 		observers.notifyObservers(file);
 	}
 
-	//TODO Use this with DomainAPI and SyncHandler's doSomething() methods. Also fix this up, doesn't work.
+	//TODO Doesn't actually work
 	public boolean doesDeviceHaveInternet() {
 		ConnectivityManager connectivityManager = (ConnectivityManager)
 				MyApplication.getAppContext().getSystemService(Context.CONNECTIVITY_SERVICE);

@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 import java.util.stream.Collectors;
 
@@ -51,18 +50,6 @@ public class WriteStalling {
 
 	private static final boolean debug = true;
 
-
-
-	//Create makeTempFileFor(UUID, byte[], lastHash)
-	//Ideally write to closest repo every 5 seconds or so
-	//When merging, write merged data to temp file first, then try to write to repo
-	//Merge should occur whenever we get a listener ping, or whenever we attempt to persist temp file to repo
-	//Job should delete temp file if temp file == sync file, and temp file is > ~3 seconds old
-	//Decide how to merge based on isDir and isLink
-
-	//Create a temp file right before importing/exporting, and right before reordering
-	//What if we make the temp file the instant we start a drag for reordering?
-	// We can add a little spinner after the drop if need be. I like this idea.
 
 
 	/* Stall file writing and setup notes:
@@ -264,8 +251,19 @@ public class WriteStalling {
 		//See if we can persist without merging
 
 
-		//If the repository doesn't have any changes, we can write stall straight to repo
 		boolean repoHasChanges = !Objects.equals(existingFileProps.filehash, syncHash);
+
+
+		//TODO Merging is very hard, and my brain is very smooth.
+		// Therefore, I am setting it so the stall file is ALWAYS written to the repo instead of merging.
+		// This should work for a one-device-per-account setup like we'll have initially, but
+		// MUST be rectified for this to be respectable
+		if(repoHasChanges)
+			Log.e(TAG, "StallFile write was supposed to merge! fileUID='"+fileUID+"'");
+		repoHasChanges = false;
+
+
+		//If the repository doesn't have any changes, we can write stall straight to repo
 		if(!repoHasChanges || existingFileProps.filehash == null) {
 			if(debug) Log.d(TAG, "Repo identical to sync-point, persisting stall file with no changes.");
 
