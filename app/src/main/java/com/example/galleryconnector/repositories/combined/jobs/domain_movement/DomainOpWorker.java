@@ -97,13 +97,14 @@ public class DomainOpWorker extends Worker {
 			}
 
 
-			if((operationsMap & DomainAPI.REMOVE_FROM_LOCAL) > 0) {
-				Log.v(TAG, "DomWorker removing file from local. FileUID: " + fileUID);
-				domainAPI.removeFileFromLocal(fileUID);
-			}
+			//Do server first in case we can't connect and we're trying to remove both. In that case we want to fail before removing one.
 			if((operationsMap & DomainAPI.REMOVE_FROM_SERVER) > 0) {
 				Log.v(TAG, "DomWorker removing file from server. FileUID: " + fileUID);
 				domainAPI.removeFileFromServer(fileUID);
+			}
+			if((operationsMap & DomainAPI.REMOVE_FROM_LOCAL) > 0) {
+				Log.v(TAG, "DomWorker removing file from local. FileUID: " + fileUID);
+				domainAPI.removeFileFromLocal(fileUID);
 			}
 
 		}

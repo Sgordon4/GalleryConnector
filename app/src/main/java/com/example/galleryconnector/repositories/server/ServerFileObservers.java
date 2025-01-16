@@ -60,21 +60,28 @@ public class ServerFileObservers {
 			int latestID = journalID;
 			while (!Thread.currentThread().isInterrupted()) {
 				if(!MyApplication.doesDeviceHaveInternet()) {
-					Log.v(TAG, "Longpoll Sleeping...");
-					try {
-						Thread.sleep(10000);
-					} catch (InterruptedException e) {
-						throw new RuntimeException(e);
-					}
+					Log.v(TAG, "No internet, longpoll sleeping...");
+
+					try { Thread.sleep(15000); }
+					catch (InterruptedException e) { throw new RuntimeException(e); }
 					continue;
 				}
 
-				Log.v(TAG, "Longpolling...");
+
 				try {
+
 					latestID = longpoll(latestID);
+
 				}
 				catch (TimeoutException e) {
 					//This is supposed to happen, restart the poll
+				}
+				catch (SocketTimeoutException e) {
+					//Server is down, wait and restart the poll
+					Log.w(TAG, "Server is down, cannot longpoll. Sleeping...");
+
+					try { Thread.sleep(15000); }
+					catch (InterruptedException ex) { throw new RuntimeException(ex); }
 				}
 				catch (IOException e) {
 					try {

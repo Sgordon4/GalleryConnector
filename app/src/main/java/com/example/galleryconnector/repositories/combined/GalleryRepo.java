@@ -62,9 +62,6 @@ public class GalleryRepo {
 	}
 	private static class SingletonHelper {
 		private static final GalleryRepo INSTANCE = new GalleryRepo();
-		private SingletonHelper() {
-			INSTANCE.initialize();
-		}
 	}
 	private GalleryRepo() {
 		localRepo = LocalRepo.getInstance();
@@ -79,7 +76,7 @@ public class GalleryRepo {
 		WorkManager.initialize(MyApplication.getAppContext(), config);
 		*/
 	}
-	private void initialize() {
+	public void initialize() {
 		observers = new GFileUpdateObservers();
 
 		domainAPI = DomainAPI.getInstance();
@@ -89,10 +86,10 @@ public class GalleryRepo {
 		writeStallWorkers = WriteStallWorkers.getInstance();
 
 
-		//observers.attachListeners(localRepo, serverRepo);
+		observers.attachListeners(localRepo, serverRepo);
 
-		//writeStallWorkers.startJobs();
-		//syncHandler.catchUpOnSyncing();
+		writeStallWorkers.startJobs();
+		syncHandler.catchUpOnSyncing();
 	}
 
 
@@ -253,13 +250,8 @@ public class GalleryRepo {
 	// Maybe not private them idk
 
 	public GFile createFilePropsLocal(@NonNull GFile gFile) throws IllegalStateException, ContentsNotFoundException {
-		return putFilePropsLocal(gFile, "null", "null");
-	}
-	/*
-	public GFile putFilePropsLocal(@NonNull GFile gFile) throws ContentsNotFoundException {
 		return putFilePropsLocal(gFile, null, null);
 	}
-	 */
 	public GFile putFilePropsLocal(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash) throws ContentsNotFoundException {
 		LFile file = gFile.toLocalFile();
 		try {
@@ -273,13 +265,8 @@ public class GalleryRepo {
 	}
 
 	public GFile createFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, ContentsNotFoundException, ConnectException {
-		return putFilePropsServer(gFile, "null", "null");
-	}
-	/*
-	public GFile putFilePropsServer(@NonNull GFile gFile) throws IllegalStateException, ContentsNotFoundException, ConnectException {
 		return putFilePropsServer(gFile, null, null);
 	}
-	 */
 	public GFile putFilePropsServer(@NonNull GFile gFile, @Nullable String prevFileHash, @Nullable String prevAttrHash)
 			throws IllegalStateException, ContentsNotFoundException, ConnectException {
 		SFile file = gFile.toServerFile();

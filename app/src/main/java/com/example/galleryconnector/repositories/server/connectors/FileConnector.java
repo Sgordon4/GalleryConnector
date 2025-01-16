@@ -95,10 +95,13 @@ public class FileConnector {
 		//Log.i(TAG, "\nUPSERT FILE called");
 		String base = Paths.get(baseServerUrl, "files").toString();
 
+		//Empty user attributes "{}" are hashed to "BF21A9E8FBC5A3846FB05B4FA0859E0917B2202F". This is swapped in for convenience.
+		if(prevAttrHash == null) prevAttrHash = "BF21A9E8FBC5A3846FB05B4FA0859E0917B2202F";
+
 		//Alongside the usual url, send fileHash and attrHash as query params if applicable
 		HttpUrl.Builder httpBuilder = HttpUrl.parse(base).newBuilder();
 		if(prevFileHash != null) httpBuilder.addQueryParameter("prevfilehash", prevFileHash);
-		if(prevAttrHash != null) httpBuilder.addQueryParameter("prevattrhash", prevAttrHash);
+		httpBuilder.addQueryParameter("prevattrhash", prevAttrHash);
 		URL url = httpBuilder.build().url();
 
 

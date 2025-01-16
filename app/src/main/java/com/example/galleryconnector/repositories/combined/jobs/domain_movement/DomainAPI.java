@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 
 public class DomainAPI {
@@ -184,6 +185,7 @@ public class DomainAPI {
 
 		return new OneTimeWorkRequest.Builder(DomainOpWorker.class)
 				.setConstraints(constraints.build())
+				.setInitialDelay(2, TimeUnit.SECONDS)	//User is most likely to requeue requests immediately after enqueuing one
 				.addTag(fileUID.toString()).addTag("DOMAIN")
 				.addTag("OPERATIONS_"+operationsMask)
 				.setInputData(data.build());

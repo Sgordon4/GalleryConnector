@@ -1,7 +1,10 @@
 package com.example.galleryconnector.repositories.combined.jobs.writestalling;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 
+import java.net.ConnectException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class WriteStallWorkers {
+	private static final String TAG = "Gal.StallWorker";
 	private final ScheduledExecutorService jobExecutor;
 	private final Map<UUID, WriteRunnable> jobs;
 	private final ReentrantLock jobLock;
@@ -90,15 +94,18 @@ public class WriteStallWorkers {
 		private final UUID fileUID;
 		private final onStopCallback callback;
 
-		private final ScheduledFuture<?> future;
+		private final ScheduledExecutorService executor;
+		private ScheduledFuture<?> future;
 
 		public WriteRunnable(UUID fileUID, ScheduledExecutorService executor, onStopCallback callback) {
 			this.writeStalling = WriteStalling.getInstance();
 			this.fileUID = fileUID;
 			this.callback = callback;
 
+			this.executor = executor;
+
 			//Schedule this to run every 5 seconds (plus execution time)
-			this.future = executor.scheduleWithFixedDelay(this, 5, 5, TimeUnit.SECONDS);
+			this.future = executor.schedule(this, 5, TimeUnit.SECONDS);
 		}
 
 		@Override
@@ -108,7 +115,17 @@ public class WriteStallWorkers {
 				stop();
 
 			//Otherwise, attempt to persist the stall file
-			writeStalling.persistStalledWrite(fileUID);
+			try {
+				writeStalling.persistStalledWrite(fileUID);
+
+				this.future = executor.schedule(this, 5, TimeUnit.SECONDS);
+			} catch (IllegalStateException e) {
+				Log.d(TAG, "WriteStall worker ran into a hash mismatch, retrying later. fileUID='"+fileUID+"'");
+				this.future = executor.schedule(this, 5, TimeUnit.SECONDS);
+			} catch (ConnectException e) {
+				Log.d(TAG, "WriteStall worker can't connect to server, retrying later. fileUID='"+fileUID+"'");
+				this.future = executor.schedule(this, 30, TimeUnit.SECONDS);
+			}
 		}
 		public void stop() {
 			future.cancel(true);

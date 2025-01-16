@@ -39,6 +39,13 @@ public class TestDomainOperations {
 
 
 
+	public void testNoConnectionDoesntExplodeEverything() {
+		UUID fileUID = UUID.randomUUID();
+		domainAPI.enqueue(fileUID, DomainAPI.REMOVE_FROM_LOCAL, DomainAPI.REMOVE_FROM_SERVER);
+	}
+
+
+
 	public void testWorkerCopyToServer() throws IOException {
 		System.out.println("Testing DomainOps CopyToServer");
 		String fileHash = importToTempFile();
@@ -60,7 +67,7 @@ public class TestDomainOperations {
 		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER);
 
 		
-		//Wait for the operation to complete
+		//Wait for the operation to completec
 		try { Thread.sleep(3000); }
 		catch (InterruptedException e) { throw new RuntimeException(e); }
 

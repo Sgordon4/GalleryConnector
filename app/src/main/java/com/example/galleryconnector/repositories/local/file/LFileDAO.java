@@ -45,7 +45,7 @@ public interface LFileDAO {
 
 
 	@Delete
-	Integer delete(LFile... files);
-	@Query("DELETE FROM file WHERE fileuid IN (:fileUIDs)")
-	Integer delete(UUID... fileUIDs);
+	Integer delete(LFile file);
+	@Query("DELETE FROM file WHERE fileuid = :fileUID")
+	Integer delete(UUID fileUID);
 }

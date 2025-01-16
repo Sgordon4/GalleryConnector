@@ -41,7 +41,6 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 
-
 public class ServerRepo {
 	private static final String baseServerUrl = "http://10.0.2.2:3306";
 	//private static final String baseServerUrl = "http://localhost:3306";
@@ -60,8 +59,8 @@ public class ServerRepo {
 		client = new OkHttpClient().newBuilder()
 				.addInterceptor(new LogInterceptor())
 				.followRedirects(true)
-				.connectTimeout(5, TimeUnit.SECONDS)
-				.readTimeout(30, TimeUnit.SECONDS)		//Long timeout for longpolling
+				.connectTimeout(2, TimeUnit.SECONDS)
+				.readTimeout(30, TimeUnit.SECONDS)		//Long timeout for longPolling
 				.writeTimeout(5, TimeUnit.SECONDS)
 				.followSslRedirects(true)
 				.build();
@@ -403,7 +402,7 @@ public class ServerRepo {
 		}
 	}
 
-	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws ConnectException, TimeoutException {
+	public List<SJournal> longpollJournalEntriesAfter(int journalID) throws ConnectException, TimeoutException, SocketTimeoutException {
 		Log.i(TAG, String.format("LONGPOLL SERVER JOURNAL ENTRIES called with journalID='%s'", journalID));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
@@ -411,8 +410,10 @@ public class ServerRepo {
 			return journalConn.longpollJournalEntriesAfter(journalID);
 		} catch (ConnectException e) {
 			throw e;
-		} catch (TimeoutException | SocketTimeoutException | SocketException e) {
+		} catch (TimeoutException | SocketException e) {
 			throw new TimeoutException();
+		} catch (SocketTimeoutException e) {
+			throw e;
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}

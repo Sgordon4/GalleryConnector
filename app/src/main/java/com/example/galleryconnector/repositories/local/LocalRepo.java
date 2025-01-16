@@ -175,14 +175,16 @@ public class LocalRepo {
 		}
 
 
-		//TODO Null values should mean no prev data, not skip like we have now
-
 		//Make sure the hashes match if any were passed
 		LFile oldFile = database.getFileDao().loadByUID(fileProps.fileuid);
 		if(oldFile != null) {
-			if(prevFileHash != null && !Objects.equals(oldFile.filehash, prevFileHash))
+			if( (prevFileHash == null && oldFile.filehash != null) ||
+				(prevFileHash != null && !Objects.equals(oldFile.filehash, prevFileHash)))
 				throw new IllegalStateException(String.format("File contents hash doesn't match for fileUID='%s'", oldFile.fileuid));
-			if(prevAttrHash != null && !Objects.equals(oldFile.attrhash, prevAttrHash))
+
+			//Empty user attributes "{}" are hashed to "BF21A9E8FBC5A3846FB05B4FA0859E0917B2202F". This is swapped in for convenience.
+			if( (prevAttrHash == null && !Objects.equals(oldFile.attrhash, "BF21A9E8FBC5A3846FB05B4FA0859E0917B2202F")) ||
+				(prevAttrHash != null && !Objects.equals(oldFile.attrhash, prevAttrHash)))
 				throw new IllegalStateException(String.format("File attributes hash doesn't match for fileUID='%s'", oldFile.fileuid));
 		}
 
@@ -251,6 +253,7 @@ public class LocalRepo {
 
 
 	public LContent getContentProps(@NonNull String name) throws ContentsNotFoundException {
+		Log.i(TAG, String.format("\nGET CONTENT PROPS called with name='%s'", name));
 		try {
 			return contentHandler.getProps(name);
 		} catch (ContentsNotFoundException e) {

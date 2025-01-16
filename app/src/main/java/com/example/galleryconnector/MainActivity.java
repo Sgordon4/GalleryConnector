@@ -61,6 +61,10 @@ public class MainActivity extends AppCompatActivity {
 		super.onResume();
 
 		gRepo = GalleryRepo.getInstance();
+		gRepo.initialize();
+
+
+
 		//gRepo.startListening();
 
 
@@ -88,9 +92,10 @@ public class MainActivity extends AppCompatActivity {
 
 			/*
 			try {
-				//testWrite.testFileAttributes();
-				testWrite.testWrite();
-				testWrite.testPersist();
+				//testWrite.testWrite(null);
+				//testWrite.testPersistLocal();
+				//testWrite.testPersistServer();
+				testWrite.testPersistWithBoth();
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -121,6 +126,7 @@ public class MainActivity extends AppCompatActivity {
 			/**/
 
 
+			testDomainOps.testNoConnectionDoesntExplodeEverything();
 			/*
 			try {
 				//testDomainOps.testWorkerCopyToServer();
@@ -146,11 +152,11 @@ public class MainActivity extends AppCompatActivity {
 
 			/*
 			try {
-				testSyncOps.testSync();
+				//testSyncOps.testSync();
 
 				//testSyncOps.testWorkerLocalChange();
 				//testSyncOps.testWorkerServerChange();
-				//testSyncOps.testWorkerBothChange();
+				testSyncOps.testWorkerBothChange();
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}

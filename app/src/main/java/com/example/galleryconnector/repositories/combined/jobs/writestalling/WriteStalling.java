@@ -14,6 +14,7 @@ import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.jobs.MergeUtilities;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.io.BufferedReader;
@@ -40,12 +41,14 @@ import java.util.UUID;
 import java.util.concurrent.locks.StampedLock;
 import java.util.stream.Collectors;
 
+import javax.xml.transform.Result;
+
 
 //NOTE: We are assuming file contents are small
 
 public class WriteStalling {
 
-	private static final String TAG = "Gal.GRepo.Temp";
+	private static final String TAG = "Gal.GRepo.Stall";
 	private final String storageDir = "writes";
 
 	private static final boolean debug = true;
@@ -53,12 +56,17 @@ public class WriteStalling {
 
 
 	/* Stall file writing and setup notes:
-	 * - Writing should aim to be be extremely fast and painless
+	 * - Writing should aim to be be extremely fast and painless.
+	 *
+	 * - Contents being written should be small enough to hold multiple in memory.
+	 * 	  (Ideally short text files or directory listings)
+	 *
+	 * - Stall files should not be used to import files, only updating existing ones.
 	 *
 	 * - For an effective write, we need two things:
-	 * 1. The data being written, which will be overwritten with each new write
-	 * 2. A snapshot of the in-repo file contents BEFORE any writes, in case we need to merge later
-	 *    This will just be a fileHash referencing the actual content repos
+	 * 1. The data being written, which will be overwritten with each new write.
+	 * 2. A snapshot of the in-repo file contents BEFORE any writes, in case we need to merge later.
+	 *    This will just be a fileHash referencing the actual content repos.
 	 *
 	 * - We were going to make a sync-point file, but here's the deal:
 	 *   > If we're persisting to local, that will occur within 5-10 seconds, in which time the
@@ -103,26 +111,26 @@ public class WriteStalling {
 				.map(UUID::fromString).collect(Collectors.toList());
 	}
 
-	public boolean doesStallFileExist(UUID fileUID) {
+	public boolean doesStallFileExist(@NonNull UUID fileUID) {
 		File stallFile = getStallFile(fileUID);
 		return stallFile.exists();
 	}
 
 
 
-	public long requestWriteLock(UUID fileUID) {
+	public long requestWriteLock(@NonNull UUID fileUID) {
 		if(!fileLocks.containsKey(fileUID))
 			fileLocks.put(fileUID, new StampedLock());
 
 		return fileLocks.get(fileUID).writeLock();
 	}
-	public void releaseWriteLock(UUID fileUID, long stamp) {
+	public void releaseWriteLock(@NonNull UUID fileUID, long stamp) {
 		if(!fileLocks.containsKey(fileUID))
 			return;
 
 		fileLocks.get(fileUID).unlockWrite(stamp);
 	}
-	public boolean isStampValid(UUID fileUID, long stamp) {
+	public boolean isStampValid(@NonNull UUID fileUID, long stamp) {
 		if(!fileLocks.containsKey(fileUID))
 			return false;
 
@@ -131,7 +139,7 @@ public class WriteStalling {
 
 
 
-	private void createStallFile(UUID fileUID) throws IOException {
+	private void createStallFile(@NonNull UUID fileUID) throws IOException {
 		File stallFile = getStallFile(fileUID);
 		File metadataFile = getMetadataFile(fileUID);
 
@@ -145,7 +153,7 @@ public class WriteStalling {
 	}
 
 	//Note: Don't delete the lock for the file as other threads may be waiting for it
-	public void delete(UUID fileUID) {
+	public void delete(@NonNull UUID fileUID) {
 		File stallFile = getStallFile(fileUID);
 		File stallMetadata = getMetadataFile(fileUID);
 		stallFile.delete();
@@ -157,7 +165,7 @@ public class WriteStalling {
 
 
 	//Speedy fast
-	public String write(UUID fileUID, byte[] data, String lastHash) {
+	public String write(@NonNull UUID fileUID, @NonNull byte[] data, @Nullable String lastHash) {
 		File stallFile = getStallFile(fileUID);
 
 		//If the stall file already exists...
@@ -204,7 +212,7 @@ public class WriteStalling {
 
 	//Persist a stall file to a repo (if the file already exists), merging if needed
 	//This method is long as fuck, but realistically should be super fast to run. Unless we need to merge.
-	public void persistStalledWrite(UUID fileUID) {
+	public void persistStalledWrite(@NonNull UUID fileUID) throws IllegalStateException, ConnectException {
 		Log.i(TAG, String.format("PERSIST STALLFILE called with fileUID='%s'", fileUID));
 		//If there is no data to persist, do nothing
 		if(!doesStallFileExist(fileUID)) {
@@ -237,7 +245,7 @@ public class WriteStalling {
 		} catch (ConnectException e) {
 			if(debug) Log.d(TAG, "File props not found locally, cannot connect to server, skipping.");
 			//If the file is not in local and we can't connect to the server, we can't write anything. Skip for now
-			return;
+			throw e;
 		} catch (FileNotFoundException e) {
 			if(debug) Log.d(TAG, String.format("File props not found in either repo, deleting stall file. fileUID='%s'", fileUID));
 			//If the file is not in local OR server then there's nowhere to write, and either the client wrote to this UUID as a mistake
@@ -249,6 +257,8 @@ public class WriteStalling {
 
 		//----------------------------------------------------------------------
 		//See if we can persist without merging
+
+
 
 
 		boolean repoHasChanges = !Objects.equals(existingFileProps.filehash, syncHash);
@@ -267,32 +277,40 @@ public class WriteStalling {
 		if(!repoHasChanges || existingFileProps.filehash == null) {
 			if(debug) Log.d(TAG, "Repo identical to sync-point, persisting stall file with no changes.");
 
-			//Find which repo to write to
 			try {
+				//Update the existing file props with the new data from the stallFile
 				existingFileProps.filehash = stallHash;
 				existingFileProps.filesize = (int) stallFile.length();
 				existingFileProps.changetime = Instant.now().getEpochSecond();
 				existingFileProps.modifytime = Instant.now().getEpochSecond();
 
+				//Find which repo to write to. Since we JUST got the props from one of them, if it's not in local then it's definitely on the server.
 				if(grepo.isFileLocal(fileUID)) {
 					if(debug) Log.d(TAG, "Persisting locally.");
-					grepo.putContentsLocal(stallHash, Uri.fromFile(stallFile));
+					if(!grepo.doesContentExistLocal(stallHash))
+						grepo.putContentsLocal(stallHash, Uri.fromFile(stallFile));
+
 					grepo.putFilePropsLocal(existingFileProps, syncHash, existingFileProps.attrhash);
 				}
 				else {
 					try {
 						if(debug) Log.d(TAG, "Persisting on Server.");
-						grepo.putContentsServer(stallHash, stallFile);
+						if(!grepo.doesContentExistServer(stallHash))
+							grepo.putContentsServer(stallHash, stallFile);
 						grepo.putFilePropsServer(existingFileProps, syncHash, existingFileProps.attrhash);
 					}
 					//If the file isn't local and we can't connect to the server, skip and try again later
 					catch (ConnectException e) {
 						if(debug) Log.d(TAG, "File not local, no connection to server. Could not persist, skipping.");
-						return;
+						throw e;
 					}
 				}
-			}
-			catch (ContentsNotFoundException | FileNotFoundException e) {
+			} catch (IllegalStateException e) {
+				//File hashes didn't match, meaning there was an update while we were doing this. Skip and try again later
+				Log.d(TAG, "Hashes were updated in the background while persisting stallFile! fileUID='"+fileUID+"'");
+				throw e;
+			} catch (ContentsNotFoundException | FileNotFoundException e) {
+				//Uh oh!
 				throw new RuntimeException(e);
 			}
 		}
@@ -328,11 +346,17 @@ public class WriteStalling {
 			//If the file isn't local and we can't connect to the server, skip and try again later
 			catch (ConnectException e) {
 				if(debug) Log.d(TAG, "File not local, no connection to server. Could not merge, skipping.");
-				return;
+				throw e;
+			} catch (IllegalStateException e) {
+				//File hashes didn't match, meaning there was an update while we were doing this. Skip and try again later
+				Log.d(TAG, "Hashes were updated in the background while persisting stallFile! fileUID='"+fileUID+"'");
+				throw e;
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
 		}
+
+		Log.d(TAG, "Persisting stallFile was successful!");
 	}
 
 
@@ -340,21 +364,21 @@ public class WriteStalling {
 
 
 	@Nullable
-	private String getAttribute(UUID fileUID, String attribute) /*throws FileNotFoundException*/ {
+	private String getAttribute(@NonNull UUID fileUID, @NonNull String attribute) /*throws FileNotFoundException*/ {
 		try {
 			JsonObject props = readAttributes(fileUID);
-			String prop = props.get(attribute).getAsString();
+			JsonElement prop = props.get(attribute);;
 
-			return Objects.equals(prop, "null") ? null : prop;
+			return prop == null ? null : prop.getAsString();
 		}
 		catch (FileNotFoundException e) { throw new RuntimeException(e); }
 	}
 
-	private void putAttribute(UUID fileUID, String key, String value) /*throws FileNotFoundException*/ {
+	private void putAttribute(@NonNull UUID fileUID, @NonNull String key, @Nullable String value) /*throws FileNotFoundException*/ {
 		try {
 			JsonObject props = readAttributes(fileUID);
-			System.out.println("Props: "+props);
 			props.addProperty(key, value);
+
 			writeAttributes(fileUID, props);
 		}
 		catch (FileNotFoundException e) { throw new RuntimeException(e); }
@@ -364,7 +388,7 @@ public class WriteStalling {
 
 
 	@NonNull
-	private JsonObject readAttributes(UUID fileUID) throws FileNotFoundException {
+	private JsonObject readAttributes(@NonNull UUID fileUID) throws FileNotFoundException {
 		File metadataFile = getMetadataFile(fileUID);
 		if(!metadataFile.exists())
 			throw new FileNotFoundException("Stall metadata file does not exist! FileUID='"+fileUID+"'");
@@ -379,7 +403,7 @@ public class WriteStalling {
 	}
 
 
-	private void writeAttributes(UUID fileUID, JsonObject props) throws FileNotFoundException {
+	private void writeAttributes(@NonNull UUID fileUID, @NonNull JsonObject props) throws FileNotFoundException {
 		File metadataFile = getMetadataFile(fileUID);
 		if(!metadataFile.exists())
 			throw new FileNotFoundException("Stall metadata file does not exist! FileUID='"+fileUID+"'");

@@ -113,7 +113,7 @@ public class SyncHandler {
 
 	//Enqueue a Worker to facilitate the sync process
 	//Returns the operation for testing purposes
-	public Operation enqueue(@NonNull UUID fileuid) {
+	public void enqueue(@NonNull UUID fileuid) {
 		Data.Builder data = new Data.Builder();
 		data.putString("FILEUID", fileuid.toString());
 
@@ -126,14 +126,14 @@ public class SyncHandler {
 				.setInputData(data.build()).build();
 
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		return workManager.enqueueUniqueWork("sync_"+fileuid, ExistingWorkPolicy.KEEP, worker);
+		workManager.enqueueUniqueWork("sync_"+fileuid, ExistingWorkPolicy.KEEP, worker);
 	}
 
 
 	//Returns the operation for testing purposes
-	public Operation dequeue(@NonNull UUID fileuid) {
+	public void dequeue(@NonNull UUID fileuid) {
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		return workManager.cancelUniqueWork("sync_"+fileuid);
+		workManager.cancelUniqueWork("sync_"+fileuid);
 	}
 
 
@@ -205,7 +205,8 @@ public class SyncHandler {
 			localRepo.putLastSyncedData(syncReference.toLocalFile());
 
 			//Data has been written, notify any observers and return true
-			GalleryRepo.getInstance().notifyObservers(syncReference);
+			GalleryRepo grepo = GalleryRepo.getInstance();
+			grepo.notifyObservers(syncReference);
 			return syncReference;
 		}
 		catch (FileNotFoundException e) {

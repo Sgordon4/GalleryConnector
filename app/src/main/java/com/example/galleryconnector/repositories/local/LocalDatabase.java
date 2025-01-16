@@ -22,6 +22,7 @@ import com.example.galleryconnector.repositories.local.sync.LSyncDAO;
 import com.example.galleryconnector.repositories.local.sync.LSyncFile;
 
 import java.util.Arrays;
+import java.util.concurrent.Executors;
 
 
 @Database(entities = {LAccount.class, LFile.class, LJournal.class, LContent.class, LSyncFile.class}, version = 1)

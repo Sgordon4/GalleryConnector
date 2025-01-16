@@ -65,20 +65,33 @@ public class TestSyncOperations {
 		GFile server = GFile.fromServerFile(domainAPI.createFileOnServer(local.toLocalFile()));
 
 
+		LFile testLocal = lrepo.getFileProps(fileUID);
+		SFile testServer = srepo.getFileProps(fileUID);
+		assert Objects.equals(GFile.fromLocalFile(testLocal), GFile.fromServerFile(testServer));
+
+
+
 		//Now make changes to only local
 		local.userattr.addProperty("LocalOnly", "LocalData");
 		local.changetime = Instant.now().getEpochSecond();
 		local = grepo.putFilePropsLocal(local, local.filehash, local.attrhash);
 
 
+		testLocal = lrepo.getFileProps(fileUID);
+		testServer = srepo.getFileProps(fileUID);
+		assert !Objects.equals(GFile.fromLocalFile(testLocal), GFile.fromServerFile(testServer));
 
 
-		Operation op = syncHandler.enqueue(fileUID);
+		syncHandler.enqueue(fileUID);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
+
+		testLocal = lrepo.getFileProps(fileUID);
+		testServer = srepo.getFileProps(fileUID);
+		assert Objects.equals(GFile.fromLocalFile(testLocal), GFile.fromServerFile(testServer));
 
 		System.out.println("Test complete!");
 	}
@@ -102,19 +115,31 @@ public class TestSyncOperations {
 		//And copy it to server
 		GFile server = GFile.fromServerFile(domainAPI.createFileOnServer(local.toLocalFile()));
 
+		LFile testLocal = lrepo.getFileProps(fileUID);
+		SFile testServer = srepo.getFileProps(fileUID);
+		assert Objects.equals(GFile.fromLocalFile(testLocal), GFile.fromServerFile(testServer));
+
 
 		//Now make changes to only server
 		server.userattr.addProperty("ServerOnly", "ServerData");
 		server.changetime = Instant.now().getEpochSecond();
 		server = grepo.putFilePropsServer(server, server.filehash, server.attrhash);
 
+		testLocal = lrepo.getFileProps(fileUID);
+		testServer = srepo.getFileProps(fileUID);
+		assert !Objects.equals(GFile.fromLocalFile(testLocal), GFile.fromServerFile(testServer));
 
-		Operation op = syncHandler.enqueue(fileUID);
+
+		syncHandler.enqueue(fileUID);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
+
+		testLocal = lrepo.getFileProps(fileUID);
+		testServer = srepo.getFileProps(fileUID);
+		assert Objects.equals(GFile.fromLocalFile(testLocal), GFile.fromServerFile(testServer));
 
 		System.out.println("Test complete!");
 	}
@@ -139,6 +164,11 @@ public class TestSyncOperations {
 		GFile server = GFile.fromServerFile(domainAPI.createFileOnServer(local.toLocalFile()));
 
 
+		LFile testLocal = lrepo.getFileProps(fileUID);
+		SFile testServer = srepo.getFileProps(fileUID);
+		assert Objects.equals(GFile.fromLocalFile(testLocal), GFile.fromServerFile(testServer));
+
+
 		//Now make changes to both
 		local.userattr.addProperty("BOTH_Local", "LocalData");
 		local.changetime = Instant.now().getEpochSecond();
@@ -148,25 +178,22 @@ public class TestSyncOperations {
 		//server.changetime = Instant.now().getEpochSecond();
 		server = grepo.putFilePropsServer(server, server.filehash, server.attrhash);
 
-		System.out.println(local);
-		System.out.println(server);
 
-		try {
-			System.out.println("--------------------------------------------");
-			System.out.println("--------------------------------------------");
-			System.out.println("--------------------------------------------");
-			Thread.sleep(3000);
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
+		testLocal = lrepo.getFileProps(fileUID);
+		testServer = srepo.getFileProps(fileUID);
+		assert !Objects.equals(GFile.fromLocalFile(testLocal), GFile.fromServerFile(testServer));
 
 
-		Operation op = syncHandler.enqueue(fileUID);
+		syncHandler.enqueue(fileUID);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
+
+		testLocal = lrepo.getFileProps(fileUID);
+		testServer = srepo.getFileProps(fileUID);
+		assert Objects.equals(GFile.fromLocalFile(testLocal), GFile.fromServerFile(testServer));
 
 		System.out.println("Test complete!");
 	}
