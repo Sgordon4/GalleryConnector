@@ -18,8 +18,13 @@ import com.example.galleryconnector.repositories.local.content.LContentHandler;
 import com.example.galleryconnector.repositories.local.file.LFile;
 import com.example.galleryconnector.repositories.local.journal.LJournal;
 import com.example.galleryconnector.repositories.local.sync.LSyncFile;
+import com.example.galleryconnector.repositories.server.servertypes.SContent;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -163,7 +168,7 @@ public class LocalRepo {
 		//Check if the repo is missing the file contents. If so, we can't commit the file changes
 		if(fileProps.filehash != null) {
 			try {
-				contentHandler.getProps(fileProps.filehash);
+				getContentProps(fileProps.filehash);
 			} catch (ContentsNotFoundException e) {
 				throw new ContentsNotFoundException("Cannot put props, system is missing file contents!");
 			}
@@ -244,13 +249,23 @@ public class LocalRepo {
 	// Contents
 	//---------------------------------------------------------------------------------------------
 
+
+	public LContent getContentProps(@NonNull String name) throws ContentsNotFoundException {
+		try {
+			return contentHandler.getProps(name);
+		} catch (ContentsNotFoundException e) {
+			throw e;
+		}
+	}
+
+
 	@Nullable
 	public Uri getContentUri(@NonNull String name) throws ContentsNotFoundException {
 		Log.v(TAG, String.format("\nGET LOCAL CONTENT URI called with name='"+name+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		//Throws a ContentsNotFound exception if the content properties don't exist
-		contentHandler.getProps(name);
+		getContentProps(name);
 
 		//Now that we know the properties exist, return the content uri
 		return contentHandler.getContentUri(name);

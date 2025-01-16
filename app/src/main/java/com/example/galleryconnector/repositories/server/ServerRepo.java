@@ -254,13 +254,29 @@ public class ServerRepo {
 	// Contents
 	//---------------------------------------------------------------------------------------------
 
+
+	public SContent getContentProps(@NonNull String name) throws ContentsNotFoundException, ConnectException {
+		try {
+			return contentConn.getProps(name);
+		} catch (ContentsNotFoundException e) {
+			throw e;
+		} catch (ConnectException e) {
+			throw e;
+		} catch (SocketTimeoutException | SocketException e) {
+			throw new ConnectException();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+
 	public Uri getContentDownloadUri(@NonNull String name) throws ContentsNotFoundException, ConnectException {
 		Log.v(TAG, String.format("\nGET SERVER CONTENT URI called with name='"+name+"'"));
 		if(isOnMainThread()) throw new NetworkOnMainThreadException();
 
 		try {
 			//Throws a ContentsNotFound exception if the content properties don't exist
-			contentConn.getProps(name);
+			getContentProps(name);
 
 			//Now that we know the properties exist, return the content uri
 			return Uri.parse(contentConn.getDownloadUrl(name));

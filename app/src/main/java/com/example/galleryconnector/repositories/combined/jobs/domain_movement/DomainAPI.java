@@ -13,6 +13,7 @@ import androidx.work.OneTimeWorkRequest;
 import androidx.work.Operation;
 import androidx.work.WorkInfo;
 import androidx.work.WorkManager;
+import androidx.work.WorkQuery;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.combinedtypes.ContentsNotFoundException;
@@ -28,6 +29,8 @@ import com.example.galleryconnector.repositories.server.servertypes.SFile;
 import java.io.File;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -64,11 +67,19 @@ public class DomainAPI {
 
 
 
+	//TODO Enqueue the worker with an initial delay of a few seconds, to account for user moving back and forth in-app
+	// Only on the first queue though, if the worker doesn't already exist
+	// Or maybe for every one? Actually yeah probably that
+
+	//TODO We also need to make sure the worker is listening for cancel operations, though not sure we should actually
+	// do that, as if a move op is enqueued, canceling after a copy and before the remove would be a no-no
+
 	//Enqueue a Worker to facilitate the domain operations
 	//Returns the operation for testing purposes
-	public Operation enqueue(@NonNull UUID fileUID, @NonNull Integer... newOperations) {
+	public void enqueue(@NonNull UUID fileUID, @NonNull Integer... newOperations) {
 		//Grab any existing operations for an already scheduled worker
 		int operationsMask = getExistingOperations(fileUID);
+		Log.d(TAG, "Existing operations="+operationsMask+". fileUID='"+fileUID+"'");
 
 		//Add all new operations to the existing mask
 		for(int operation : newOperations) {
@@ -79,29 +90,33 @@ public class DomainAPI {
 		//Look for any conflicting operations and, if found, remove both.
 		//E.g. If this operations mask now contains both COPY_TO_LOCAL and REMOVE_FROM_LOCAL,
 		// we can safely remove both as copying a file to local just to remove it would be redundant
-		if((operationsMask & LOCAL_MASK) == LOCAL_MASK)
+		if((operationsMask & LOCAL_MASK) == LOCAL_MASK) {
+			Log.d(TAG, "Operation conflict, removing local ops! fileUID='"+fileUID+"'");
 			operationsMask &= ~(LOCAL_MASK);
-		else if((operationsMask & SERVER_MASK) == SERVER_MASK)
+		}
+		else if((operationsMask & SERVER_MASK) == SERVER_MASK) {
+			Log.d(TAG, "Operation conflict, removing server ops! fileUID='"+fileUID+"'");
 			operationsMask &= ~(SERVER_MASK);
+		}
 
 
 		//Queue a DomainWorker with the new operations mask, replacing any existing worker
 		OneTimeWorkRequest worker = buildWorker(fileUID, operationsMask).build();
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		return workManager.enqueueUniqueWork("domain_"+fileUID, ExistingWorkPolicy.REPLACE, worker);
+		workManager.enqueueUniqueWork("domain_"+fileUID, ExistingWorkPolicy.REPLACE, worker);
 	}
 
 
 	//Dequeue certain operations from an existing worker.
 	//Returns the operation for testing purposes
 	@Nullable
-	public Operation dequeue(@NonNull UUID fileUID, @NonNull Integer... operations) {
+	public void dequeue(@NonNull UUID fileUID, @NonNull Integer... operations) {
 		//Grab any existing operations for an already scheduled worker
 		int operationsMask = getExistingOperations(fileUID);
 
 		//If there are no operations queued, we're done here
 		if((operationsMask & MASK) == 0)
-			return null;
+			return;
 
 
 		//Starting from the existing operations mask, remove all specified operations
@@ -113,7 +128,7 @@ public class DomainAPI {
 		//Queue a DomainWorker with the new operations mask, replacing any existing worker
 		OneTimeWorkRequest worker = buildWorker(fileUID, operationsMask).build();
 		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-		return workManager.enqueueUniqueWork("domain_"+fileUID, ExistingWorkPolicy.REPLACE, worker);
+		workManager.enqueueUniqueWork("domain_"+fileUID, ExistingWorkPolicy.REPLACE, worker);
 	}
 
 
@@ -123,7 +138,12 @@ public class DomainAPI {
 		try {
 			//Grab any existing workers for this fileUID
 			WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
-			List<WorkInfo> existingInfo = workManager.getWorkInfosForUniqueWork("domain_"+fileUID).get();
+			WorkQuery workQuery = WorkQuery.Builder
+					.fromUniqueWorkNames(Collections.singletonList("domain_" + fileUID))
+					.addStates(Collections.singletonList(WorkInfo.State.ENQUEUED))
+					.build();
+			List<WorkInfo> existingInfo = workManager.getWorkInfos(workQuery).get();
+
 
 			//If this fileUID has no workers, we have no existing operations
 			if(existingInfo.isEmpty())

@@ -3,12 +3,15 @@ package com.example.galleryconnector.shittytests;
 import android.net.Uri;
 
 import androidx.work.Operation;
+import androidx.work.WorkInfo;
+import androidx.work.WorkManager;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
 import com.example.galleryconnector.repositories.combined.combinedtypes.GFile;
 import com.example.galleryconnector.repositories.combined.jobs.domain_movement.DomainAPI;
 import com.example.galleryconnector.repositories.server.connectors.ContentConnector;
+import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.BufferedInputStream;
 import java.io.FileOutputStream;
@@ -21,6 +24,7 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -40,26 +44,29 @@ public class TestDomainOperations {
 		String fileHash = importToTempFile();
 
 		//Put the contents in local
-		int filesize = grepo.putContentsLocal(fileHash, externalUri_1MB);
+		if(!grepo.doesContentExistLocal(fileHash))
+			grepo.putContentsLocal(fileHash, externalUri_1MB);
 
 		UUID fileUID = UUID.randomUUID();
 		GFile local = new GFile(fileUID, accountUID);
 		local.filehash = fileHash;
-		local.filesize = filesize;
+		local.filesize = (int) tempFileSmall.toFile().length();
 		local.changetime = Instant.now().getEpochSecond();
 		local.modifytime = Instant.now().getEpochSecond();
 
-		//Attempt to copy to server, but before we actually make the file on local
+		//Attempt to copy to server, but BEFORE we actually make the file on local
 		System.out.println("111111111111111111111111111111111111111111111111111");
 
-		Operation op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER);
 
 		
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
-		//Make sure nothing actually was erroneously created on server
+		//Make sure nothing actually was erroneously created on local or server
+		System.out.println("Asserting...");
+		assert !grepo.isFileLocal(fileUID);
 		assert !grepo.isFileServer(fileUID);
 
 
@@ -68,13 +75,15 @@ public class TestDomainOperations {
 		System.out.println("222222222222222222222222222222222222222222222222222");
 
 		grepo.createFilePropsLocal(local);
-		op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Ensure that the file is now on server
+		System.out.println("Asserting...");
+		assert grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
 
@@ -82,11 +91,16 @@ public class TestDomainOperations {
 		//Try to copy it again now that it exists in server
 		System.out.println("333333333333333333333333333333333333333333333333333");
 
-		op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
+
+		//Ensure that nothing has changed
+		System.out.println("Asserting...");
+		assert grepo.isFileLocal(fileUID);
+		assert grepo.isFileServer(fileUID);
 
 		System.out.println("TEST COMPLETE!");
 	}
@@ -96,52 +110,63 @@ public class TestDomainOperations {
 		String fileHash = importToTempFile();
 
 		//Put the contents in server
-		int filesize = grepo.putContentsServer(fileHash, tempFileSmall.toFile());
+		if(!grepo.doesContentExistServer(fileHash))
+			grepo.putContentsServer(fileHash, tempFileSmall.toFile());
 
 		UUID fileUID = UUID.randomUUID();
 		GFile server = new GFile(fileUID, accountUID);
 		server.filehash = fileHash;
-		server.filesize = filesize;
+		server.filesize = (int) tempFileSmall.toFile().length();
 		server.changetime = Instant.now().getEpochSecond();
 		server.modifytime = Instant.now().getEpochSecond();
 
 
-		//Attempt to copy to local, but before we actually make the file on server
+		//Attempt to copy to local, but BEFORE we actually make the file on server
 		System.out.println("111111111111111111111111111111111111111111111111111");
 
-		Operation op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
-		//Make sure nothing actually was erroneously created on local
+		//Make sure nothing actually was erroneously created on local or server
+		System.out.println("Asserting...");
 		assert !grepo.isFileLocal(fileUID);
+		assert !grepo.isFileServer(fileUID);
+
 
 
 
 		//Actually make the file in server and try again
 		System.out.println("222222222222222222222222222222222222222222222222222");
 		grepo.createFilePropsServer(server);
-		op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Ensure that the file is now on local
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
+		assert grepo.isFileServer(fileUID);
 
 
 
 		//Try to copy it again now that it exists in local
 		System.out.println("333333333333333333333333333333333333333333333333333");
 
-		op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
+
+		//Ensure that nothing has changed
+		System.out.println("Asserting...");
+		assert grepo.isFileLocal(fileUID);
+		assert grepo.isFileServer(fileUID);
 
 		System.out.println("TEST COMPLETE!");
 	}
@@ -155,36 +180,39 @@ public class TestDomainOperations {
 		String fileHash = importToTempFile();
 
 		//Put the contents in local
-		int filesize = grepo.putContentsLocal(fileHash, externalUri_1MB);
+		if(!grepo.doesContentExistLocal(fileHash))
+			grepo.putContentsLocal(fileHash, externalUri_1MB);
 
 		UUID fileUID = UUID.randomUUID();
 		GFile local = new GFile(fileUID, accountUID);
 		local.filehash = fileHash;
-		local.filesize = filesize;
+		local.filesize = (int) tempFileSmall.toFile().length();
 		local.changetime = Instant.now().getEpochSecond();
 		local.modifytime = Instant.now().getEpochSecond();
 
 		local = grepo.createFilePropsLocal(local);
-		Operation op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Make sure that the file is on local AND the server
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
 
 
 		//Try to copy to both again and see what happens
-		op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL, DomainAPI.COPY_TO_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL, DomainAPI.COPY_TO_SERVER);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Make sure nothing changed
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
@@ -196,36 +224,39 @@ public class TestDomainOperations {
 		String fileHash = importToTempFile();
 
 		//Put the contents in server
-		int filesize = grepo.putContentsServer(fileHash, tempFileSmall.toFile());
+		if(!grepo.doesContentExistServer(fileHash))
+			grepo.putContentsServer(fileHash, tempFileSmall.toFile());
 
 		UUID fileUID = UUID.randomUUID();
 		GFile server = new GFile(fileUID, accountUID);
 		server.filehash = fileHash;
-		server.filesize = filesize;
+		server.filesize = (int) tempFileSmall.toFile().length();
 		server.changetime = Instant.now().getEpochSecond();
 		server.modifytime = Instant.now().getEpochSecond();
 
 		server = grepo.createFilePropsServer(server);
-		Operation op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Make sure that the file is on local AND the server
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
 
 
 		//Try to copy to both again and see what happens
-		op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL, DomainAPI.COPY_TO_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL, DomainAPI.COPY_TO_SERVER);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Make sure nothing changed
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
@@ -241,29 +272,33 @@ public class TestDomainOperations {
 		String fileHash = importToTempFile();
 
 		//Put the contents in local
-		int filesize = grepo.putContentsLocal(fileHash, externalUri_1MB);
+		if(!grepo.doesContentExistLocal(fileHash))
+			grepo.putContentsLocal(fileHash, externalUri_1MB);
 
 		UUID fileUID = UUID.randomUUID();
 		GFile local = new GFile(fileUID, accountUID);
 		local.filehash = fileHash;
-		local.filesize = filesize;
+		local.filesize = (int) tempFileSmall.toFile().length();
 		local.changetime = Instant.now().getEpochSecond();
 		local.modifytime = Instant.now().getEpochSecond();
 
 		local = grepo.createFilePropsLocal(local);
 
+		//Ensure the file is not on server to start
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
 		assert !grepo.isFileServer(fileUID);
 
 
 		//Queue two operations to move the file to the server
-		Operation op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER, DomainAPI.REMOVE_FROM_LOCAL);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER, DomainAPI.REMOVE_FROM_LOCAL);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Ensure that the file is on the server but not on local
+		System.out.println("Asserting...");
 		assert !grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
@@ -275,29 +310,33 @@ public class TestDomainOperations {
 		String fileHash = importToTempFile();
 
 		//Put the contents in server
-		int filesize = grepo.putContentsServer(fileHash, tempFileSmall.toFile());
+		if(!grepo.doesContentExistServer(fileHash))
+			grepo.putContentsServer(fileHash, tempFileSmall.toFile());
 
 		UUID fileUID = UUID.randomUUID();
 		GFile server = new GFile(fileUID, accountUID);
 		server.filehash = fileHash;
-		server.filesize = filesize;
+		server.filesize = (int) tempFileSmall.toFile().length();
 		server.changetime = Instant.now().getEpochSecond();
 		server.modifytime = Instant.now().getEpochSecond();
 
 		server = grepo.createFilePropsServer(server);
 
+		//Ensure the file is not on local to start
+		System.out.println("Asserting...");
 		assert !grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
 
 		//Queue two operations to move the file to local
-		Operation op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL, DomainAPI.REMOVE_FROM_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL, DomainAPI.REMOVE_FROM_SERVER);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Ensure that the file is on local but not on the server
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
 		assert !grepo.isFileServer(fileUID);
 
@@ -312,30 +351,33 @@ public class TestDomainOperations {
 		String fileHash = importToTempFile();
 
 		//Put the contents in local
-		int filesize = grepo.putContentsLocal(fileHash, externalUri_1MB);
+		if(!grepo.doesContentExistLocal(fileHash))
+			grepo.putContentsLocal(fileHash, externalUri_1MB);
 
 		UUID fileUID = UUID.randomUUID();
 		GFile local = new GFile(fileUID, accountUID);
 		local.filehash = fileHash;
-		local.filesize = filesize;
+		local.filesize = (int) tempFileSmall.toFile().length();
 		local.changetime = Instant.now().getEpochSecond();
 		local.modifytime = Instant.now().getEpochSecond();
 
 		local = grepo.createFilePropsLocal(local);
 
 		//Ensure the file is only on local
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
 		assert !grepo.isFileServer(fileUID);
 
 
 		//Queue two opposite operations
-		Operation op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER, DomainAPI.REMOVE_FROM_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER, DomainAPI.REMOVE_FROM_SERVER);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Make sure that nothing has happened
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
 		assert !grepo.isFileServer(fileUID);
 
@@ -347,30 +389,33 @@ public class TestDomainOperations {
 		String fileHash = importToTempFile();
 
 		//Put the contents in server
-		int filesize = grepo.putContentsServer(fileHash, tempFileSmall.toFile());
+		if(!grepo.doesContentExistServer(fileHash))
+			grepo.putContentsServer(fileHash, tempFileSmall.toFile());
 
 		UUID fileUID = UUID.randomUUID();
 		GFile server = new GFile(fileUID, accountUID);
 		server.filehash = fileHash;
-		server.filesize = filesize;
+		server.filesize = (int) tempFileSmall.toFile().length();
 		server.changetime = Instant.now().getEpochSecond();
 		server.modifytime = Instant.now().getEpochSecond();
 
 		server = grepo.createFilePropsServer(server);
 
 		//Ensure the file is only on the server
+		System.out.println("Asserting...");
 		assert !grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
 
 		//Queue two opposite operations
-		Operation op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL, DomainAPI.REMOVE_FROM_LOCAL);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_LOCAL, DomainAPI.REMOVE_FROM_LOCAL);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Make sure that nothing has happened
+		System.out.println("Asserting...");
 		assert !grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
@@ -385,46 +430,80 @@ public class TestDomainOperations {
 		String fileHash = importToTempFile();
 
 		//Put the contents in local
-		int filesize = grepo.putContentsLocal(fileHash, externalUri_1MB);
+		if(!grepo.doesContentExistLocal(fileHash))
+			grepo.putContentsLocal(fileHash, externalUri_1MB);
 
 		UUID fileUID = UUID.randomUUID();
 		GFile local = new GFile(fileUID, accountUID);
 		local.filehash = fileHash;
-		local.filesize = filesize;
+		local.filesize = (int) tempFileSmall.toFile().length();
 		local.changetime = Instant.now().getEpochSecond();
 		local.modifytime = Instant.now().getEpochSecond();
 
 		//Create the file in local only
 		local = grepo.createFilePropsLocal(local);
 
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
 		assert !grepo.isFileServer(fileUID);
 
 
+		System.out.println("111111111111111111111111111111111111111111111111111");
 
 		//Copy the file to the server
-		Operation op = domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.COPY_TO_SERVER);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Make sure the file exists in both repos
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
 
+		System.out.println("222222222222222222222222222222222222222222222222222");
+
+
+		try {
+			WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+			List<WorkInfo> info = workManager.getWorkInfosForUniqueWork("domain_"+fileUID).get();
+
+			System.out.println("WorkInfo size:"+info.size());
+
+
+		} catch (ExecutionException | InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 
 		//Queue two removes
-		op = domainAPI.enqueue(fileUID, DomainAPI.REMOVE_FROM_LOCAL, DomainAPI.REMOVE_FROM_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.REMOVE_FROM_LOCAL, DomainAPI.REMOVE_FROM_SERVER);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Make sure that both are gone
+		System.out.println("Asserting...");
 		assert !grepo.isFileLocal(fileUID);
 		assert !grepo.isFileServer(fileUID);
+
+
+		System.out.println("333333333333333333333333333333333333333333333333333");
+
+		//Queue two removes AGAIN
+		domainAPI.enqueue(fileUID, DomainAPI.REMOVE_FROM_LOCAL, DomainAPI.REMOVE_FROM_SERVER);
+
+		//Wait for the operation to complete
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
+
+		//Make sure that both are STILL gone, and that nothing was unhidden
+		System.out.println("Asserting...");
+		assert !grepo.isFileLocal(fileUID);
+		assert !grepo.isFileServer(fileUID);
+
 
 		System.out.println("TEST COMPLETE!");
 	}
@@ -434,30 +513,35 @@ public class TestDomainOperations {
 		String fileHash = importToTempFile();
 
 		//Put the contents in local
-		int filesize = grepo.putContentsLocal(fileHash, externalUri_1MB);
+		if(!grepo.doesContentExistLocal(fileHash))
+			grepo.putContentsLocal(fileHash, externalUri_1MB);
 
 		UUID fileUID = UUID.randomUUID();
 		GFile local = new GFile(fileUID, accountUID);
 		local.filehash = fileHash;
-		local.filesize = filesize;
+		local.filesize = (int) tempFileSmall.toFile().length();
 		local.changetime = Instant.now().getEpochSecond();
 		local.modifytime = Instant.now().getEpochSecond();
 
 		//Create the file in local only
 		local = grepo.createFilePropsLocal(local);
 
+		System.out.println("Asserting...");
 		assert grepo.isFileLocal(fileUID);
 		assert !grepo.isFileServer(fileUID);
 
 
+		System.out.println("111111111111111111111111111111111111111111111111111");
+
 		//Queue two removes
-		Operation op = domainAPI.enqueue(fileUID, DomainAPI.REMOVE_FROM_LOCAL, DomainAPI.REMOVE_FROM_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.REMOVE_FROM_LOCAL, DomainAPI.REMOVE_FROM_SERVER);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Make sure that file does not exist in either repo
+		System.out.println("Asserting...");
 		assert !grepo.isFileLocal(fileUID);
 		assert !grepo.isFileServer(fileUID);
 
@@ -469,31 +553,35 @@ public class TestDomainOperations {
 		String fileHash = importToTempFile();
 
 		//Put the contents in server
-		int filesize = grepo.putContentsServer(fileHash, tempFileSmall.toFile());
+		if(!grepo.doesContentExistServer(fileHash))
+			grepo.putContentsServer(fileHash, tempFileSmall.toFile());
 
 		UUID fileUID = UUID.randomUUID();
 		GFile server = new GFile(fileUID, accountUID);
 		server.filehash = fileHash;
-		server.filesize = filesize;
+		server.filesize = (int) tempFileSmall.toFile().length();
 		server.changetime = Instant.now().getEpochSecond();
 		server.modifytime = Instant.now().getEpochSecond();
 
 		//Create a file in server only
 		server = grepo.createFilePropsServer(server);
 
+		System.out.println("Asserting...");
 		assert !grepo.isFileLocal(fileUID);
 		assert grepo.isFileServer(fileUID);
 
 
+		System.out.println("111111111111111111111111111111111111111111111111111");
 
 		//Queue two removes
-		Operation op = domainAPI.enqueue(fileUID, DomainAPI.REMOVE_FROM_LOCAL, DomainAPI.REMOVE_FROM_SERVER);
+		domainAPI.enqueue(fileUID, DomainAPI.REMOVE_FROM_LOCAL, DomainAPI.REMOVE_FROM_SERVER);
 
 		//Wait for the operation to complete
-		try { op.getResult().get(); }
-		catch (ExecutionException | InterruptedException e) { throw new RuntimeException(e); }
+		try { Thread.sleep(3000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
 
 		//Make sure that file does not exist in either repo
+		System.out.println("Asserting...");
 		assert !grepo.isFileLocal(fileUID);
 		assert !grepo.isFileServer(fileUID);
 

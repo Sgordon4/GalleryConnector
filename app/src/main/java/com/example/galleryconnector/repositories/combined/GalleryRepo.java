@@ -310,6 +310,23 @@ public class GalleryRepo {
 	//---------------------------------------------------------------------------------------------
 
 
+	public boolean doesContentExistLocal(@NonNull String name) {
+		try {
+			localRepo.getContentProps(name);
+			return true;
+		} catch (ContentsNotFoundException e) {
+			return false;
+		}
+	}
+	public boolean doesContentExistServer(@NonNull String name) throws ConnectException {
+		try {
+			serverRepo.getContentProps(name);
+			return true;
+		} catch (ContentsNotFoundException e) {
+			return false;
+		}
+	}
+
 	public Uri getContentUri(@NonNull String name) throws ContentsNotFoundException, ConnectException {
 		//Try to get the file contents from local. If they exist, return that.
 		try {

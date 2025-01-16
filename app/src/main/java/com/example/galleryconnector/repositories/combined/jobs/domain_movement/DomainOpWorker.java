@@ -47,6 +47,17 @@ public class DomainOpWorker extends Worker {
 		int operationsMap = Integer.parseInt(operationsMapString);
 
 
+		//For testing
+		if((operationsMap & DomainAPI.COPY_TO_LOCAL) > 0)
+			Log.d(TAG, "DomWorker is copying to local.");
+		if((operationsMap & DomainAPI.COPY_TO_SERVER) > 0)
+			Log.d(TAG, "DomWorker is copying to server.");
+		if((operationsMap & DomainAPI.REMOVE_FROM_LOCAL) > 0)
+			Log.d(TAG, "DomWorker is removing from local.");
+		if((operationsMap & DomainAPI.REMOVE_FROM_SERVER) > 0)
+			Log.d(TAG, "DomWorker is removing from server.");
+
+
 
 		try {
 			//Note: Having something like both COPY_TO_LOCAL and COPY_TO_SERVER is technically valid.
@@ -105,7 +116,6 @@ public class DomainOpWorker extends Worker {
 		}
 
 
-		System.out.println("DomainWorker Finished!");
 		return Result.success();
 	}
 }

@@ -39,12 +39,13 @@ public class MainActivity extends AppCompatActivity {
 		});
 
 
+		/*
 		Configuration config = new Configuration.Builder()
 				.setMinimumLoggingLevel(Log.VERBOSE)
 				.setExecutor(Executors.newSingleThreadExecutor())
 				.build();
-
 		WorkManager.initialize(getApplicationContext(), config);
+		 */
 	}
 
 
@@ -120,9 +121,9 @@ public class MainActivity extends AppCompatActivity {
 			/**/
 
 
-			/**/
+			/*
 			try {
-				testDomainOps.testWorkerCopyToServer();
+				//testDomainOps.testWorkerCopyToServer();
 				//testDomainOps.testWorkerCopyToLocal();
 
 				//testDomainOps.testWorkerCopyToBoth_StartingLocal();
@@ -136,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
 
 				//testDomainOps.testWorkerRemoveBoth_Both();
 				//testDomainOps.testWorkerRemoveBoth_Local();
-				//testDomainOps.testWorkerRemoveBoth_Server();
+				testDomainOps.testWorkerRemoveBoth_Server();
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
