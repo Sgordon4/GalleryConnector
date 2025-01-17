@@ -1,13 +1,24 @@
 package com.example.galleryconnector.repositories.combined.jobs.writestalling;
 
+import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.work.Data;
+import androidx.work.ExistingWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
+import androidx.work.Worker;
+import androidx.work.WorkerParameters;
 
+import com.example.galleryconnector.MyApplication;
+
+import java.io.File;
 import java.net.ConnectException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -136,5 +147,57 @@ public class WriteStallWorkers {
 		public interface onStopCallback {
 			void onStop(UUID fileUID);
 		};
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+
+
+	public static void launchDeleteWorker(@NonNull UUID fileUID) {
+		Data.Builder data = new Data.Builder();
+		data.putString("FILEUID", fileUID.toString());
+
+		OneTimeWorkRequest worker = new OneTimeWorkRequest.Builder(WriteStallWorkers.WriteStallDeleteWorker.class)
+				.addTag(fileUID.toString()).addTag("WRITESTALL")
+				.setInputData(data.build())
+				.setInitialDelay(5, TimeUnit.MINUTES)
+				.build();
+
+		WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+		workManager.enqueueUniqueWork("stall_"+fileUID, ExistingWorkPolicy.KEEP, worker);
+	}
+
+	public static class WriteStallDeleteWorker extends Worker {
+
+		public WriteStallDeleteWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
+			super(context, workerParams);
+		}
+
+		@NonNull
+		@Override
+		public Result doWork() {
+			Log.i(TAG, "WriteStall Delete Worker doing work");
+
+			String fileUIDString = getInputData().getString("FILEUID");
+			assert fileUIDString != null;
+			UUID fileUID = UUID.fromString(fileUIDString);
+
+			WriteStalling writeStalling = WriteStalling.getInstance();
+
+			//If the file is for some reason no longer hidden, do nothing
+			if(!Objects.equals(writeStalling.getAttribute(fileUID, "isHidden"), "true"))
+				return Result.failure();
+
+
+			//Otherwise delete the files
+			File stallFile = writeStalling.getStallFile(fileUID);
+			File metadataFile = writeStalling.getMetadataFile(fileUID);
+
+			stallFile.delete();
+			metadataFile.delete();
+
+
+			return Result.success();
+		}
 	}
 }

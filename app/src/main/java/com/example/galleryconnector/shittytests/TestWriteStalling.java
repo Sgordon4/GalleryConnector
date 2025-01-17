@@ -68,6 +68,107 @@ public class TestWriteStalling {
 		return fileHash;
 	}
 
+	public void testDeleteWorker() throws IOException {
+		File stallFile = writeStalling.getStallFile(fileUID);
+
+		clearStallFiles();
+		assert !stallFile.exists();
+		assert !writeStalling.doesStallFileExist(fileUID);
+
+
+
+		System.out.println("Deleting a file that doesn't exist...");
+		//Try to delete a file that doesn't exist
+		writeStalling.delete(fileUID);
+		//Make sure the file still does not exist
+		assert !stallFile.exists();
+		assert !writeStalling.doesStallFileExist(fileUID);
+
+		//Wait to see if the operation runs
+		try { Thread.sleep(5000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
+
+		//Make sure the file still does not exist
+		assert !stallFile.exists();
+		assert !writeStalling.doesStallFileExist(fileUID);
+
+
+
+		System.out.println("Writing to file for the first time...");
+		//Write to the stall file to create it
+		writeStalling.write(fileUID, sampleData.getBytes(), "null");
+
+		//Make sure the contents are as they should be
+		assert stallFile.exists();
+		assert writeStalling.doesStallFileExist(fileUID);
+		byte[] contents = Files.readAllBytes(stallFile.toPath());
+		assert contents.length == sampleData.length();
+		assert new String(contents).equals(sampleData);
+
+
+
+		System.out.println("Marking file for deletion...");
+		//Mark it for deletion
+		writeStalling.delete(fileUID);
+		//Make sure it was marked for deletion but wasn't immediately deleted
+		assert stallFile.exists();
+		assert !writeStalling.doesStallFileExist(fileUID);
+
+
+
+		System.out.println("Undeleting file...");
+		//Then immediately write again to undelete it
+		String newSampleData = "Otherdata";
+		writeStalling.write(fileUID, newSampleData.getBytes(), "null");
+
+		//Make sure the contents are as they should be
+		assert stallFile.exists();
+		assert writeStalling.doesStallFileExist(fileUID);
+		contents = Files.readAllBytes(writeStalling.getStallFile(fileUID).toPath());
+		assert contents.length == newSampleData.length();
+		assert new String(contents).equals(newSampleData);
+
+
+
+		//And wait to make sure the previous deletion does NOT take place
+		try { Thread.sleep(5000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
+		System.out.println("Did delete worker run incorrectly?");
+
+
+
+		//Make sure the contents are as they should be
+		assert stallFile.exists();
+		assert writeStalling.doesStallFileExist(fileUID);
+		contents = Files.readAllBytes(writeStalling.getStallFile(fileUID).toPath());
+		assert contents.length == newSampleData.length();
+		assert new String(contents).equals(newSampleData);
+
+
+
+		System.out.println("ACTUALLY marking the file for deletion...");
+		//Now ACTUALLY mark it for deletion
+		writeStalling.delete(fileUID);
+		//Make sure it was marked for deletion but wasn't immediately deleted
+		assert stallFile.exists();
+		assert !writeStalling.doesStallFileExist(fileUID);
+
+		//Wait to see if the delete takes place
+		try { Thread.sleep(5000); }
+		catch (InterruptedException e) { throw new RuntimeException(e); }
+
+
+
+		System.out.println("Asserting that things have been removed...");
+		//Make sure the file was actually deleted
+		assert !stallFile.exists();
+		assert !writeStalling.doesStallFileExist(fileUID);
+
+
+		System.out.println("Delete test completed!");
+	}
+
+
 
 	public void testPersistLocal() throws IOException {
 		grepo.deleteFilePropsLocal(fileUID);

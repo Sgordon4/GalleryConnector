@@ -6,6 +6,10 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.work.Data;
+import androidx.work.ExistingWorkPolicy;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
 
 import com.example.galleryconnector.MyApplication;
 import com.example.galleryconnector.repositories.combined.GalleryRepo;
@@ -38,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.StampedLock;
 import java.util.stream.Collectors;
 
@@ -107,13 +112,16 @@ public class WriteStalling {
 		if(!stallDir.exists())
 			return new ArrayList<>();
 
-		return Arrays.stream(stallDir.list()).filter(f -> !f.endsWith(".metadata"))
-				.map(UUID::fromString).collect(Collectors.toList());
+		return Arrays.stream(stallDir.list())
+				.filter(f -> !f.endsWith(".metadata"))
+				.map(UUID::fromString)
+				.filter(uuid -> !Objects.equals(getAttribute(uuid, "isHidden"), "true"))
+				.collect(Collectors.toList());
 	}
 
 	public boolean doesStallFileExist(@NonNull UUID fileUID) {
 		File stallFile = getStallFile(fileUID);
-		return stallFile.exists();
+		return stallFile.exists() && !Objects.equals(getAttribute(fileUID, "isHidden"), "true");
 	}
 
 
@@ -143,21 +151,60 @@ public class WriteStalling {
 		File stallFile = getStallFile(fileUID);
 		File metadataFile = getMetadataFile(fileUID);
 
-		//Create the stall file
-		Files.createDirectories(stallFile.toPath().getParent());
-		Files.createFile(stallFile.toPath());
+		if(!stallFile.exists()) {
+			//Create the stall file
+			Files.createDirectories(stallFile.toPath().getParent());
+			Files.createFile(stallFile.toPath());
+		}
+		if(!metadataFile.exists()) {
+			//And create its companion metadata file
+			Files.createDirectories(metadataFile.toPath().getParent());
+			Files.createFile(metadataFile.toPath());
+		}
 
-		//And create its companion metadata file
-		Files.createDirectories(metadataFile.toPath().getParent());
-		Files.createFile(metadataFile.toPath());
+
+		//If the file was actually just hidden, cancel the delete job
+		if(Objects.equals(getAttribute(fileUID, "isHidden"), "true")) {
+			WorkManager workManager = WorkManager.getInstance(MyApplication.getAppContext());
+			workManager.cancelUniqueWork("stall_"+fileUID);
+
+			//Make sure the metadata file is empty as it would be if we just created it
+			Files.write(metadataFile.toPath(), new byte[0]);
+
+			//Don't delete the stallFile data in case something is STILL reading it somehow,
+			// just pretend there is none and overwrite it later
+		}
 	}
 
+
+	//Directly deleting the file may be problematic if another thread has a content uri and is trying to display it.
+	//Therefore we need to mark it as hidden so we don't use it anymore,
+	// and launch a job to actually delete it a few minutes into the future.
 	//Note: Don't delete the lock for the file as other threads may be waiting for it
 	public void delete(@NonNull UUID fileUID) {
 		File stallFile = getStallFile(fileUID);
 		File stallMetadata = getMetadataFile(fileUID);
-		stallFile.delete();
-		stallMetadata.delete();
+
+		//If the file already doesn't exist, we're done here
+		if(!stallFile.exists()) {
+			if(stallMetadata.exists())
+				stallMetadata.delete();
+			return;
+		}
+
+
+		//For efficiency, make sure we haven't already 'deleted' the files
+		String isHidden = getAttribute(fileUID, "isHidden");
+		if(Objects.equals(isHidden, "true"))
+			return;
+
+
+		//Assuming stallMetadata exists if stallFile exists...
+		//Mark the file as hidden
+		putAttribute(fileUID, "isHidden", String.valueOf(true));
+
+		//And launch a Delete worker to delete the files
+		WriteStallWorkers.launchDeleteWorker(fileUID);
 	}
 
 
@@ -169,7 +216,7 @@ public class WriteStalling {
 		File stallFile = getStallFile(fileUID);
 
 		//If the stall file already exists...
-		if(stallFile.exists()) {
+		if(doesStallFileExist(fileUID)) {
 			//Check that the last hash written to it matches what we've been given
 			String writtenHash = getAttribute(fileUID, "hash");
 			if(!Objects.equals(writtenHash, lastHash))
@@ -179,11 +226,8 @@ public class WriteStalling {
 		//If the stall file does not exist...
 		else {
 			try {
-				System.out.println("Creating stall file");
 				//We need to create it
 				createStallFile(fileUID);
-
-				System.out.println("Created "+stallFile.toPath());
 
 				//We can't guarantee we can reach the existing fileProps (server connection), so for speed we'll need to use the passed lastHash as the sync-point
 				//Not connecting to check also has the side effect of allowing a write to a fileUID that doesn't exist, but we can just discard later if so
@@ -364,24 +408,24 @@ public class WriteStalling {
 
 
 	@Nullable
-	private String getAttribute(@NonNull UUID fileUID, @NonNull String attribute) /*throws FileNotFoundException*/ {
+	protected String getAttribute(@NonNull UUID fileUID, @NonNull String attribute) {
 		try {
 			JsonObject props = readAttributes(fileUID);
 			JsonElement prop = props.get(attribute);;
 
 			return prop == null ? null : prop.getAsString();
 		}
-		catch (FileNotFoundException e) { throw new RuntimeException(e); }
+		catch (FileNotFoundException e) { return null; }
 	}
 
-	private void putAttribute(@NonNull UUID fileUID, @NonNull String key, @Nullable String value) /*throws FileNotFoundException*/ {
+	private void putAttribute(@NonNull UUID fileUID, @NonNull String key, @Nullable String value) {
 		try {
 			JsonObject props = readAttributes(fileUID);
 			props.addProperty(key, value);
 
 			writeAttributes(fileUID, props);
 		}
-		catch (FileNotFoundException e) { throw new RuntimeException(e); }
+		catch (FileNotFoundException e) { return; }
 	}
 
 
@@ -434,7 +478,7 @@ public class WriteStalling {
 
 
 	@NonNull
-	public File getStallFile(@NonNull UUID fileUID) {
+	/*protected*/ public File getStallFile(@NonNull UUID fileUID) {
 		//Starting out of the app's data directory...
 		Context context = MyApplication.getAppContext();
 		String appDataDir = context.getApplicationInfo().dataDir;
@@ -446,7 +490,7 @@ public class WriteStalling {
 		return new File(tempRoot, fileUID.toString());
 	}
 	@NonNull
-	private File getMetadataFile(@NonNull UUID fileUID) {
+	protected File getMetadataFile(@NonNull UUID fileUID) {
 		//Starting out of the app's data directory...
 		Context context = MyApplication.getAppContext();
 		String appDataDir = context.getApplicationInfo().dataDir;

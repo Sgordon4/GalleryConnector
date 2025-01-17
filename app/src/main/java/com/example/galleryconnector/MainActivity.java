@@ -93,9 +93,10 @@ public class MainActivity extends AppCompatActivity {
 			/*
 			try {
 				//testWrite.testWrite(null);
+				testWrite.testDeleteWorker();
 				//testWrite.testPersistLocal();
 				//testWrite.testPersistServer();
-				testWrite.testPersistWithBoth();
+				//testWrite.testPersistWithBoth();
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -126,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
 			/**/
 
 
-			testDomainOps.testNoConnectionDoesntExplodeEverything();
+			//testDomainOps.testNoConnectionDoesntExplodeEverything();
 			/*
 			try {
 				//testDomainOps.testWorkerCopyToServer();
